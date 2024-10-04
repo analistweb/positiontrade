@@ -5,30 +5,43 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useQuery } from '@tanstack/react-query';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-const API_KEY = 'CHAVE_DE_API_DE_EXEMPLO'; // Substitua pela sua chave real da API Whale Alert
-
-const fetchWhaleTransactions = async () => {
+const fetchTopCryptos = async () => {
   try {
-    const response = await axios.get(`https://api.whale-alert.io/v1/transactions`, {
+    const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
       params: {
-        api_key: API_KEY,
-        min_value: 500000,
-        limit: 10
+        vs_currency: 'usd',
+        order: 'market_cap_desc',
+        per_page: 10,
+        page: 1,
+        sparkline: false
       }
     });
-    return response.data.transactions;
+    return response.data;
   } catch (error) {
     console.error('Erro ao buscar dados:', error);
-    throw new Error(error.response?.data?.message || 'Falha ao carregar dados da API');
+    throw new Error('Falha ao carregar dados da API');
   }
 };
 
+const simulateWhaleTransactions = (cryptos) => {
+  return cryptos.map(crypto => ({
+    id: crypto.id,
+    symbol: crypto.symbol,
+    amount: Math.floor(Math.random() * 1000000) + 500000,
+    from: Math.random() > 0.5 ? 'Exchange' : 'Unknown',
+    to: Math.random() > 0.5 ? 'Wallet' : 'Exchange',
+    timestamp: Date.now() - Math.floor(Math.random() * 86400000)
+  }));
+};
+
 const PosicaoCarteira = () => {
-  const { data: whaleTransactions, isLoading, error } = useQuery({
-    queryKey: ['whaleTransactions'],
-    queryFn: fetchWhaleTransactions,
+  const { data: cryptos, isLoading, error } = useQuery({
+    queryKey: ['topCryptos'],
+    queryFn: fetchTopCryptos,
     refetchInterval: 300000, // Atualiza a cada 5 minutos
   });
+
+  const whaleTransactions = cryptos ? simulateWhaleTransactions(cryptos) : [];
 
   if (isLoading) return <div className="p-4">Carregando...</div>;
 
@@ -40,7 +53,7 @@ const PosicaoCarteira = () => {
           <AlertDescription>
             Falha ao carregar os dados: {error.message}
             <br />
-            Por favor, verifique sua conexão com a internet e se a chave da API está correta.
+            Por favor, verifique sua conexão com a internet.
           </AlertDescription>
         </Alert>
       </div>
@@ -53,14 +66,14 @@ const PosicaoCarteira = () => {
       
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Movimentações de Baleias Cripto</CardTitle>
+          <CardTitle>Movimentações de Grandes Carteiras (Simuladas)</CardTitle>
         </CardHeader>
         <CardContent>
-          {whaleTransactions && whaleTransactions.length > 0 ? (
+          {whaleTransactions.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Blockchain</TableHead>
+                  <TableHead>Criptomoeda</TableHead>
                   <TableHead>Valor (USD)</TableHead>
                   <TableHead>De</TableHead>
                   <TableHead>Para</TableHead>
@@ -68,13 +81,13 @@ const PosicaoCarteira = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {whaleTransactions.map((transaction, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{transaction.blockchain}</TableCell>
-                    <TableCell>${transaction.amount_usd.toLocaleString()}</TableCell>
-                    <TableCell>{transaction.from.owner_type}</TableCell>
-                    <TableCell>{transaction.to.owner_type}</TableCell>
-                    <TableCell>{new Date(transaction.timestamp * 1000).toLocaleString()}</TableCell>
+                {whaleTransactions.map((transaction) => (
+                  <TableRow key={transaction.id}>
+                    <TableCell>{transaction.symbol.toUpperCase()}</TableCell>
+                    <TableCell>${transaction.amount.toLocaleString()}</TableCell>
+                    <TableCell>{transaction.from}</TableCell>
+                    <TableCell>{transaction.to}</TableCell>
+                    <TableCell>{new Date(transaction.timestamp).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -91,15 +104,15 @@ const PosicaoCarteira = () => {
         </CardHeader>
         <CardContent>
           <p>
-            Com base nas movimentações recentes das baleias cripto, observamos as seguintes tendências:
+            Com base nas movimentações simuladas de grandes carteiras, observamos as seguintes tendências:
           </p>
           <ul className="list-disc pl-5 mt-2">
-            <li>Aumento de transferências de exchanges para carteiras privadas, indicando possível acumulação.</li>
-            <li>Crescimento no volume de transações em blockchains específicas, sugerindo maior atividade em certos projetos.</li>
-            <li>Movimentações significativas de stablecoins, podendo indicar preparação para compras ou vendas em larga escala.</li>
+            <li>Movimentações significativas em várias criptomoedas de alto valor de mercado.</li>
+            <li>Transferências frequentes entre exchanges e carteiras privadas, indicando possível atividade de acumulação ou distribuição.</li>
+            <li>Variação nos volumes de transações entre diferentes criptomoedas, sugerindo mudanças no interesse dos grandes investidores.</li>
           </ul>
           <p className="mt-4">
-            Recomendamos monitorar de perto essas tendências para ajustar estratégias de investimento conforme necessário.
+            Lembre-se de que estes dados são simulados para fins de demonstração. Em um cenário real, seria crucial analisar dados verificados de transações de grandes carteiras para obter insights mais precisos sobre as tendências do mercado.
           </p>
         </CardContent>
       </Card>
