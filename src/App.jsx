@@ -14,7 +14,7 @@ const App = () => (
         <div className="flex h-screen bg-gray-100">
           <nav className="w-64 bg-white shadow-lg">
             <div className="p-4">
-              <h1 className="text-2xl font-bold mb-4">Crypto Analytics</h1>
+              <h1 className="text-2xl font-bold mb-4">Análise de Criptomoedas</h1>
               <ul>
                 {navItems.map(({ title, to, icon }) => (
                   <li key={to} className="mb-2">
