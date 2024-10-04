@@ -1,13 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQuery } from '@tanstack/react-query';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+const API_KEY = 'CHAVE_DE_API_DE_EXEMPLO'; // Substitua pela sua chave real da API Whale Alert
 
 const fetchWhaleTransactions = async () => {
-  // Substitua 'SUA_CHAVE_API' pela sua chave real da API Whale Alert
-  const response = await axios.get('https://api.whale-alert.io/v1/transactions?api_key=SUA_CHAVE_API&min_value=500000&limit=10');
-  return response.data.transactions;
+  try {
+    const response = await axios.get(`https://api.whale-alert.io/v1/transactions`, {
+      params: {
+        api_key: API_KEY,
+        min_value: 500000,
+        limit: 10
+      }
+    });
+    return response.data.transactions;
+  } catch (error) {
+    console.error('Erro ao buscar dados:', error);
+    throw new Error(error.response?.data?.message || 'Falha ao carregar dados da API');
+  }
 };
 
 const PosicaoCarteira = () => {
@@ -17,8 +30,22 @@ const PosicaoCarteira = () => {
     refetchInterval: 300000, // Atualiza a cada 5 minutos
   });
 
-  if (isLoading) return <div>Carregando...</div>;
-  if (error) return <div>Erro ao carregar os dados: {error.message}</div>;
+  if (isLoading) return <div className="p-4">Carregando...</div>;
+
+  if (error) {
+    return (
+      <div className="p-4">
+        <Alert variant="destructive">
+          <AlertTitle>Erro</AlertTitle>
+          <AlertDescription>
+            Falha ao carregar os dados: {error.message}
+            <br />
+            Por favor, verifique sua conexão com a internet e se a chave da API está correta.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4">
@@ -29,28 +56,32 @@ const PosicaoCarteira = () => {
           <CardTitle>Movimentações de Baleias Cripto</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Blockchain</TableHead>
-                <TableHead>Valor (USD)</TableHead>
-                <TableHead>De</TableHead>
-                <TableHead>Para</TableHead>
-                <TableHead>Timestamp</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {whaleTransactions && whaleTransactions.map((transaction, index) => (
-                <TableRow key={index}>
-                  <TableCell>{transaction.blockchain}</TableCell>
-                  <TableCell>${transaction.amount_usd.toLocaleString()}</TableCell>
-                  <TableCell>{transaction.from.owner_type}</TableCell>
-                  <TableCell>{transaction.to.owner_type}</TableCell>
-                  <TableCell>{new Date(transaction.timestamp * 1000).toLocaleString()}</TableCell>
+          {whaleTransactions && whaleTransactions.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Blockchain</TableHead>
+                  <TableHead>Valor (USD)</TableHead>
+                  <TableHead>De</TableHead>
+                  <TableHead>Para</TableHead>
+                  <TableHead>Timestamp</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {whaleTransactions.map((transaction, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{transaction.blockchain}</TableCell>
+                    <TableCell>${transaction.amount_usd.toLocaleString()}</TableCell>
+                    <TableCell>{transaction.from.owner_type}</TableCell>
+                    <TableCell>{transaction.to.owner_type}</TableCell>
+                    <TableCell>{new Date(transaction.timestamp * 1000).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p>Nenhuma transação encontrada.</p>
+          )}
         </CardContent>
       </Card>
 
