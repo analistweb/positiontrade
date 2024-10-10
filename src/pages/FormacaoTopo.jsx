@@ -48,8 +48,8 @@ const trainModel = async (data) => {
   model.add(tf.layers.dense({ units: 1, inputShape: [7] }));
   model.compile({ loss: 'meanSquaredError', optimizer: 'sgd' });
 
-  const xs = tf.tensor2d(data.slice(0, -1).map(d => d.price));
-  const ys = tf.tensor2d(data.slice(7).map(d => [d.price]));
+  const xs = tf.tensor2d(data.slice(0, -1).map(d => d.price), [data.length - 1, 1]);
+  const ys = tf.tensor2d(data.slice(7).map(d => d.price), [data.length - 7, 1]);
 
   await model.fit(xs, ys, { epochs: 100 });
   return model;
@@ -71,11 +71,15 @@ const FormacaoTopo = () => {
       setTopFormation(formation);
 
       const trainAndPredict = async () => {
-        const model = await trainModel(historicalData);
-        const lastWeekPrices = historicalData.slice(-7).map(d => d.price);
-        const input = tf.tensor2d([lastWeekPrices]);
-        const predictedPrice = model.predict(input);
-        setPrediction(await predictedPrice.data());
+        try {
+          const model = await trainModel(historicalData);
+          const lastWeekPrices = historicalData.slice(-7).map(d => d.price);
+          const input = tf.tensor2d([lastWeekPrices], [1, 7]);
+          const predictedPrice = model.predict(input);
+          setPrediction(await predictedPrice.data());
+        } catch (error) {
+          console.error('Error in training model or prediction:', error);
+        }
       };
 
       trainAndPredict();
