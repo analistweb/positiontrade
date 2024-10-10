@@ -38,7 +38,7 @@ const Dashboard = () => {
             <CardTitle>Dominância do Bitcoin</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">42,3%</p>
+            <p className="text-2xl font-bold">56.15%</p>
           </CardContent>
         </Card>
       </div>
