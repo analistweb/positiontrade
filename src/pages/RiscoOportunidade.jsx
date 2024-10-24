@@ -7,9 +7,19 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const fetchMarketData = async () => {
-  const response = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart', {
+const popularPairs = [
+  { value: 'bitcoin', label: 'Bitcoin (BTC)' },
+  { value: 'ethereum', label: 'Ethereum (ETH)' },
+  { value: 'binancecoin', label: 'BNB' },
+  { value: 'ripple', label: 'XRP' },
+  { value: 'cardano', label: 'Cardano (ADA)' },
+  { value: 'solana', label: 'Solana (SOL)' },
+];
+
+const fetchMarketData = async (coinId) => {
+  const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`, {
     params: {
       vs_currency: 'usd',
       days: 30,
@@ -26,67 +36,93 @@ const calculateVolatility = (prices) => {
   const avgReturn = returns.reduce((sum, ret) => sum + ret, 0) / returns.length;
   const squaredDiffs = returns.map(ret => Math.pow(ret - avgReturn, 2));
   const variance = squaredDiffs.reduce((sum, diff) => sum + diff, 0) / squaredDiffs.length;
-  return Math.sqrt(variance) * Math.sqrt(365) * 100; // Anualizada e em porcentagem
+  return Math.sqrt(variance) * Math.sqrt(365) * 100;
 };
 
 const identifyTrend = (prices) => {
   const firstPrice = prices[0];
   const lastPrice = prices[prices.length - 1];
   const change = (lastPrice - firstPrice) / firstPrice * 100;
-  if (change > 5) return "Alta";
-  if (change < -5) return "Baixa";
-  return "Lateral";
+  
+  // Análise mais detalhada da tendência
+  const shortTermMA = calculateMA(prices.slice(-7)); // Média móvel de 7 dias
+  const longTermMA = calculateMA(prices); // Média móvel de 30 dias
+  
+  let trend = '';
+  if (change > 5 && shortTermMA > longTermMA) {
+    trend = "Alta Forte";
+  } else if (change > 2 && shortTermMA > longTermMA) {
+    trend = "Alta Moderada";
+  } else if (change < -5 && shortTermMA < longTermMA) {
+    trend = "Baixa Forte";
+  } else if (change < -2 && shortTermMA < longTermMA) {
+    trend = "Baixa Moderada";
+  } else {
+    trend = "Lateral";
+  }
+
+  return {
+    trend,
+    change: change.toFixed(2),
+    shortTermMA: shortTermMA.toFixed(2),
+    longTermMA: longTermMA.toFixed(2)
+  };
+};
+
+const calculateMA = (prices) => {
+  return prices.reduce((sum, price) => sum + price, 0) / prices.length;
 };
 
 const RiscoOportunidade = () => {
+  const [selectedCoin, setSelectedCoin] = useState('bitcoin');
   const [alertPrice, setAlertPrice] = useState('');
   const [alerts, setAlerts] = useState([]);
 
   const { data: marketData, isLoading, error } = useQuery({
-    queryKey: ['bitcoinMarketData'],
-    queryFn: fetchMarketData,
+    queryKey: ['marketData', selectedCoin],
+    queryFn: () => fetchMarketData(selectedCoin),
     refetchInterval: 300000, // Atualiza a cada 5 minutos
   });
 
-  useEffect(() => {
-    if (marketData && alerts.length > 0) {
-      const currentPrice = marketData.prices[marketData.prices.length - 1][1];
-      alerts.forEach(alert => {
-        if ((alert.type === 'above' && currentPrice > alert.price) ||
-            (alert.type === 'below' && currentPrice < alert.price)) {
-          // Aqui você pode implementar uma notificação real (e.g., push notification, e-mail)
-          console.log(`Alerta: O preço do Bitcoin está ${alert.type === 'above' ? 'acima' : 'abaixo'} de $${alert.price}`);
-        }
-      });
-    }
-  }, [marketData, alerts]);
+  const handleCoinChange = (value) => {
+    setSelectedCoin(value);
+  };
 
-  if (isLoading) return <div>Carregando...</div>;
-  if (error) return <div>Erro ao carregar os dados: {error.message}</div>;
+  if (isLoading) return <div className="container mx-auto p-4">Carregando...</div>;
+  if (error) return <div className="container mx-auto p-4">Erro ao carregar os dados: {error.message}</div>;
 
   const prices = marketData.prices.map(price => price[1]);
   const volatility = calculateVolatility(prices);
-  const trend = identifyTrend(prices);
+  const trendAnalysis = identifyTrend(prices);
 
   const chartData = marketData.prices.map(([timestamp, price]) => ({
     date: new Date(timestamp).toLocaleDateString(),
     price: price
   }));
 
-  const addAlert = (type) => {
-    if (alertPrice) {
-      setAlerts([...alerts, { type, price: parseFloat(alertPrice) }]);
-      setAlertPrice('');
-    }
-  };
-
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-3xl font-bold mb-6">Risco & Oportunidade</h1>
 
+      <div className="mb-6">
+        <Label htmlFor="coin-select">Selecione a Criptomoeda</Label>
+        <Select onValueChange={handleCoinChange} value={selectedCoin}>
+          <SelectTrigger className="w-full md:w-[300px]">
+            <SelectValue placeholder="Selecione uma criptomoeda" />
+          </SelectTrigger>
+          <SelectContent>
+            {popularPairs.map((pair) => (
+              <SelectItem key={pair.value} value={pair.value}>
+                {pair.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Preço do Bitcoin (30 dias)</CardTitle>
+          <CardTitle>Preço ({popularPairs.find(p => p.value === selectedCoin)?.label})</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -116,30 +152,13 @@ const RiscoOportunidade = () => {
             <CardTitle>Tendência Atual</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{trend}</p>
+            <p className="text-2xl font-bold">{trendAnalysis.trend}</p>
+            <p className="text-sm text-gray-600">Variação: {trendAnalysis.change}%</p>
+            <p className="text-sm text-gray-600">MA7: ${trendAnalysis.shortTermMA}</p>
+            <p className="text-sm text-gray-600">MA30: ${trendAnalysis.longTermMA}</p>
           </CardContent>
         </Card>
       </div>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Configurar Alertas de Preço</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-2">
-            <Label htmlFor="price-alert">Preço Alvo ($)</Label>
-            <Input
-              id="price-alert"
-              type="number"
-              value={alertPrice}
-              onChange={(e) => setAlertPrice(e.target.value)}
-              placeholder="Digite o preço alvo"
-            />
-            <Button onClick={() => addAlert('above')}>Alerta Acima</Button>
-            <Button onClick={() => addAlert('below')}>Alerta Abaixo</Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <Alert>
         <AlertTitle>Análise de Risco e Oportunidade</AlertTitle>
@@ -147,8 +166,12 @@ const RiscoOportunidade = () => {
           <p>Com base nos dados atuais:</p>
           <ul className="list-disc pl-5 mt-2">
             <li>A volatilidade está {volatility > 50 ? 'alta' : 'moderada'}, indicando um {volatility > 50 ? 'alto' : 'médio'} nível de risco.</li>
-            <li>A tendência de {trend.toLowerCase()} sugere {trend === 'Alta' ? 'possíveis oportunidades de compra' : trend === 'Baixa' ? 'cautela nas compras' : 'um mercado estável'}.</li>
-            <li>Considere configurar alertas para ser notificado sobre movimentos significativos de preço.</li>
+            <li>A tendência {trendAnalysis.trend.toLowerCase()} sugere {
+              trendAnalysis.trend.includes('Alta') ? 'possíveis oportunidades de compra' : 
+              trendAnalysis.trend.includes('Baixa') ? 'cautela nas compras' : 
+              'um mercado estável'
+            }.</li>
+            <li>Média Móvel de 7 dias {parseFloat(trendAnalysis.shortTermMA) > parseFloat(trendAnalysis.longTermMA) ? 'acima' : 'abaixo'} da Média Móvel de 30 dias, indicando tendência de {parseFloat(trendAnalysis.shortTermMA) > parseFloat(trendAnalysis.longTermMA) ? 'alta' : 'baixa'} no curto prazo.</li>
           </ul>
         </AlertDescription>
       </Alert>
