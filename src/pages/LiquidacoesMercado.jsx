@@ -38,6 +38,11 @@ const LiquidacoesMercado = () => {
     return <div className="container mx-auto p-4">Erro ao carregar dados. Por favor, tente novamente.</div>;
   }
 
+  // Ensure data exists before rendering
+  if (!liquidationData || !sentimentData) {
+    return <div className="container mx-auto p-4">Dados não disponíveis no momento.</div>;
+  }
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-3xl font-bold mb-6">Liquidações e Sentimento do Mercado</h1>
@@ -48,7 +53,9 @@ const LiquidacoesMercado = () => {
             <CardTitle>Total Liquidado (24h)</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">${(liquidationData.totalLiquidated / 1000000).toFixed(2)}M</p>
+            <p className="text-2xl font-bold">
+              ${(liquidationData.totalLiquidated / 1000000).toFixed(2)}M
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -85,7 +92,7 @@ const LiquidacoesMercado = () => {
             <CardTitle>Últimas Liquidações</CardTitle>
           </CardHeader>
           <CardContent>
-            <LiquidationTable liquidations={liquidationData.liquidations} />
+            <LiquidationTable liquidations={liquidationData.liquidations || []} />
           </CardContent>
         </Card>
 
@@ -94,7 +101,7 @@ const LiquidacoesMercado = () => {
             <CardTitle>Sentimento nas Redes Sociais</CardTitle>
           </CardHeader>
           <CardContent>
-            <SentimentChart data={sentimentData.socialMediaMentions} />
+            <SentimentChart data={sentimentData.socialMediaMentions || []} />
           </CardContent>
         </Card>
       </div>
