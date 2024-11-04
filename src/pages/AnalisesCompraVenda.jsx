@@ -4,31 +4,49 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import RSIRecommendation from '@/components/market/RSIRecommendation';
+import { RSI } from 'technicalindicators';
 
 const fetchMarketData = async (coin, days) => {
   const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${coin}/market_chart`, {
     params: {
       vs_currency: 'usd',
       days: days,
-      interval: 'daily'
+      interval: '4h'
     }
   });
   return response.data;
+};
+
+const calculateRSI = (prices, period = 14) => {
+  const rsiInput = {
+    values: prices,
+    period: period
+  };
+  return RSI.calculate(rsiInput);
 };
 
 const AnalisesCompraVenda = () => {
   const [selectedCoin, setSelectedCoin] = useState('bitcoin');
   const [selectedDays, setSelectedDays] = useState(30);
   const [minVolume, setMinVolume] = useState(0);
+  const [currentRSI, setCurrentRSI] = useState(50);
 
   const { data: marketData, isLoading, error } = useQuery({
     queryKey: ['marketData', selectedCoin, selectedDays],
     queryFn: () => fetchMarketData(selectedCoin, selectedDays),
     refetchInterval: 300000, // Atualiza a cada 5 minutos
   });
+
+  useEffect(() => {
+    if (marketData?.prices) {
+      const prices = marketData.prices.map(price => price[1]);
+      const rsiValues = calculateRSI(prices);
+      setCurrentRSI(rsiValues[rsiValues.length - 1]);
+    }
+  }, [marketData]);
 
   const processData = (data) => {
     if (!data) return [];
@@ -60,7 +78,6 @@ const AnalisesCompraVenda = () => {
   };
 
   const chartData = processData(marketData);
-
   const totalBuyVolume = chartData.reduce((sum, item) => sum + item.compra, 0);
   const totalSellVolume = chartData.reduce((sum, item) => sum + item.venda, 0);
 
@@ -110,42 +127,50 @@ const AnalisesCompraVenda = () => {
         </div>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Volume de Compra/Venda por Faixa de Preço</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="preco" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="compra" name="Compra" fill="#82ca9d" />
-              <Bar dataKey="venda" name="Venda" fill="#8884d8" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Volume Total de Compra</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">${totalBuyVolume.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Volume Total de Venda</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">${totalSellVolume.toLocaleString()}</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="md:col-span-2">
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Volume de Compra/Venda por Faixa de Preço</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="preco" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="compra" name="Compra" fill="#82ca9d" />
+                  <Bar dataKey="venda" name="Venda" fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+        
+        <div>
+          <RSIRecommendation rsiValue={currentRSI} />
+          
+          <div className="grid grid-cols-1 gap-4 mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Volume Total de Compra</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">${totalBuyVolume.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Volume Total de Venda</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">${totalSellVolume.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
