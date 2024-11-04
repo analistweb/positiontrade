@@ -8,112 +8,136 @@ import SentimentChart from '../components/market/SentimentChart';
 import NewsSection from '../components/market/NewsSection';
 import { toast } from "sonner";
 
+const MarketDataCard = ({ title, children }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>{title}</CardTitle>
+    </CardHeader>
+    <CardContent>{children}</CardContent>
+  </Card>
+);
+
 const LiquidacoesMercado = () => {
-  const { data: liquidationData, isLoading: isLoadingLiquidations, error: liquidationError } = useQuery({
+  const { 
+    data: liquidationData, 
+    isLoading: isLoadingLiquidations, 
+    error: liquidationError 
+  } = useQuery({
     queryKey: ['liquidationData'],
     queryFn: fetchLiquidationData,
-    refetchInterval: 60000, // Atualiza a cada minuto
+    refetchInterval: 60000,
+    retry: 3,
     onError: () => toast.error("Erro ao carregar dados de liquidação")
   });
 
-  const { data: sentimentData, isLoading: isLoadingSentiment, error: sentimentError } = useQuery({
+  const { 
+    data: sentimentData, 
+    isLoading: isLoadingSentiment, 
+    error: sentimentError 
+  } = useQuery({
     queryKey: ['marketSentiment'],
     queryFn: fetchMarketSentiment,
-    refetchInterval: 300000, // Atualiza a cada 5 minutos
+    refetchInterval: 300000,
+    retry: 3,
     onError: () => toast.error("Erro ao carregar dados de sentimento")
   });
 
-  const { data: newsData, isLoading: isLoadingNews, error: newsError } = useQuery({
+  const { 
+    data: newsData, 
+    isLoading: isLoadingNews, 
+    error: newsError 
+  } = useQuery({
     queryKey: ['marketNews'],
     queryFn: fetchMarketNews,
     refetchInterval: 300000,
+    retry: 3,
     onError: () => toast.error("Erro ao carregar notícias")
   });
 
   if (isLoadingLiquidations || isLoadingSentiment || isLoadingNews) {
-    return <div className="container mx-auto p-4">Carregando dados do mercado...</div>;
+    return (
+      <div className="container mx-auto p-4 flex items-center justify-center min-h-[400px]">
+        <div className="text-lg">Carregando dados do mercado...</div>
+      </div>
+    );
   }
 
   if (liquidationError || sentimentError || newsError) {
-    return <div className="container mx-auto p-4">Erro ao carregar dados. Por favor, tente novamente.</div>;
+    return (
+      <div className="container mx-auto p-4 text-center">
+        <div className="text-red-500 mb-2">Ocorreu um erro ao carregar os dados</div>
+        <button 
+          onClick={() => window.location.reload()}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Tentar Novamente
+        </button>
+      </div>
+    );
   }
 
-  // Ensure data exists before rendering
-  if (!liquidationData || !sentimentData) {
-    return <div className="container mx-auto p-4">Dados não disponíveis no momento.</div>;
-  }
+  const defaultData = {
+    liquidationData: {
+      totalLiquidated: 0,
+      liquidations: [],
+      longShortRate: 0
+    },
+    sentimentData: {
+      overallSentiment: 0,
+      fearGreedIndex: 0,
+      socialMediaMentions: []
+    }
+  };
+
+  const safeData = {
+    liquidationData: liquidationData || defaultData.liquidationData,
+    sentimentData: sentimentData || defaultData.sentimentData,
+    newsData: newsData || []
+  };
 
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-3xl font-bold mb-6">Liquidações e Sentimento do Mercado</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Liquidado (24h)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              ${(liquidationData.totalLiquidated / 1000000).toFixed(2)}M
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Índice Medo e Ganância</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{sentimentData.fearGreedIndex}</p>
-            <p className="text-sm text-muted-foreground">
-              {sentimentData.fearGreedIndex > 50 ? 'Ganância' : 'Medo'}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Sentimento Geral</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center">
-              {sentimentData.overallSentiment > 50 ? (
-                <TrendingUp className="w-6 h-6 text-green-500 mr-2" />
-              ) : (
-                <TrendingDown className="w-6 h-6 text-red-500 mr-2" />
-              )}
-              <p className="text-2xl font-bold">{sentimentData.overallSentiment}%</p>
-            </div>
-          </CardContent>
-        </Card>
+        <MarketDataCard title="Total Liquidado (24h)">
+          <p className="text-2xl font-bold">
+            ${(safeData.liquidationData.totalLiquidated / 1000000).toFixed(2)}M
+          </p>
+        </MarketDataCard>
+
+        <MarketDataCard title="Índice Medo e Ganância">
+          <p className="text-2xl font-bold">{safeData.sentimentData.fearGreedIndex}</p>
+          <p className="text-sm text-muted-foreground">
+            {safeData.sentimentData.fearGreedIndex > 50 ? 'Ganância' : 'Medo'}
+          </p>
+        </MarketDataCard>
+
+        <MarketDataCard title="Sentimento Geral">
+          <div className="flex items-center">
+            {safeData.sentimentData.overallSentiment > 50 ? (
+              <TrendingUp className="w-6 h-6 text-green-500 mr-2" />
+            ) : (
+              <TrendingDown className="w-6 h-6 text-red-500 mr-2" />
+            )}
+            <p className="text-2xl font-bold">{safeData.sentimentData.overallSentiment}%</p>
+          </div>
+        </MarketDataCard>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Últimas Liquidações</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LiquidationTable liquidations={liquidationData.liquidations || []} />
-          </CardContent>
-        </Card>
+        <MarketDataCard title="Últimas Liquidações">
+          <LiquidationTable liquidations={safeData.liquidationData.liquidations} />
+        </MarketDataCard>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Sentimento nas Redes Sociais</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <SentimentChart data={sentimentData.socialMediaMentions || []} />
-          </CardContent>
-        </Card>
+        <MarketDataCard title="Sentimento nas Redes Sociais">
+          <SentimentChart data={safeData.sentimentData.socialMediaMentions} />
+        </MarketDataCard>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Últimas Notícias do Mercado</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <NewsSection news={newsData} />
-        </CardContent>
-      </Card>
+      <MarketDataCard title="Últimas Notícias do Mercado">
+        <NewsSection news={safeData.newsData} />
+      </MarketDataCard>
     </div>
   );
 };
