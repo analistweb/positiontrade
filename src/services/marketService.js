@@ -29,9 +29,8 @@ export const fetchMarketData = async (coin, days = 30) => {
     };
   } catch (error) {
     console.error('Erro ao buscar dados do mercado:', error);
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      console.warn('Erro de autenticação com a API, usando dados simulados');
-      return mockMarketData;
+    if (error.response?.status === 429) {
+      throw new Error('Limite de requisições excedido. Tente novamente mais tarde.');
     }
     throw new Error('Erro ao buscar dados do mercado. Tente novamente mais tarde.');
   }
@@ -51,10 +50,6 @@ export const fetchCoinPrice = async (coin) => {
     return response.data[coin];
   } catch (error) {
     console.error('Erro ao buscar preço:', error);
-    return {
-      usd: 20000 + Math.random() * 10000,
-      usd_24h_vol: 1000000 + Math.random() * 500000,
-      usd_24h_change: -2 + Math.random() * 4
-    };
+    throw new Error('Erro ao buscar preço. Tente novamente mais tarde.');
   }
 };
