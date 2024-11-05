@@ -31,7 +31,7 @@ export const fetchRiskOpportunityData = async (coin = 'bitcoin') => {
           include_market_cap: true
         }
       }),
-      axios.get(`${COINGECGO_API_URL}/coins/${coin}/market_chart`, {
+      axios.get(`${COINGECKO_API_URL}/coins/${coin}/market_chart`, {
         headers: getHeaders(),
         params: {
           vs_currency: 'usd',
