@@ -14,6 +14,11 @@ const mockMarketData = {
 
 export const fetchMarketData = async (coin, days = 30) => {
   try {
+    if (!import.meta.env.VITE_COINGECKO_API_KEY) {
+      console.warn('API key não encontrada, usando dados simulados');
+      return mockMarketData;
+    }
+
     const response = await axios.get(`${COINGECKO_API_URL}/coins/${coin}/market_chart`, {
       headers: getHeaders(),
       params: {
@@ -39,6 +44,14 @@ export const fetchMarketData = async (coin, days = 30) => {
 
 export const fetchCoinPrice = async (coin) => {
   try {
+    if (!import.meta.env.VITE_COINGECKO_API_KEY) {
+      return {
+        usd: 20000 + Math.random() * 10000,
+        usd_24h_vol: 1000000 + Math.random() * 500000,
+        usd_24h_change: -2 + Math.random() * 4
+      };
+    }
+
     const response = await axios.get(`${COINGECKO_API_URL}/simple/price`, {
       headers: getHeaders(),
       params: {
