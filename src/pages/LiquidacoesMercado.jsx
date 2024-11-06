@@ -17,6 +17,14 @@ const LiquidacoesMercado = () => {
 
   if (isLoading) return <div className="p-4">Carregando dados...</div>;
   if (error) return <div className="p-4 text-red-500">Erro: {error.message}</div>;
+  if (!data) return <div className="p-4">Nenhum dado disponível</div>;
+
+  const {
+    totalLiquidated = 0,
+    longLiquidated = 0,
+    shortLiquidated = 0,
+    liquidations = []
+  } = data;
 
   return (
     <div className="container mx-auto p-4">
@@ -29,7 +37,7 @@ const LiquidacoesMercado = () => {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              ${(data.totalLiquidated / 1000000).toFixed(2)}M
+              ${(totalLiquidated / 1000000).toFixed(2)}M
             </p>
           </CardContent>
         </Card>
@@ -40,7 +48,7 @@ const LiquidacoesMercado = () => {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-green-500">
-              ${(data.longLiquidated / 1000000).toFixed(2)}M
+              ${(longLiquidated / 1000000).toFixed(2)}M
             </p>
           </CardContent>
         </Card>
@@ -51,7 +59,7 @@ const LiquidacoesMercado = () => {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-red-500">
-              ${(data.shortLiquidated / 1000000).toFixed(2)}M
+              ${(shortLiquidated / 1000000).toFixed(2)}M
             </p>
           </CardContent>
         </Card>
@@ -62,7 +70,7 @@ const LiquidacoesMercado = () => {
           <CardTitle>Últimas Liquidações</CardTitle>
         </CardHeader>
         <CardContent>
-          <LiquidationTable liquidations={data.liquidations} />
+          <LiquidationTable liquidations={liquidations} />
         </CardContent>
       </Card>
     </div>
