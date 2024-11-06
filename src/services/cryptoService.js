@@ -1,6 +1,19 @@
 import axios from 'axios';
 import { COINGECKO_API_URL, getHeaders } from '../config/api';
 
+const TOP_COINS = [
+  'bitcoin',
+  'ethereum',
+  'binancecoin',
+  'solana',
+  'ripple',
+  'cardano',
+  'avalanche-2',
+  'polkadot',
+  'dogecoin',
+  'chainlink'
+];
+
 export const fetchTopFormationData = async (coin = 'bitcoin') => {
   try {
     const response = await axios.get(`${COINGECKO_API_URL}/coins/${coin}/market_chart`, {
@@ -56,23 +69,37 @@ export const fetchRiskOpportunityData = async (coin = 'bitcoin') => {
 };
 
 export const fetchLiquidationsData = async () => {
-  // Return mock data since we don't have access to CoinGlass API
-  return {
-    liquidations: [
-      {
-        exchange: "Binance",
-        amount: 1500000,
-        type: "long",
-        timestamp: Date.now()
-      },
-      {
-        exchange: "Bybit",
-        amount: 2000000,
-        type: "short",
-        timestamp: Date.now() - 300000
-      }
-    ],
-    totalLiquidated: 3500000,
-    longShortRate: 1.5
-  };
+  try {
+    const response = await axios.get(`${COINGECKO_API_URL}/derivatives/liquidations`, {
+      headers: getHeaders(),
+      timeout: 10000
+    });
+
+    const liquidations = response.data.map(liq => ({
+      exchange: liq.exchange,
+      amount: liq.value,
+      type: liq.side.toLowerCase(),
+      timestamp: liq.timestamp
+    }));
+
+    const totalLiquidated = liquidations.reduce((sum, liq) => sum + liq.amount, 0);
+    const longLiquidated = liquidations
+      .filter(liq => liq.type === 'long')
+      .reduce((sum, liq) => sum + liq.amount, 0);
+    const shortLiquidated = liquidations
+      .filter(liq => liq.type === 'short')
+      .reduce((sum, liq) => sum + liq.amount, 0);
+
+    return {
+      liquidations,
+      totalLiquidated,
+      longLiquidated,
+      shortLiquidated
+    };
+  } catch (error) {
+    console.error('Error fetching liquidation data:', error);
+    throw new Error('Failed to fetch liquidation data');
+  }
 };
+
+export const getTopCoins = () => TOP_COINS;

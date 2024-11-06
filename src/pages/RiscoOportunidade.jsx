@@ -1,15 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { fetchRiskOpportunityData } from '../services/cryptoService';
+import { fetchRiskOpportunityData, getTopCoins } from '../services/cryptoService';
 import { toast } from "sonner";
 
 const RiscoOportunidade = () => {
+  const [selectedCoin, setSelectedCoin] = useState('bitcoin');
+  const topCoins = getTopCoins();
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['riskOpportunity'],
-    queryFn: () => fetchRiskOpportunityData(),
+    queryKey: ['riskOpportunity', selectedCoin],
+    queryFn: () => fetchRiskOpportunityData(selectedCoin),
     refetchInterval: 60000,
     onError: (error) => {
       toast.error(`Erro ao carregar dados: ${error.message}`);
@@ -29,11 +33,25 @@ const RiscoOportunidade = () => {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">Risco & Oportunidade</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Risco & Oportunidade</h1>
+        <Select value={selectedCoin} onValueChange={setSelectedCoin}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Selecione uma moeda" />
+          </SelectTrigger>
+          <SelectContent>
+            {topCoins.map(coin => (
+              <SelectItem key={coin} value={coin}>
+                {coin.charAt(0).toUpperCase() + coin.slice(1)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Preço Bitcoin (USD)</CardTitle>
+          <CardTitle>Preço {selectedCoin.charAt(0).toUpperCase() + selectedCoin.slice(1)} (USD)</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
