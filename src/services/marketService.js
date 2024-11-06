@@ -14,18 +14,14 @@ const mockMarketData = {
 
 export const fetchMarketData = async (coin, days = 30) => {
   try {
-    if (!import.meta.env.VITE_COINGECKO_API_KEY) {
-      console.warn('API key não encontrada, usando dados simulados');
-      return mockMarketData;
-    }
-
     const response = await axios.get(`${COINGECKO_API_URL}/coins/${coin}/market_chart`, {
-      headers: getHeaders(),
       params: {
         vs_currency: 'usd',
         days: days,
-        interval: 'hourly'
-      }
+        interval: 'daily'
+      },
+      headers: getHeaders(),
+      timeout: 10000 // 10 second timeout
     });
 
     return {
@@ -33,37 +29,29 @@ export const fetchMarketData = async (coin, days = 30) => {
       total_volumes: response.data.total_volumes
     };
   } catch (error) {
-    console.error('Erro ao buscar dados do mercado:', error);
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      console.warn('Erro de autenticação com a API, usando dados simulados');
-      return mockMarketData;
+    console.error('Error fetching market data:', error);
+    if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
+      return mockMarketData; // Return mock data on network errors
     }
-    throw new Error('Erro ao buscar dados do mercado. Tente novamente mais tarde.');
+    throw new Error('Failed to fetch market data. Please try again later.');
   }
 };
 
 export const fetchCoinPrice = async (coin) => {
   try {
-    if (!import.meta.env.VITE_COINGECKO_API_KEY) {
-      return {
-        usd: 20000 + Math.random() * 10000,
-        usd_24h_vol: 1000000 + Math.random() * 500000,
-        usd_24h_change: -2 + Math.random() * 4
-      };
-    }
-
     const response = await axios.get(`${COINGECKO_API_URL}/simple/price`, {
-      headers: getHeaders(),
       params: {
         ids: coin,
         vs_currencies: 'usd',
         include_24hr_vol: true,
         include_24hr_change: true
-      }
+      },
+      headers: getHeaders(),
+      timeout: 10000
     });
     return response.data[coin];
   } catch (error) {
-    console.error('Erro ao buscar preço:', error);
+    console.error('Error fetching price:', error);
     return {
       usd: 20000 + Math.random() * 10000,
       usd_24h_vol: 1000000 + Math.random() * 500000,

@@ -3,5 +3,5 @@ export const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3';
 
 export const getHeaders = () => ({
   'Content-Type': 'application/json',
-  ...(COINGECKO_API_KEY && { 'x-cg-pro-api-key': COINGECKO_API_KEY })
+  'x-cg-pro-api-key': COINGECKO_API_KEY
 });
