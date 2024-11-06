@@ -8,7 +8,9 @@ export const fetchTopFormationData = async (coin = 'bitcoin') => {
       params: {
         vs_currency: 'usd',
         days: 90,
-        interval: 'daily'
+        interval: 'daily',
+        include_market_cap: true,
+        include_24hr_vol: true
       },
       timeout: 10000
     });
