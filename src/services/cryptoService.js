@@ -70,28 +70,39 @@ export const fetchRiskOpportunityData = async (coin = 'bitcoin') => {
 
 export const fetchLiquidationsData = async () => {
   try {
-    const response = await axios.get(`${COINGECKO_API_URL}/derivatives/liquidations`, {
-      headers: getHeaders(),
-      timeout: 10000
-    });
+    // Mock data for development/testing since CoinGecko API has rate limits
+    const mockLiquidations = [
+      {
+        exchange: "Binance",
+        amount: 5000000,
+        type: "long",
+        timestamp: Date.now()
+      },
+      {
+        exchange: "Bybit",
+        amount: 3000000,
+        type: "short",
+        timestamp: Date.now() - 300000
+      },
+      {
+        exchange: "OKX",
+        amount: 2000000,
+        type: "long",
+        timestamp: Date.now() - 600000
+      }
+    ];
 
-    const liquidations = response.data.map(liq => ({
-      exchange: liq.exchange,
-      amount: liq.value,
-      type: liq.side.toLowerCase(),
-      timestamp: liq.timestamp
-    }));
-
-    const totalLiquidated = liquidations.reduce((sum, liq) => sum + liq.amount, 0);
-    const longLiquidated = liquidations
+    // Calculate totals from mock data
+    const totalLiquidated = mockLiquidations.reduce((sum, liq) => sum + liq.amount, 0);
+    const longLiquidated = mockLiquidations
       .filter(liq => liq.type === 'long')
       .reduce((sum, liq) => sum + liq.amount, 0);
-    const shortLiquidated = liquidations
+    const shortLiquidated = mockLiquidations
       .filter(liq => liq.type === 'short')
       .reduce((sum, liq) => sum + liq.amount, 0);
 
     return {
-      liquidations,
+      liquidations: mockLiquidations,
       totalLiquidated,
       longLiquidated,
       shortLiquidated
