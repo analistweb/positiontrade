@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { COINGECKO_API_URL, getHeaders } from '../config/api';
 
 const searchTrendsData = [
   { month: 'Nov 2023', interesse: 65, evento: 'Aprovação ETF Bitcoin' },
@@ -46,14 +47,44 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 const fetchBitcoinDominance = async () => {
-  const response = await axios.get('https://api.coingecko.com/api/v3/global');
+  const response = await axios.get(`${COINGECKO_API_URL}/global`);
   return response.data.data.market_cap_percentage.btc;
 };
 
+const fetchPriceData = async () => {
+  const coins = ['bitcoin', 'ethereum', 'dogecoin'];
+  const promises = coins.map(coin => 
+    axios.get(`${COINGECKO_API_URL}/coins/${coin}/market_chart`, {
+      params: {
+        vs_currency: 'usd',
+        days: 30,
+        interval: 'daily'
+      },
+      headers: getHeaders()
+    })
+  );
+
+  const responses = await Promise.all(promises);
+  const [btcData, ethData, dogeData] = responses;
+
+  return btcData.data.prices.map((item, index) => ({
+    name: new Date(item[0]).toLocaleDateString(),
+    Bitcoin: item[1],
+    Ethereum: ethData.data.prices[index][1],
+    Dogecoin: dogeData.data.prices[index][1]
+  }));
+};
+
 const Dashboard = () => {
-  const { data: bitcoinDominance, isLoading, error } = useQuery({
+  const { data: bitcoinDominance, isLoading: dominanceLoading, error: dominanceError } = useQuery({
     queryKey: ['bitcoinDominance'],
     queryFn: fetchBitcoinDominance,
+    refetchInterval: 300000,
+  });
+
+  const { data: priceData, isLoading: priceLoading, error: priceError } = useQuery({
+    queryKey: ['priceData'],
+    queryFn: fetchPriceData,
     refetchInterval: 300000,
   });
 
@@ -82,9 +113,9 @@ const Dashboard = () => {
             <CardTitle>Dominância do Bitcoin</CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {dominanceLoading ? (
               <p className="text-2xl font-bold">Carregando...</p>
-            ) : error ? (
+            ) : dominanceError ? (
               <p className="text-2xl font-bold text-red-500">Erro ao carregar dados</p>
             ) : (
               <p className="text-2xl font-bold">{bitcoinDominance.toFixed(2)}%</p>
@@ -100,9 +131,9 @@ const Dashboard = () => {
             Volume de interesse e eventos significativos de Nov 2023 a Nov 2024
           </p>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={searchTrendsData} margin={{ top: 20, right: 30, left: 20, bottom: 50 }}>
+        <CardContent className="h-[400px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={searchTrendsData} margin={{ top: 20, right: 30, left: 20, bottom: 70 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis 
                 dataKey="month" 
@@ -141,7 +172,8 @@ const Dashboard = () => {
                       value: entry.evento,
                       position: 'top',
                       fill: '#dc2626',
-                      fontSize: 12
+                      fontSize: 12,
+                      offset: 20
                     }}
                   />
                 )
@@ -153,21 +185,44 @@ const Dashboard = () => {
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Gráfico de Preços</CardTitle>
+          <CardTitle>Gráfico de Preços (30 dias)</CardTitle>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={priceData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="Bitcoin" stroke="#8884d8" />
-              <Line type="monotone" dataKey="Ethereum" stroke="#82ca9d" />
-              <Line type="monotone" dataKey="Dogecoin" stroke="#ffc658" />
-            </LineChart>
-          </ResponsiveContainer>
+        <CardContent className="h-[400px]">
+          {priceLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <p>Carregando dados...</p>
+            </div>
+          ) : priceError ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-red-500">Erro ao carregar dados</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={priceData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="name" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  label={{ 
+                    value: 'Preço (USD)', 
+                    angle: -90, 
+                    position: 'insideLeft',
+                    style: { textAnchor: 'middle' }
+                  }}
+                />
+                <Tooltip />
+                <Legend verticalAlign="top" height={36} />
+                <Line type="monotone" dataKey="Bitcoin" stroke="#f7931a" strokeWidth={2} />
+                <Line type="monotone" dataKey="Ethereum" stroke="#627eea" strokeWidth={2} />
+                <Line type="monotone" dataKey="Dogecoin" stroke="#c2a633" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
     </div>
