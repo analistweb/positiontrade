@@ -20,6 +20,16 @@ const searchTrendsData = [
   { month: 'Nov 2024', interesse: 95 }
 ];
 
+const priceData = [
+  { name: 'Jan', Bitcoin: 4000, Ethereum: 2400, Dogecoin: 2400 },
+  { name: 'Fev', Bitcoin: 3000, Ethereum: 1398, Dogecoin: 2210 },
+  { name: 'Mar', Bitcoin: 2000, Ethereum: 9800, Dogecoin: 2290 },
+  { name: 'Abr', Bitcoin: 2780, Ethereum: 3908, Dogecoin: 2000 },
+  { name: 'Mai', Bitcoin: 1890, Ethereum: 4800, Dogecoin: 2181 },
+  { name: 'Jun', Bitcoin: 2390, Ethereum: 3800, Dogecoin: 2500 },
+  { name: 'Jul', Bitcoin: 3490, Ethereum: 4300, Dogecoin: 2100 }
+];
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
@@ -147,7 +157,7 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data}>
+            <LineChart data={priceData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
