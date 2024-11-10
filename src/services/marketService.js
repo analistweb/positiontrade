@@ -40,6 +40,40 @@ export const fetchTopCoins = async () => {
   }
 };
 
+export const fetchBitcoinDominance = async () => {
+  try {
+    const response = await axios.get(
+      `${COINGECKO_API_URL}/global`,
+      {
+        headers: getHeaders()
+      }
+    );
+    return response.data.data.market_cap_percentage.btc;
+  } catch (error) {
+    throw new Error('Failed to fetch Bitcoin dominance');
+  }
+};
+
+export const fetchPriceData = async () => {
+  try {
+    const response = await axios.get(
+      `${COINGECKO_API_URL}/coins/markets`,
+      {
+        params: {
+          vs_currency: 'usd',
+          order: 'market_cap_desc',
+          per_page: 5,
+          sparkline: true
+        },
+        headers: getHeaders()
+      }
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error('Failed to fetch price data');
+  }
+};
+
 export const calculateEMA = (prices, period = 56) => { // 8 weeks = 56 days
   if (!prices || prices.length < period) {
     return null;
