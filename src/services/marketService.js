@@ -1,61 +1,31 @@
 import axios from 'axios';
 import { COINGECKO_API_URL, getHeaders } from '../config/api';
 
-const mockMarketData = {
-  prices: Array.from({ length: 30 }, (_, i) => [
-    Date.now() - (29 - i) * 24 * 60 * 60 * 1000,
-    20000 + Math.random() * 10000
-  ]),
-  total_volumes: Array.from({ length: 30 }, (_, i) => [
-    Date.now() - (29 - i) * 24 * 60 * 60 * 1000,
-    1000000 + Math.random() * 500000
-  ])
+export const fetchBitcoinDominance = async () => {
+  const response = await axios.get(`${COINGECKO_API_URL}/global`);
+  return response.data.data.market_cap_percentage.btc;
 };
 
-export const fetchMarketData = async (coin, days = 30) => {
-  try {
-    const response = await axios.get(`${COINGECKO_API_URL}/coins/${coin}/market_chart`, {
+export const fetchPriceData = async () => {
+  const coins = ['bitcoin', 'ethereum', 'dogecoin'];
+  const promises = coins.map(coin => 
+    axios.get(`${COINGECKO_API_URL}/coins/${coin}/market_chart`, {
       params: {
         vs_currency: 'usd',
-        days: days,
+        days: 30,
         interval: 'daily'
       },
-      headers: getHeaders(),
-      timeout: 10000 // 10 second timeout
-    });
+      headers: getHeaders()
+    })
+  );
 
-    return {
-      prices: response.data.prices,
-      total_volumes: response.data.total_volumes
-    };
-  } catch (error) {
-    console.error('Error fetching market data:', error);
-    if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
-      return mockMarketData; // Return mock data on network errors
-    }
-    throw new Error('Failed to fetch market data. Please try again later.');
-  }
-};
+  const responses = await Promise.all(promises);
+  const [btcData, ethData, dogeData] = responses;
 
-export const fetchCoinPrice = async (coin) => {
-  try {
-    const response = await axios.get(`${COINGECKO_API_URL}/simple/price`, {
-      params: {
-        ids: coin,
-        vs_currencies: 'usd',
-        include_24hr_vol: true,
-        include_24hr_change: true
-      },
-      headers: getHeaders(),
-      timeout: 10000
-    });
-    return response.data[coin];
-  } catch (error) {
-    console.error('Error fetching price:', error);
-    return {
-      usd: 20000 + Math.random() * 10000,
-      usd_24h_vol: 1000000 + Math.random() * 500000,
-      usd_24h_change: -2 + Math.random() * 4
-    };
-  }
+  return btcData.data.prices.map((item, index) => ({
+    name: new Date(item[0]).toLocaleDateString(),
+    Bitcoin: item[1],
+    Ethereum: ethData.data.prices[index][1],
+    Dogecoin: dogeData.data.prices[index][1]
+  }));
 };
