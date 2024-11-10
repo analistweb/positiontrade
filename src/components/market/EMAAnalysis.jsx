@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { calculateEMA } from '../../services/marketService';
 
 const EMAAnalysis = ({ marketData, coin }) => {
   if (!marketData?.prices || marketData.prices.length < 56) {
