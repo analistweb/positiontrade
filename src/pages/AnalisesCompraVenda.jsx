@@ -7,13 +7,14 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import RSIRecommendation from '@/components/market/RSIRecommendation';
 import { RSI } from 'technicalindicators';
-import { fetchMarketData, fetchCoinPrice } from '../services/marketService';
+import { fetchMarketData, fetchTopCoins } from '../services/marketService';
 import VolumeChart from '../components/market/VolumeChart';
 import MarketStats from '../components/market/MarketStats';
+import EMAAnalysis from '../components/market/EMAAnalysis';
 
 const AnalisesCompraVenda = () => {
   const [selectedCoin, setSelectedCoin] = useState('bitcoin');
-  const [selectedDays, setSelectedDays] = useState(30);
+  const [selectedDays, setSelectedDays] = useState(90); // Increased to accommodate 8-week EMA
   const [minVolume, setMinVolume] = useState(0);
   const [currentRSI, setCurrentRSI] = useState(50);
 
@@ -25,6 +26,12 @@ const AnalisesCompraVenda = () => {
     onError: (error) => {
       toast.error(`Erro ao buscar dados: ${error.message}`);
     }
+  });
+
+  const { data: topCoins } = useQuery({
+    queryKey: ['topCoins'],
+    queryFn: fetchTopCoins,
+    refetchInterval: 300000
   });
 
   useEffect(() => {
@@ -50,9 +57,11 @@ const AnalisesCompraVenda = () => {
               <SelectValue placeholder="Selecione uma criptomoeda" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="bitcoin">Bitcoin</SelectItem>
-              <SelectItem value="ethereum">Ethereum</SelectItem>
-              <SelectItem value="cardano">Cardano</SelectItem>
+              {topCoins?.map(coin => (
+                <SelectItem key={coin.id} value={coin.id}>
+                  {coin.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -64,9 +73,9 @@ const AnalisesCompraVenda = () => {
               <SelectValue placeholder="Selecione um período" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7">7 dias</SelectItem>
-              <SelectItem value="30">30 dias</SelectItem>
               <SelectItem value="90">90 dias</SelectItem>
+              <SelectItem value="180">180 dias</SelectItem>
+              <SelectItem value="365">1 ano</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -88,7 +97,8 @@ const AnalisesCompraVenda = () => {
           <VolumeChart marketData={marketData} minVolume={minVolume} />
         </div>
         
-        <div>
+        <div className="space-y-4">
+          <EMAAnalysis marketData={marketData} coin={selectedCoin} />
           <RSIRecommendation rsiValue={currentRSI} />
           <MarketStats marketData={marketData} />
         </div>

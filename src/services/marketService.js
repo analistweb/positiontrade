@@ -1,31 +1,56 @@
 import axios from 'axios';
 import { COINGECKO_API_URL, getHeaders } from '../config/api';
 
-export const fetchBitcoinDominance = async () => {
-  const response = await axios.get(`${COINGECKO_API_URL}/global`);
-  return response.data.data.market_cap_percentage.btc;
+export const fetchMarketData = async (coinId, days) => {
+  try {
+    const response = await axios.get(
+      `${COINGECKO_API_URL}/coins/${coinId}/market_chart`,
+      {
+        params: {
+          vs_currency: 'usd',
+          days: days,
+          interval: 'daily'
+        },
+        headers: getHeaders()
+      }
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error('Failed to fetch market data');
+  }
 };
 
-export const fetchPriceData = async () => {
-  const coins = ['bitcoin', 'ethereum', 'dogecoin'];
-  const promises = coins.map(coin => 
-    axios.get(`${COINGECKO_API_URL}/coins/${coin}/market_chart`, {
-      params: {
-        vs_currency: 'usd',
-        days: 30,
-        interval: 'daily'
-      },
-      headers: getHeaders()
-    })
-  );
+export const fetchTopCoins = async () => {
+  try {
+    const response = await axios.get(
+      `${COINGECKO_API_URL}/coins/markets`,
+      {
+        params: {
+          vs_currency: 'usd',
+          order: 'market_cap_desc',
+          per_page: 10,
+          sparkline: false
+        },
+        headers: getHeaders()
+      }
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error('Failed to fetch top coins');
+  }
+};
 
-  const responses = await Promise.all(promises);
-  const [btcData, ethData, dogeData] = responses;
-
-  return btcData.data.prices.map((item, index) => ({
-    name: new Date(item[0]).toLocaleDateString(),
-    Bitcoin: item[1],
-    Ethereum: ethData.data.prices[index][1],
-    Dogecoin: dogeData.data.prices[index][1]
-  }));
+export const calculateEMA = (prices, period = 56) => { // 8 weeks = 56 days
+  if (!prices || prices.length < period) {
+    return null;
+  }
+  
+  const multiplier = 2 / (period + 1);
+  let ema = prices[0];
+  
+  for (let i = 1; i < prices.length; i++) {
+    ema = (prices[i] - ema) * multiplier + ema;
+  }
+  
+  return ema;
 };
