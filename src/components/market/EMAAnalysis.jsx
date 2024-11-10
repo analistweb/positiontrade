@@ -2,27 +2,35 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { calculateEMA } from '../../services/marketService';
+import { calculateEMA, getWeeklyData } from '../../services/marketService';
 
 const EMAAnalysis = ({ marketData, coin }) => {
   if (!marketData?.prices || marketData.prices.length < 56) {
     return null;
   }
 
-  const prices = marketData.prices.map(price => price[1]);
-  const currentPrice = prices[prices.length - 1];
-  const previousPrice = prices[prices.length - 2];
+  const prices = marketData.prices;
+  const dailyPrices = prices.map(price => price[1]);
+  const currentPrice = dailyPrices[dailyPrices.length - 1];
   
-  const currentEMA = calculateEMA(prices.slice(-56));
-  const previousEMA = calculateEMA(prices.slice(-57, -1));
-
-  const isPivotHigh = currentPrice > currentEMA && 
-                      previousPrice < previousEMA && 
-                      currentPrice > previousPrice;
+  // Calculate EMA using 56 days (8 weeks)
+  const currentEMA = calculateEMA(dailyPrices.slice(-56));
+  
+  // Get weekly data for analysis
+  const weeklyData = getWeeklyData(prices);
+  const currentWeek = weeklyData[weeklyData.length - 1];
+  const previousWeek = weeklyData[weeklyData.length - 2];
+  
+  // Check buy conditions
+  const isAboveEMA = currentPrice > currentEMA;
+  const brokeLastWeekHigh = previousWeek && currentWeek.high > previousWeek.high;
+  const isWeeklyClose = (new Date().getDay() === 0); // Check if it's Sunday
+  
+  const isBuySignal = isAboveEMA && brokeLastWeekHigh && isWeeklyClose;
 
   const handleAlertClick = () => {
     toast.success(`Alerta configurado para ${coin}`, {
-      description: "Você receberá notificações quando houver oportunidades de compra."
+      description: "Você receberá notificações quando houver oportunidades de compra baseadas na análise semanal."
     });
   };
 
@@ -31,7 +39,7 @@ const EMAAnalysis = ({ marketData, coin }) => {
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
           Análise EMA (8 semanas)
-          {isPivotHigh && (
+          {isBuySignal && (
             <Badge 
               variant="success" 
               className="cursor-pointer"
@@ -50,12 +58,24 @@ const EMAAnalysis = ({ marketData, coin }) => {
           </div>
           <div className="flex justify-between">
             <span>EMA (8 semanas):</span>
-            <span>${currentEMA.toFixed(2)}</span>
+            <span>${currentEMA?.toFixed(2) || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Máxima Semanal Anterior:</span>
+            <span>${previousWeek?.high.toFixed(2) || 'N/A'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Máxima Semanal Atual:</span>
+            <span>${currentWeek?.high.toFixed(2) || 'N/A'}</span>
           </div>
           <div className="flex justify-between">
             <span>Status:</span>
-            <span className={isPivotHigh ? "text-green-500" : "text-yellow-500"}>
-              {isPivotHigh ? "Pivô de Alta" : "Aguardando Sinal"}
+            <span className={isBuySignal ? "text-green-500" : "text-yellow-500"}>
+              {isBuySignal 
+                ? "Sinal de Compra Confirmado" 
+                : isAboveEMA 
+                  ? "Aguardando Confirmação Semanal"
+                  : "Aguardando Condições"}
             </span>
           </div>
         </div>

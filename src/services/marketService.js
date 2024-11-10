@@ -74,7 +74,7 @@ export const fetchPriceData = async () => {
   }
 };
 
-export const calculateEMA = (prices, period = 56) => { // 8 weeks = 56 days
+export const calculateEMA = (prices, period = 56) => {
   if (!prices || prices.length < period) {
     return null;
   }
@@ -87,4 +87,31 @@ export const calculateEMA = (prices, period = 56) => { // 8 weeks = 56 days
   }
   
   return ema;
+};
+
+export const getWeeklyData = (dailyPrices) => {
+  const weeklyData = [];
+  let currentWeek = [];
+  
+  // Assuming prices are ordered from oldest to newest
+  dailyPrices.forEach((price, index) => {
+    currentWeek.push(price);
+    
+    // Check if it's the last day of the week (every 7 days) or last price
+    if ((index + 1) % 7 === 0 || index === dailyPrices.length - 1) {
+      const weekHigh = Math.max(...currentWeek.map(p => p[1]));
+      const weekClose = currentWeek[currentWeek.length - 1][1];
+      const weekTimestamp = currentWeek[currentWeek.length - 1][0];
+      
+      weeklyData.push({
+        timestamp: weekTimestamp,
+        high: weekHigh,
+        close: weekClose
+      });
+      
+      currentWeek = [];
+    }
+  });
+  
+  return weeklyData;
 };
