@@ -22,6 +22,9 @@ const RiscoOportunidade = () => {
 
   if (isLoading) return <div className="p-4">Carregando dados...</div>;
   if (error) return <div className="p-4 text-red-500">Erro: {error.message}</div>;
+  if (!data || !data.marketData || !data.currentPrice) {
+    return <div className="p-4">Nenhum dado disponível</div>;
+  }
 
   const chartData = data.marketData.prices.map(([timestamp, price]) => ({
     date: new Date(timestamp).toLocaleDateString(),
