@@ -1,39 +1,52 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { motion } from "framer-motion";
+import { TrendingUp, DollarSign, Bitcoin } from "lucide-react";
 
 const MarketStats = ({ bitcoinDominance, dominanceLoading, dominanceError }) => {
+  const statCards = [
+    {
+      title: "Capitalização de Mercado",
+      value: "R$ 6,15 T",
+      icon: <DollarSign className="w-6 h-6 text-green-400" />,
+      color: "from-green-500/20 to-green-500/5"
+    },
+    {
+      title: "Volume 24h",
+      value: "R$ 394,5 B",
+      icon: <TrendingUp className="w-6 h-6 text-blue-400" />,
+      color: "from-blue-500/20 to-blue-500/5"
+    },
+    {
+      title: "Dominância do Bitcoin",
+      value: dominanceLoading ? "Carregando..." : 
+             dominanceError ? "Erro" : 
+             `${bitcoinDominance?.toFixed(2)}%`,
+      icon: <Bitcoin className="w-6 h-6 text-orange-400" />,
+      color: "from-orange-500/20 to-orange-500/5"
+    }
+  ];
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Capitalização de Mercado</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-bold">R$ 6,15 T</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Volume 24h</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-bold">R$ 394,5 B</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Dominância do Bitcoin</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {dominanceLoading ? (
-            <p className="text-2xl font-bold">Carregando...</p>
-          ) : dominanceError ? (
-            <p className="text-2xl font-bold text-red-500">Erro ao carregar dados</p>
-          ) : (
-            <p className="text-2xl font-bold">{bitcoinDominance?.toFixed(2)}%</p>
-          )}
-        </CardContent>
-      </Card>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {statCards.map((stat, index) => (
+        <motion.div
+          key={stat.title}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.1 }}
+        >
+          <Card className={`relative overflow-hidden bg-gradient-to-br ${stat.color} border-none`}>
+            <CardContent className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm text-gray-400">{stat.title}</h3>
+                {stat.icon}
+              </div>
+              <p className="text-2xl font-bold text-white">{stat.value}</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      ))}
     </div>
   );
 };

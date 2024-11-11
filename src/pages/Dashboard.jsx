@@ -1,12 +1,13 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { motion } from "framer-motion";
 import { fetchBitcoinDominance, fetchPriceData } from '../services/marketService';
 import SearchTrendsChart from '../components/dashboard/SearchTrendsChart';
 import PriceChart from '../components/dashboard/PriceChart';
 import MarketStats from '../components/dashboard/MarketStats';
 import CBBIIndicator from '../components/dashboard/CBBIIndicator';
-import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { TrendingUp, Activity, BarChart2, Globe } from "lucide-react";
 
 const Dashboard = () => {
   const { data: bitcoinDominance, isLoading: dominanceLoading, error: dominanceError } = useQuery({
@@ -31,9 +32,7 @@ const Dashboard = () => {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
+      transition: { staggerChildren: 0.1 }
     }
   };
 
@@ -54,36 +53,70 @@ const Dashboard = () => {
       initial="hidden"
       animate="visible"
       variants={containerVariants}
-      className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-6"
+      className="min-h-screen animated-bg p-6 text-white"
     >
-      <motion.div variants={itemVariants} className="mb-8">
-        <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600 mb-2">
+      <motion.div 
+        variants={itemVariants} 
+        className="mb-8 glass-morphism p-8 rounded-2xl"
+      >
+        <h1 className="text-5xl font-bold gradient-text mb-4">
           Painel de Criptomoedas
         </h1>
-        <p className="text-gray-400">Análise em tempo real do mercado</p>
+        <p className="text-gray-400 text-lg">
+          Análise em tempo real do mercado com tecnologia avançada
+        </p>
       </motion.div>
       
       <motion.div 
         variants={containerVariants}
         className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
       >
-        <motion.div variants={itemVariants} className="glass-card">
+        <motion.div 
+          variants={itemVariants} 
+          className="glass-morphism rounded-2xl p-6 card-hover"
+        >
+          <div className="flex items-center mb-4">
+            <Activity className="w-6 h-6 mr-2 text-blue-400" />
+            <h2 className="text-2xl font-semibold neon-glow">Estatísticas do Mercado</h2>
+          </div>
           <MarketStats 
             bitcoinDominance={bitcoinDominance}
             dominanceLoading={dominanceLoading}
             dominanceError={dominanceError}
           />
         </motion.div>
-        <motion.div variants={itemVariants} className="glass-card">
+
+        <motion.div 
+          variants={itemVariants} 
+          className="glass-morphism rounded-2xl p-6 card-hover"
+        >
+          <div className="flex items-center mb-4">
+            <Globe className="w-6 h-6 mr-2 text-purple-400" />
+            <h2 className="text-2xl font-semibold neon-glow">Indicador CBBI</h2>
+          </div>
           <CBBIIndicator />
         </motion.div>
       </motion.div>
       
-      <motion.div variants={itemVariants} className="glass-card mb-8">
+      <motion.div 
+        variants={itemVariants} 
+        className="glass-morphism rounded-2xl p-6 mb-8 card-hover"
+      >
+        <div className="flex items-center mb-4">
+          <TrendingUp className="w-6 h-6 mr-2 text-green-400" />
+          <h2 className="text-2xl font-semibold neon-glow">Tendências de Pesquisa</h2>
+        </div>
         <SearchTrendsChart />
       </motion.div>
       
-      <motion.div variants={itemVariants} className="glass-card">
+      <motion.div 
+        variants={itemVariants} 
+        className="glass-morphism rounded-2xl p-6 card-hover"
+      >
+        <div className="flex items-center mb-4">
+          <BarChart2 className="w-6 h-6 mr-2 text-pink-400" />
+          <h2 className="text-2xl font-semibold neon-glow">Gráfico de Preços</h2>
+        </div>
         <PriceChart 
           data={priceData}
           isLoading={priceLoading}

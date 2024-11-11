@@ -1,16 +1,21 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { motion } from "framer-motion";
 
 const PriceChart = ({ data, isLoading, error }) => {
   if (isLoading) {
     return (
-      <Card className="mb-6">
+      <Card className="mb-6 bg-gradient-to-br from-gray-900/50 to-gray-800/50 border-none">
         <CardHeader>
-          <CardTitle>Gráfico de Preços (30 dias)</CardTitle>
+          <CardTitle className="text-gray-200">Gráfico de Preços (30 dias)</CardTitle>
         </CardHeader>
         <CardContent className="h-[400px] flex items-center justify-center">
-          <p>Carregando dados...</p>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"
+          />
         </CardContent>
       </Card>
     );
@@ -18,21 +23,37 @@ const PriceChart = ({ data, isLoading, error }) => {
 
   if (error) {
     return (
-      <Card className="mb-6">
+      <Card className="mb-6 bg-gradient-to-br from-red-900/50 to-red-800/50 border-none">
         <CardHeader>
-          <CardTitle>Gráfico de Preços (30 dias)</CardTitle>
+          <CardTitle className="text-gray-200">Gráfico de Preços (30 dias)</CardTitle>
         </CardHeader>
         <CardContent className="h-[400px] flex items-center justify-center">
-          <p className="text-red-500">Erro ao carregar dados: {error.message}</p>
+          <p className="text-red-400">Erro ao carregar dados: {error.message}</p>
         </CardContent>
       </Card>
     );
   }
 
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="glass-morphism p-4 rounded-lg">
+          <p className="text-gray-200 font-semibold">{label}</p>
+          {payload.map((entry, index) => (
+            <p key={index} style={{ color: entry.color }}>
+              {entry.name}: ${entry.value.toLocaleString()}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
-    <Card className="mb-6">
+    <Card className="mb-6 bg-gradient-to-br from-gray-900/50 to-gray-800/50 border-none">
       <CardHeader>
-        <CardTitle>Gráfico de Preços (30 dias)</CardTitle>
+        <CardTitle className="text-gray-200">Gráfico de Preços (30 dias)</CardTitle>
       </CardHeader>
       <CardContent className="h-[400px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -40,33 +61,26 @@ const PriceChart = ({ data, isLoading, error }) => {
             data={data} 
             margin={{ top: 20, right: 30, left: 20, bottom: 65 }}
           >
-            <CartesianGrid strokeDasharray="3 3" />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
             <XAxis 
               dataKey="name" 
               angle={-45}
               textAnchor="end"
               height={60}
-              tick={{ fontSize: 12 }}
-              interval={0}
-              padding={{ left: 10, right: 10 }}
+              tick={{ fill: '#9ca3af', fontSize: 12 }}
+              stroke="rgba(255,255,255,0.1)"
             />
             <YAxis 
               label={{ 
                 value: 'Preço (USD)', 
                 angle: -90, 
                 position: 'insideLeft',
-                style: { textAnchor: 'middle' }
+                style: { fill: '#9ca3af', textAnchor: 'middle' }
               }}
-              tick={{ fontSize: 12 }}
+              tick={{ fill: '#9ca3af', fontSize: 12 }}
+              stroke="rgba(255,255,255,0.1)"
             />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: 'white',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                padding: '8px'
-              }}
-            />
+            <Tooltip content={<CustomTooltip />} />
             <Legend 
               verticalAlign="top" 
               height={36}
@@ -77,21 +91,24 @@ const PriceChart = ({ data, isLoading, error }) => {
               dataKey="Bitcoin" 
               stroke="#f7931a" 
               strokeWidth={2}
-              dot={{ r: 3 }}
+              dot={{ r: 4, strokeWidth: 2 }}
+              activeDot={{ r: 8, strokeWidth: 0 }}
             />
             <Line 
               type="monotone" 
               dataKey="Ethereum" 
               stroke="#627eea" 
               strokeWidth={2}
-              dot={{ r: 3 }}
+              dot={{ r: 4, strokeWidth: 2 }}
+              activeDot={{ r: 8, strokeWidth: 0 }}
             />
             <Line 
               type="monotone" 
               dataKey="Dogecoin" 
               stroke="#c2a633" 
               strokeWidth={2}
-              dot={{ r: 3 }}
+              dot={{ r: 4, strokeWidth: 2 }}
+              activeDot={{ r: 8, strokeWidth: 0 }}
             />
           </LineChart>
         </ResponsiveContainer>
