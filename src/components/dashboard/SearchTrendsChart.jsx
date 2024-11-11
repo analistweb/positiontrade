@@ -42,27 +42,51 @@ const SearchTrendsChart = () => {
           Volume de interesse e eventos significativos de Nov 2023 a Nov 2024
         </p>
       </CardHeader>
-      <CardContent className="h-[400px]">
+      <CardContent className="h-[500px]"> {/* Increased height for better readability */}
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={searchTrendsData} margin={{ top: 20, right: 30, left: 20, bottom: 70 }}>
+          <LineChart 
+            data={searchTrendsData} 
+            margin={{ top: 30, right: 30, left: 20, bottom: 100 }} // Adjusted margins
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis 
               dataKey="month" 
               angle={-45}
               textAnchor="end"
-              height={60}
-              tick={{ fontSize: 12 }}
+              height={80} // Increased height for labels
+              tick={{ 
+                fontSize: 12,
+                fill: "#4B5563", // Better contrast
+                dy: 10 // Move labels down
+              }}
+              interval={0}
             />
             <YAxis 
               label={{ 
                 value: 'Volume de Interesse', 
                 angle: -90, 
                 position: 'insideLeft',
-                style: { textAnchor: 'middle' }
+                style: { 
+                  textAnchor: 'middle',
+                  fill: "#4B5563",
+                  fontSize: 12
+                },
+                dy: 50
+              }}
+              tick={{
+                fontSize: 12,
+                fill: "#4B5563"
               }}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Legend verticalAlign="top" height={36} />
+            <Legend 
+              verticalAlign="top" 
+              height={36}
+              wrapperStyle={{
+                paddingTop: "10px",
+                fontSize: "14px"
+              }}
+            />
             <Line 
               type="monotone" 
               dataKey="interesse" 
@@ -84,7 +108,11 @@ const SearchTrendsChart = () => {
                     position: 'top',
                     fill: '#dc2626',
                     fontSize: 12,
-                    offset: 20
+                    offset: 20,
+                    angle: -45, // Angled text for better readability
+                    style: {
+                      fontWeight: 500
+                    }
                   }}
                 />
               )
