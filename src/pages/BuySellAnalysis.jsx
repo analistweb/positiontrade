@@ -13,40 +13,42 @@ const data = [
 
 const BuySellAnalysis = () => {
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">Buy/Sell Analysis</h1>
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Buy/Sell Volume by Price Range</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="price" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="buy" fill="#82ca9d" />
-              <Bar dataKey="sell" fill="#8884d8" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+    <div className="flex flex-col min-h-screen p-4 space-y-6">
+      <h1 className="text-3xl font-bold">Buy/Sell Analysis</h1>
+      <div className="flex flex-col lg:flex-row gap-6">
+        <Card className="flex-1">
+          <CardHeader>
+            <CardTitle>Buy/Sell Volume by Price Range</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="price" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="buy" fill="#82ca9d" />
+                <Bar dataKey="sell" fill="#8884d8" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
+        <Card className="flex flex-col">
           <CardHeader>
             <CardTitle>Total Buy Volume</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 flex items-center justify-center">
             <p className="text-2xl font-bold">$16.06B</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="flex flex-col">
           <CardHeader>
             <CardTitle>Total Sell Volume</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 flex items-center justify-center">
             <p className="text-2xl font-bold">$26.11B</p>
           </CardContent>
         </Card>

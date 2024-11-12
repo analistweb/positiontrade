@@ -12,13 +12,13 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <BrowserRouter>
-        <div className="flex h-screen bg-background text-foreground">
-          <nav className="w-64 glass-morphism">
-            <div className="p-6 space-y-6">
+        <div className="flex min-h-screen bg-background text-foreground">
+          <nav className="w-64 glass-morphism flex-shrink-0">
+            <div className="flex flex-col p-6 space-y-6 h-full">
               <h1 className="text-2xl font-bold gradient-text">
                 Análise de Criptomoedas
               </h1>
-              <ul className="space-y-2">
+              <ul className="flex-1 space-y-2">
                 {navItems.map(({ title, to, icon }) => (
                   <motion.li
                     key={to}
@@ -37,7 +37,7 @@ const App = () => (
               </ul>
             </div>
           </nav>
-          <main className="flex-1 overflow-y-auto p-6">
+          <main className="flex-1 overflow-y-auto">
             <Routes>
               {navItems.map(({ to, page }) => (
                 <Route key={to} path={to} element={page} />

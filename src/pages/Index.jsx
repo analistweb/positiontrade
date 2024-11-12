@@ -1,12 +1,17 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import React from 'react';
+import { Card, CardContent } from "@/components/ui/card";
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-background to-background/80">
+      <Card className="w-full max-w-lg">
+        <CardContent className="flex flex-col items-center space-y-6 p-8">
+          <h1 className="text-4xl font-bold gradient-text text-center">Welcome to Crypto Analytics</h1>
+          <p className="text-xl text-center text-muted-foreground">
+            Start exploring cryptocurrency market insights and analysis
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 };
