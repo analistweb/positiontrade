@@ -1,58 +1,57 @@
-# Welcome to your GPT Engineer project
+# Painel de Análise de Criptomoedas
 
-## Project info
+## Sobre a Aplicação
 
-**URL**: 
+Bem-vindo ao Painel de Análise de Criptomoedas! Esta é uma ferramenta amigável que ajuda você a entender e acompanhar o mercado de criptomoedas de forma simples e intuitiva.
 
-## How can I edit this code?
+### O que esta aplicação oferece?
 
-There are several ways of editing your application.
+1. **Visão Geral do Mercado**
+   - Acompanhe os preços das principais criptomoedas
+   - Veja tendências do mercado de forma visual e fácil de entender
+   - Monitore as mudanças importantes do mercado em tempo real
 
-**Use GPT Engineer**
+2. **Análises Simplificadas**
+   - Indicadores explicados em linguagem simples
+   - Gráficos intuitivos que mostram para onde o mercado está indo
+   - Alertas sobre momentos importantes para comprar ou vender
 
-Simply visit the GPT Engineer project at [GPT Engineer]() and start prompting.
+3. **Gestão de Investimentos**
+   - Acompanhe seus investimentos em um só lugar
+   - Veja o desempenho da sua carteira
+   - Receba sugestões sobre os melhores momentos para investir
 
-Changes made via gptengineer.app will be committed automatically to this repo.
+4. **Informações Educativas**
+   - Explicações claras sobre termos técnicos
+   - Dicas para iniciantes no mercado
+   - Atualizações sobre eventos importantes
 
-**Use your preferred IDE**
+### Como isso ajuda você?
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in the GPT Engineer UI.
+- **Iniciantes**: Aprenda sobre o mercado de forma gradual e segura
+- **Investidores Casuais**: Tome decisões mais informadas sobre seus investimentos
+- **Investidores Experientes**: Tenha todas as ferramentas necessárias em um só lugar
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Recursos Principais
 
-Follow these steps:
+- **Painel Principal**: Visão geral do mercado e suas criptomoedas
+- **Análise de Compra/Venda**: Indicadores sobre os melhores momentos para negociar
+- **Posição da Carteira**: Acompanhamento dos seus investimentos
+- **Grupos de Entidades**: Análise do comportamento de grandes investidores
+- **Formação de Topo**: Identificação de possíveis pontos máximos do mercado
+- **Risco & Oportunidade**: Avaliação de riscos e oportunidades do mercado
+- **Liquidações do Mercado**: Acompanhamento de movimentações importantes
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Como começar?
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+1. Explore o Painel Principal para ter uma visão geral do mercado
+2. Use as diferentes seções para análises específicas
+3. Acompanhe seus investimentos na seção de Posição da Carteira
+4. Configure alertas para não perder momentos importantes do mercado
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Tecnologias Utilizadas
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
+Esta aplicação é construída com tecnologias modernas para garantir a melhor experiência:
 
 - Vite
 - React
