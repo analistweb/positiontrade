@@ -1,13 +1,13 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from "framer-motion";
-import { fetchBitcoinDominance, fetchPriceData } from '../services/marketService';
-import SearchTrendsChart from '../components/dashboard/SearchTrendsChart';
-import PriceChart from '../components/dashboard/PriceChart';
+import { fetchBitcoinDominance } from '../services/marketService';
 import MarketStats from '../components/dashboard/MarketStats';
 import CBBIIndicator from '../components/dashboard/CBBIIndicator';
+import MarketSentiment from '../components/dashboard/MarketSentiment';
+import MarketHeatmap from '../components/dashboard/MarketHeatmap';
 import { toast } from "sonner";
-import { TrendingUp, Activity, BarChart2, Globe } from "lucide-react";
+import { Activity, Globe, Brain, Fire } from "lucide-react";
 
 const Dashboard = () => {
   const { data: bitcoinDominance, isLoading: dominanceLoading, error: dominanceError } = useQuery({
@@ -16,15 +16,6 @@ const Dashboard = () => {
     refetchInterval: 30000,
     onError: (error) => {
       toast.error(`Erro ao atualizar dominância: ${error.message}`);
-    }
-  });
-
-  const { data: priceData, isLoading: priceLoading, error: priceError } = useQuery({
-    queryKey: ['priceData'],
-    queryFn: fetchPriceData,
-    refetchInterval: 15000,
-    onError: (error) => {
-      toast.error(`Erro ao atualizar preços: ${error.message}`);
     }
   });
 
@@ -103,10 +94,10 @@ const Dashboard = () => {
         className="glass-morphism rounded-2xl p-6 mb-8 card-hover"
       >
         <div className="flex items-center mb-4">
-          <TrendingUp className="w-6 h-6 mr-2 text-green-400" />
-          <h2 className="text-2xl font-semibold neon-glow">Tendências de Pesquisa</h2>
+          <Brain className="w-6 h-6 mr-2 text-green-400" />
+          <h2 className="text-2xl font-semibold neon-glow">Análise de Sentimento</h2>
         </div>
-        <SearchTrendsChart />
+        <MarketSentiment />
       </motion.div>
       
       <motion.div 
@@ -114,14 +105,10 @@ const Dashboard = () => {
         className="glass-morphism rounded-2xl p-6 card-hover"
       >
         <div className="flex items-center mb-4">
-          <BarChart2 className="w-6 h-6 mr-2 text-pink-400" />
-          <h2 className="text-2xl font-semibold neon-glow">Gráfico de Preços</h2>
+          <Fire className="w-6 h-6 mr-2 text-orange-400" />
+          <h2 className="text-2xl font-semibold neon-glow">Mapa de Calor do Mercado</h2>
         </div>
-        <PriceChart 
-          data={priceData}
-          isLoading={priceLoading}
-          error={priceError}
-        />
+        <MarketHeatmap />
       </motion.div>
     </motion.div>
   );
