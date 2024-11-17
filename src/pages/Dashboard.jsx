@@ -7,7 +7,7 @@ import CBBIIndicator from '../components/dashboard/CBBIIndicator';
 import MarketSentiment from '../components/dashboard/MarketSentiment';
 import MarketHeatmap from '../components/dashboard/MarketHeatmap';
 import { toast } from "sonner";
-import { Activity, Globe, Brain, Fire } from "lucide-react";
+import { Activity, Globe, Brain, Flame } from "lucide-react";
 
 const Dashboard = () => {
   const { data: bitcoinDominance, isLoading: dominanceLoading, error: dominanceError } = useQuery({
@@ -105,7 +105,7 @@ const Dashboard = () => {
         className="glass-morphism rounded-2xl p-6 card-hover"
       >
         <div className="flex items-center mb-4">
-          <Fire className="w-6 h-6 mr-2 text-orange-400" />
+          <Flame className="w-6 h-6 mr-2 text-orange-400" />
           <h2 className="text-2xl font-semibold neon-glow">Mapa de Calor do Mercado</h2>
         </div>
         <MarketHeatmap />
