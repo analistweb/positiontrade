@@ -35,91 +35,46 @@
     @apply shadow-[0_8px_32px_0_rgba(31,38,135,0.37)];
   }
 
-  .neon-glow {
-    text-shadow: 0 0 10px rgba(var(--primary), 0.5),
-                 0 0 20px rgba(var(--primary), 0.3),
-                 0 0 30px rgba(var(--primary), 0.2);
+  .card {
+    @apply p-6 rounded-xl bg-card text-card-foreground shadow-lg;
+    @apply border border-border/50;
   }
 
-  .card-hover {
-    @apply transition-all duration-300 hover:scale-[1.02];
-    @apply hover:shadow-[0_0_20px_rgba(var(--primary),0.3)];
-  }
-
-  .gradient-text {
-    @apply bg-clip-text text-transparent;
-    @apply bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500;
-  }
-
-  .animated-bg {
-    background: linear-gradient(45deg, #0a0a0a, #1a1a1a, #2a2a2a);
-    background-size: 400% 400%;
-    animation: gradient 15s ease infinite;
-  }
-
-  /* Enhanced Typography */
   h1 {
     @apply text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl;
-    @apply mb-4 gradient-text;
+    @apply mb-4 text-foreground;
   }
 
   h2 {
     @apply text-2xl font-semibold tracking-tight md:text-3xl lg:text-4xl;
-    @apply mb-3;
+    @apply mb-3 text-foreground;
   }
 
   h3 {
     @apply text-xl font-medium tracking-tight md:text-2xl lg:text-3xl;
-    @apply mb-2;
+    @apply mb-2 text-foreground;
   }
 
   p {
     @apply leading-relaxed text-base md:text-lg;
-    @apply text-gray-200;
+    @apply text-foreground/90;
   }
 
-  /* Enhanced Card Styles */
-  .enhanced-card {
-    @apply glass-morphism rounded-xl p-6;
-    @apply transition-all duration-300;
-    @apply hover:shadow-lg hover:shadow-primary/20;
-  }
-
-  /* Enhanced Table Styles */
   .enhanced-table {
-    @apply w-full border-collapse;
+    @apply w-full;
   }
 
   .enhanced-table th {
-    @apply bg-primary/10 text-primary-foreground;
-    @apply px-4 py-3 text-left font-medium;
+    @apply bg-primary/10 text-primary-foreground font-medium;
+    @apply px-4 py-3 text-left;
   }
 
   .enhanced-table td {
-    @apply px-4 py-3 border-t border-primary/10;
+    @apply px-4 py-3 border-t border-border/50;
+    @apply text-foreground/90;
   }
 
   .enhanced-table tr:hover {
     @apply bg-primary/5;
-  }
-
-  /* Custom Scrollbar */
-  ::-webkit-scrollbar {
-    @apply w-2;
-  }
-
-  ::-webkit-scrollbar-track {
-    @apply bg-background;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    @apply bg-primary/50 rounded-full;
-    @apply hover:bg-primary/70;
-  }
-
-  @keyframes gradient {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
   }
 }
