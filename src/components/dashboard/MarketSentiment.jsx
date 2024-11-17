@@ -14,10 +14,30 @@ const MarketSentiment = () => {
         overallSentiment: 'bullish',
         sentimentScore: 75,
         indicators: [
-          { name: 'Fear & Greed Index', value: 65, status: 'positive' },
-          { name: 'Social Media Mentions', value: '↑ 23%', status: 'positive' },
-          { name: 'Trading Volume', value: '↓ 5%', status: 'neutral' },
-          { name: 'Institutional Interest', value: '↑ 15%', status: 'positive' }
+          { 
+            name: 'Índice Medo & Ganância', 
+            value: 65, 
+            status: 'positive',
+            description: 'Mercado em estado de ganância moderada, indicando otimismo dos investidores'
+          },
+          { 
+            name: 'Menções em Redes Sociais', 
+            value: '↑ 23%', 
+            status: 'positive',
+            description: 'Aumento significativo nas discussões sobre criptomoedas nas redes sociais'
+          },
+          { 
+            name: 'Volume de Negociação', 
+            value: '↓ 5%', 
+            status: 'neutral',
+            description: 'Leve queda no volume de negociações, indicando momento de cautela'
+          },
+          { 
+            name: 'Interesse Institucional', 
+            value: '↑ 15%', 
+            status: 'positive',
+            description: 'Crescimento no interesse de investidores institucionais, sugerindo confiança no mercado'
+          }
         ]
       };
     },
@@ -105,7 +125,8 @@ const MarketSentiment = () => {
                   <span className="text-sm text-gray-400">{indicator.name}</span>
                   {getSentimentIcon(indicator.status)}
                 </div>
-                <span className="text-xl font-semibold">{indicator.value}</span>
+                <span className="text-xl font-semibold mb-2">{indicator.value}</span>
+                <p className="text-sm text-gray-400 mt-2">{indicator.description}</p>
               </motion.div>
             ))}
           </div>
