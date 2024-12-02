@@ -1,11 +1,11 @@
-import { HomeIcon, TrendingUpIcon, WalletIcon, UsersIcon, ActivityIcon, AlertTriangleIcon, BarChart3Icon } from "lucide-react";
+import { HomeIcon, TrendingUpIcon, WalletIcon, UsersIcon, ActivityIcon, AlertTriangleIcon, ChartIcon } from "lucide-react";
 import Dashboard from "./pages/Dashboard.jsx";
 import AnalisesCompraVenda from "./pages/AnalisesCompraVenda.jsx";
 import PosicaoCarteira from "./pages/PosicaoCarteira.jsx";
 import GruposEntidades from "./pages/GruposEntidades.jsx";
 import FormacaoTopo from "./pages/FormacaoTopo.jsx";
 import RiscoOportunidade from "./pages/RiscoOportunidade.jsx";
-import LiquidacoesMercado from "./pages/LiquidacoesMercado.jsx";
+import AnaliseTecnica from "./pages/AnaliseTecnica.jsx";
 
 export const navItems = [
   {
@@ -45,9 +45,9 @@ export const navItems = [
     page: <RiscoOportunidade />,
   },
   {
-    title: "Liquidações do Mercado",
-    to: "/liquidacoes-mercado",
-    icon: <BarChart3Icon className="h-4 w-4" />,
-    page: <LiquidacoesMercado />,
+    title: "Análise Técnica",
+    to: "/analise-tecnica",
+    icon: <ChartIcon className="h-4 w-4" />,
+    page: <AnaliseTecnica />,
   },
 ];
