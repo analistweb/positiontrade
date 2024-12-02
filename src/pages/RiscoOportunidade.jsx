@@ -1,127 +1,157 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { fetchRiskOpportunityData, getTopCoins } from '../services/cryptoService';
+import SearchTrendsChart from '../components/dashboard/SearchTrendsChart';
 import { toast } from "sonner";
+import axios from 'axios';
 
 const RiscoOportunidade = () => {
-  const [selectedCoin, setSelectedCoin] = useState('bitcoin');
-  const topCoins = getTopCoins();
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['riskOpportunity', selectedCoin],
-    queryFn: () => fetchRiskOpportunityData(selectedCoin),
-    refetchInterval: 60000,
-    onError: (error) => {
-      toast.error(`Erro ao carregar dados: ${error.message}`);
-    }
+  const { data: fundamentalData, isLoading: fundamentalLoading } = useQuery({
+    queryKey: ['bitcoinFundamentals'],
+    queryFn: async () => {
+      try {
+        // Simulated data - in production, this would come from a real API
+        return {
+          hashrate: {
+            current: 512,
+            previous: 490,
+            trend: 'up'
+          },
+          transactions: {
+            current: 350000,
+            previous: 320000,
+            trend: 'up'
+          },
+          lastUpdate: new Date().toISOString()
+        };
+      } catch (error) {
+        toast.error("Erro ao carregar dados fundamentalistas");
+        throw error;
+      }
+    },
+    refetchInterval: 300000 // 5 minutos
   });
 
-  if (isLoading) return <div className="p-4">Carregando dados...</div>;
-  if (error) return <div className="p-4 text-red-500">Erro: {error.message}</div>;
-  if (!data || !data.marketData || !data.currentPrice) {
-    return <div className="p-4">Nenhum dado disponível</div>;
+  const { data: newsData, isLoading: newsLoading } = useQuery({
+    queryKey: ['cnbcNews'],
+    queryFn: async () => {
+      try {
+        // Simulated data - in production, this would come from a news API
+        return {
+          headlines: [
+            {
+              title: "Bitcoin reaches new heights",
+              sentiment: "positive",
+              date: new Date().toISOString()
+            },
+            {
+              title: "Crypto market shows resilience",
+              sentiment: "positive",
+              date: new Date().toISOString()
+            }
+          ],
+          sentimentScore: 75
+        };
+      } catch (error) {
+        toast.error("Erro ao carregar manchetes");
+        throw error;
+      }
+    },
+    refetchInterval: 300000
+  });
+
+  if (fundamentalLoading || newsLoading) {
+    return <div>Carregando análises...</div>;
   }
 
-  const chartData = data.marketData.prices.map(([timestamp, price]) => ({
-    date: new Date(timestamp).toLocaleDateString(),
-    price: price
-  }));
+  const getRecommendation = (data) => {
+    if (!data) return { text: "Aguardando dados", type: "neutral" };
+    
+    const { hashrate, transactions } = data;
+    if (hashrate.trend === 'up' && transactions.trend === 'up') {
+      return { text: "COMPRAR", type: "success" };
+    } else if (hashrate.trend === 'down' && transactions.trend === 'down') {
+      return { text: "VENDER", type: "destructive" };
+    }
+    return { text: "NEUTRO", type: "warning" };
+  };
 
-  const volatility = calculateVolatility(data.marketData.prices);
-  const trend = identifyTrend(data.marketData.prices);
+  const fundamentalRecommendation = getRecommendation(fundamentalData);
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Risco & Oportunidade</h1>
-        <Select value={selectedCoin} onValueChange={setSelectedCoin}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Selecione uma moeda" />
-          </SelectTrigger>
-          <SelectContent>
-            {topCoins.map(coin => (
-              <SelectItem key={coin} value={coin}>
-                {coin.charAt(0).toUpperCase() + coin.slice(1)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+    <div className="container mx-auto p-4 space-y-6">
+      <h1 className="text-3xl font-bold mb-6">Análise de Risco & Oportunidade</h1>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Preço {selectedCoin.charAt(0).toUpperCase() + selectedCoin.slice(1)} (USD)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="price" stroke="#8884d8" />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Volatilidade (30 dias)</CardTitle>
+            <CardTitle className="flex justify-between items-center">
+              Análise de Sentimento
+              <Badge variant={newsData?.sentimentScore > 50 ? "success" : "destructive"}>
+                {newsData?.sentimentScore}% Positivo
+              </Badge>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{volatility.toFixed(2)}%</p>
+            <div className="mb-6">
+              <SearchTrendsChart />
+            </div>
+            <div className="space-y-4">
+              <h3 className="font-semibold">Últimas Manchetes CNBC:</h3>
+              {newsData?.headlines.map((headline, index) => (
+                <div key={index} className="p-3 bg-card/50 rounded-lg">
+                  <p className="text-sm">{headline.title}</p>
+                  <Badge variant={headline.sentiment === 'positive' ? 'success' : 'destructive'} className="mt-2">
+                    {headline.sentiment === 'positive' ? 'Bullish' : 'Bearish'}
+                  </Badge>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader>
-            <CardTitle>Tendência Atual</CardTitle>
+            <CardTitle className="flex justify-between items-center">
+              Análise Fundamentalista
+              <Badge variant={fundamentalRecommendation.type}>
+                {fundamentalRecommendation.text}
+              </Badge>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{trend}</p>
+            <div className="space-y-6">
+              <div className="p-4 bg-card/50 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold">Hashrate</span>
+                  <Badge variant={fundamentalData.hashrate.trend === 'up' ? 'success' : 'destructive'}>
+                    {fundamentalData.hashrate.trend === 'up' ? '↑' : '↓'} {fundamentalData.hashrate.current} EH/s
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Variação: {((fundamentalData.hashrate.current - fundamentalData.hashrate.previous) / fundamentalData.hashrate.previous * 100).toFixed(2)}%
+                </p>
+              </div>
+
+              <div className="p-4 bg-card/50 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold">Transações por Dia</span>
+                  <Badge variant={fundamentalData.transactions.trend === 'up' ? 'success' : 'destructive'}>
+                    {fundamentalData.transactions.trend === 'up' ? '↑' : '↓'} {fundamentalData.transactions.current.toLocaleString()}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Variação: {((fundamentalData.transactions.current - fundamentalData.transactions.previous) / fundamentalData.transactions.previous * 100).toFixed(2)}%
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
-
-      <Alert>
-        <AlertTitle>Análise de Risco</AlertTitle>
-        <AlertDescription>
-          <p>Baseado nos dados atuais:</p>
-          <ul className="list-disc pl-5 mt-2">
-            <li>Preço atual: ${data.currentPrice.usd.toFixed(2)}</li>
-            <li>Volume 24h: ${(data.currentPrice.usd_24h_vol / 1000000).toFixed(2)}M</li>
-            <li>Variação 24h: {data.currentPrice.usd_24h_change.toFixed(2)}%</li>
-          </ul>
-        </AlertDescription>
-      </Alert>
     </div>
   );
-};
-
-const calculateVolatility = (prices) => {
-  const returns = prices.slice(1).map((price, index) => 
-    (price[1] - prices[index][1]) / prices[index][1]
-  );
-  const avgReturn = returns.reduce((sum, ret) => sum + ret, 0) / returns.length;
-  const squaredDiffs = returns.map(ret => Math.pow(ret - avgReturn, 2));
-  const variance = squaredDiffs.reduce((sum, diff) => sum + diff, 0) / squaredDiffs.length;
-  return Math.sqrt(variance) * Math.sqrt(365) * 100;
-};
-
-const identifyTrend = (prices) => {
-  const lastPrice = prices[prices.length - 1][1];
-  const firstPrice = prices[0][1];
-  const change = ((lastPrice - firstPrice) / firstPrice) * 100;
-  
-  if (change > 5) return "Alta";
-  if (change < -5) return "Baixa";
-  return "Lateral";
 };
 
 export default RiscoOportunidade;
