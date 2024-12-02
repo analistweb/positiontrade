@@ -1,4 +1,4 @@
-import { HomeIcon, TrendingUpIcon, WalletIcon, UsersIcon, ActivityIcon, AlertTriangleIcon, ChartIcon } from "lucide-react";
+import { HomeIcon, TrendingUpIcon, WalletIcon, UsersIcon, ActivityIcon, AlertTriangleIcon, BarChartIcon } from "lucide-react";
 import Dashboard from "./pages/Dashboard.jsx";
 import AnalisesCompraVenda from "./pages/AnalisesCompraVenda.jsx";
 import PosicaoCarteira from "./pages/PosicaoCarteira.jsx";
@@ -47,7 +47,7 @@ export const navItems = [
   {
     title: "Análise Técnica",
     to: "/analise-tecnica",
-    icon: <ChartIcon className="h-4 w-4" />,
+    icon: <BarChartIcon className="h-4 w-4" />,
     page: <AnaliseTecnica />,
   },
 ];
