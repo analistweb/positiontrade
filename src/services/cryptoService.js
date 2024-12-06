@@ -43,19 +43,12 @@ export const fetchWhaleTransactions = async () => {
       headers: getHeaders()
     });
 
-    // Simulando dados mais detalhados enquanto aguardamos integração com API específica
-    return response.data.slice(0, 10).map(([timestamp, volume]) => {
-      const isExchangeToWallet = Math.random() > 0.5;
-      const amount = (volume / 40000); // Convertendo volume aproximado para BTC
-      
-      return {
-        timestamp,
-        amount,
-        from: isExchangeToWallet ? 'exchange-binance' : `wallet-${Math.random().toString(36).substring(7)}`,
-        to: isExchangeToWallet ? `wallet-${Math.random().toString(36).substring(7)}` : 'exchange-binance',
-        type: isExchangeToWallet ? 'ACUMULAÇÃO' : 'DISTRIBUIÇÃO'
-      };
-    });
+    return response.data.map(([timestamp, volume]) => ({
+      timestamp,
+      volume,
+      type: volume > 1000000 ? 'Whale' : 'Regular',
+      exchange: 'Binance'
+    }));
   } catch (error) {
     toast.error("Erro ao carregar transações: " + error.message);
     throw error;
