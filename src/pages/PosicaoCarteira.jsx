@@ -17,7 +17,7 @@ const PosicaoCarteira = () => {
   const { data: portfolioData, isLoading: portfolioLoading, error: portfolioError } = useQuery({
     queryKey: ['portfolio'],
     queryFn: fetchPortfolioData,
-    refetchInterval: 30000, // Atualiza a cada 30 segundos
+    refetchInterval: 30000,
   });
 
   const { data: whaleData, isLoading: whaleLoading, error: whaleError } = useQuery({
@@ -104,10 +104,10 @@ const PosicaoCarteira = () => {
             <TableBody>
               {whaleData?.slice(0, 10).map((transaction, index) => (
                 <TableRow key={index}>
-                  <TableCell>{new Date(transaction.timestamp).toLocaleString()}</TableCell>
-                  <TableCell>${transaction.volume.toLocaleString()}</TableCell>
-                  <TableCell>{transaction.type}</TableCell>
-                  <TableCell>{transaction.exchange}</TableCell>
+                  <TableCell>{transaction?.timestamp ? new Date(transaction.timestamp).toLocaleString() : 'N/A'}</TableCell>
+                  <TableCell>${transaction?.volume?.toLocaleString() ?? 'N/A'}</TableCell>
+                  <TableCell>{transaction?.type ?? 'N/A'}</TableCell>
+                  <TableCell>{transaction?.exchange ?? 'N/A'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -146,12 +146,12 @@ const PosicaoCarteira = () => {
             </TableHeader>
             <TableBody>
               {portfolioData?.map((coin) => (
-                <TableRow key={coin.id}>
-                  <TableCell className="font-medium">{coin.name}</TableCell>
-                  <TableCell>${coin.current_price.toLocaleString()}</TableCell>
-                  <TableCell>${coin.total_volume.toLocaleString()}</TableCell>
-                  <TableCell className={coin.price_change_percentage_24h > 0 ? 'text-green-500' : 'text-red-500'}>
-                    {coin.price_change_percentage_24h.toFixed(2)}%
+                <TableRow key={coin?.id ?? index}>
+                  <TableCell className="font-medium">{coin?.name ?? 'N/A'}</TableCell>
+                  <TableCell>${coin?.current_price?.toLocaleString() ?? 'N/A'}</TableCell>
+                  <TableCell>${coin?.total_volume?.toLocaleString() ?? 'N/A'}</TableCell>
+                  <TableCell className={coin?.price_change_percentage_24h > 0 ? 'text-green-500' : 'text-red-500'}>
+                    {coin?.price_change_percentage_24h?.toFixed(2) ?? 'N/A'}%
                   </TableCell>
                 </TableRow>
               ))}

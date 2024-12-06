@@ -24,6 +24,10 @@ const AnaliseTecnica = () => {
           }
         );
 
+        if (!response.data?.prices) {
+          throw new Error('Dados de preço não disponíveis');
+        }
+
         const prices = response.data.prices.map(price => ({
           date: new Date(price[0]).toLocaleDateString(),
           price: price[1]
@@ -46,13 +50,18 @@ const AnaliseTecnica = () => {
     refetchInterval: 300000 // 5 minutos
   });
 
-  if (isLoading) {
+  if (isLoading || !btcData) {
     return <div>Carregando análise técnica...</div>;
   }
 
   const getSignalColor = (value, threshold) => {
+    if (value === undefined || threshold === undefined) return 'bg-gray-500';
     return value >= threshold ? 'bg-red-500' : 'bg-green-500';
   };
+
+  const currentPrice = btcData?.prices?.[btcData.prices.length - 1]?.price;
+  const mma200 = btcData?.mma200;
+  const mayerMultiple = btcData?.mayerMultiple;
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -64,15 +73,15 @@ const AnaliseTecnica = () => {
             <CardTitle className="flex justify-between items-center">
               Indicador 200MMA
               <Badge 
-                className={getSignalColor(btcData.prices[btcData.prices.length - 1].price, btcData.mma200 * 2)}
+                className={getSignalColor(currentPrice, mma200 * 2)}
               >
-                {btcData.prices[btcData.prices.length - 1].price > btcData.mma200 * 2 ? 'Venda' : 'Compra'}
+                {currentPrice > (mma200 * 2) ? 'Venda' : 'Compra'}
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p>200MMA: ${btcData.mma200.toLocaleString()}</p>
-            <p>Preço Atual: ${btcData.prices[btcData.prices.length - 1].price.toLocaleString()}</p>
+            <p>200MMA: ${mma200?.toLocaleString() ?? 'N/A'}</p>
+            <p>Preço Atual: ${currentPrice?.toLocaleString() ?? 'N/A'}</p>
           </CardContent>
         </Card>
 
@@ -81,14 +90,14 @@ const AnaliseTecnica = () => {
             <CardTitle className="flex justify-between items-center">
               Mayer Multiple
               <Badge 
-                className={getSignalColor(btcData.mayerMultiple, 2.4)}
+                className={getSignalColor(mayerMultiple, 2.4)}
               >
-                {btcData.mayerMultiple > 2.4 ? 'Venda' : btcData.mayerMultiple < 1.3 ? 'Compra' : 'Neutro'}
+                {mayerMultiple > 2.4 ? 'Venda' : mayerMultiple < 1.3 ? 'Compra' : 'Neutro'}
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p>Valor Atual: {btcData.mayerMultiple.toFixed(2)}</p>
+            <p>Valor Atual: {mayerMultiple?.toFixed(2) ?? 'N/A'}</p>
             <p>Referência Compra: 1.3</p>
             <p>Referência Venda: 2.4</p>
           </CardContent>
@@ -102,7 +111,7 @@ const AnaliseTecnica = () => {
         <CardContent>
           <div className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={btcData.prices}>
+              <LineChart data={btcData?.prices ?? []}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
@@ -116,7 +125,7 @@ const AnaliseTecnica = () => {
                 />
                 <Line 
                   type="monotone" 
-                  dataKey={() => btcData.mma200} 
+                  dataKey={() => btcData?.mma200} 
                   stroke="#82ca9d" 
                   name="200MMA"
                   strokeDasharray="5 5"
