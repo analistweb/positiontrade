@@ -5,20 +5,19 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useQuery } from '@tanstack/react-query';
 import { fetchPortfolioData, fetchWhaleTransactions } from '../services/cryptoService';
 import { Skeleton } from "@/components/ui/skeleton";
-import { InfoIcon, ArrowRightFromLine, ArrowLeftFromLine } from 'lucide-react';
+import { InfoIcon } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
 
 const PosicaoCarteira = () => {
   const { data: portfolioData, isLoading: portfolioLoading, error: portfolioError } = useQuery({
     queryKey: ['portfolio'],
     queryFn: fetchPortfolioData,
-    refetchInterval: 30000,
+    refetchInterval: 30000, // Atualiza a cada 30 segundos
   });
 
   const { data: whaleData, isLoading: whaleLoading, error: whaleError } = useQuery({
@@ -26,31 +25,6 @@ const PosicaoCarteira = () => {
     queryFn: fetchWhaleTransactions,
     refetchInterval: 30000,
   });
-
-  const getTransactionType = (from, to) => {
-    if (from.includes('exchange') && !to.includes('exchange')) {
-      return {
-        type: 'ACUMULAÇÃO',
-        description: 'Saída de corretora para carteira pessoal - Sinal geralmente positivo, indica acumulação',
-        icon: <ArrowRightFromLine className="h-4 w-4 text-green-500" />,
-        badgeColor: 'bg-green-100 text-green-800'
-      };
-    }
-    if (!from.includes('exchange') && to.includes('exchange')) {
-      return {
-        type: 'DISTRIBUIÇÃO',
-        description: 'Entrada em corretora vinda de carteira pessoal - Sinal geralmente negativo, indica possível venda',
-        icon: <ArrowLeftFromLine className="h-4 w-4 text-red-500" />,
-        badgeColor: 'bg-red-100 text-red-800'
-      };
-    }
-    return {
-      type: 'NEUTRO',
-      description: 'Movimentação entre carteiras do mesmo tipo',
-      icon: null,
-      badgeColor: 'bg-gray-100 text-gray-800'
-    };
-  };
 
   if (portfolioLoading || whaleLoading) {
     return (
@@ -107,18 +81,11 @@ const PosicaoCarteira = () => {
                 <TooltipTrigger>
                   <InfoIcon className="h-4 w-4 text-muted-foreground" />
                 </TooltipTrigger>
-                <TooltipContent className="max-w-md p-4">
-                  <p className="font-semibold mb-2">Interpretação dos Movimentos:</p>
-                  <ul className="space-y-2">
-                    <li className="flex items-center gap-2">
-                      <ArrowRightFromLine className="h-4 w-4 text-green-500" />
-                      <span>ACUMULAÇÃO: Saída de corretora para carteira pessoal (geralmente positivo)</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <ArrowLeftFromLine className="h-4 w-4 text-red-500" />
-                      <span>DISTRIBUIÇÃO: Entrada em corretora vinda de carteira pessoal (geralmente negativo)</span>
-                    </li>
-                  </ul>
+                <TooltipContent>
+                  <p className="max-w-xs">
+                    Dados reais de transações de alto valor (whales) nas últimas 24 horas.
+                    Atualizado em tempo real.
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -130,41 +97,19 @@ const PosicaoCarteira = () => {
               <TableRow>
                 <TableHead>Horário</TableHead>
                 <TableHead>Volume (USD)</TableHead>
-                <TableHead>Tipo de Movimento</TableHead>
-                <TableHead>Origem</TableHead>
-                <TableHead>Destino</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Exchange</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {whaleData?.slice(0, 10).map((transaction, index) => {
-                const transactionType = getTransactionType(transaction.from, transaction.to);
-                return (
-                  <TableRow key={index}>
-                    <TableCell>{new Date(transaction.timestamp).toLocaleString()}</TableCell>
-                    <TableCell>${transaction.volume.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {transactionType.icon}
-                        <Badge className={`${transactionType.badgeColor}`}>
-                          {transactionType.type}
-                        </Badge>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <InfoIcon className="h-4 w-4 text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{transactionType.description}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </TableCell>
-                    <TableCell>{transaction.from}</TableCell>
-                    <TableCell>{transaction.to}</TableCell>
-                  </TableRow>
-                );
-              })}
+              {whaleData?.slice(0, 10).map((transaction, index) => (
+                <TableRow key={index}>
+                  <TableCell>{new Date(transaction.timestamp).toLocaleString()}</TableCell>
+                  <TableCell>${transaction.volume.toLocaleString()}</TableCell>
+                  <TableCell>{transaction.type}</TableCell>
+                  <TableCell>{transaction.exchange}</TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </CardContent>
