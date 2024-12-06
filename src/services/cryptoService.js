@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { COINGECKO_API_URL, getHeaders } from '../config/api';
+import { toast } from "sonner";
 
 const TOP_COINS = [
   'bitcoin',
@@ -13,6 +14,46 @@ const TOP_COINS = [
   'dogecoin',
   'chainlink'
 ];
+
+export const fetchPortfolioData = async () => {
+  try {
+    const response = await axios.get(`${COINGECKO_API_URL}/coins/markets`, {
+      params: {
+        vs_currency: 'usd',
+        order: 'market_cap_desc',
+        per_page: 10,
+        page: 1,
+        sparkline: true,
+        price_change_percentage: '24h'
+      },
+      headers: getHeaders()
+    });
+
+    return response.data;
+  } catch (error) {
+    toast.error("Erro ao carregar dados do portfólio: " + error.message);
+    throw error;
+  }
+};
+
+export const fetchWhaleTransactions = async () => {
+  try {
+    const response = await axios.get(`${COINGECKO_API_URL}/exchanges/binance/volume_chart`, {
+      params: { days: 1 },
+      headers: getHeaders()
+    });
+
+    return response.data.map(([timestamp, volume]) => ({
+      timestamp,
+      volume,
+      type: volume > 1000000 ? 'Whale' : 'Regular',
+      exchange: 'Binance'
+    }));
+  } catch (error) {
+    toast.error("Erro ao carregar transações: " + error.message);
+    throw error;
+  }
+};
 
 export const fetchTopFormationData = async (coin = 'bitcoin') => {
   try {
@@ -65,51 +106,6 @@ export const fetchRiskOpportunityData = async (coin = 'bitcoin') => {
   } catch (error) {
     console.error('Error fetching risk opportunity data:', error);
     throw new Error('Failed to fetch market data');
-  }
-};
-
-export const fetchLiquidationsData = async () => {
-  try {
-    // Mock data for development/testing since CoinGecko API has rate limits
-    const mockLiquidations = [
-      {
-        exchange: "Binance",
-        amount: 5000000,
-        type: "long",
-        timestamp: Date.now()
-      },
-      {
-        exchange: "Bybit",
-        amount: 3000000,
-        type: "short",
-        timestamp: Date.now() - 300000
-      },
-      {
-        exchange: "OKX",
-        amount: 2000000,
-        type: "long",
-        timestamp: Date.now() - 600000
-      }
-    ];
-
-    // Calculate totals from mock data
-    const totalLiquidated = mockLiquidations.reduce((sum, liq) => sum + liq.amount, 0);
-    const longLiquidated = mockLiquidations
-      .filter(liq => liq.type === 'long')
-      .reduce((sum, liq) => sum + liq.amount, 0);
-    const shortLiquidated = mockLiquidations
-      .filter(liq => liq.type === 'short')
-      .reduce((sum, liq) => sum + liq.amount, 0);
-
-    return {
-      liquidations: mockLiquidations,
-      totalLiquidated,
-      longLiquidated,
-      shortLiquidated
-    };
-  } catch (error) {
-    console.error('Error fetching liquidation data:', error);
-    throw new Error('Failed to fetch liquidation data');
   }
 };
 
