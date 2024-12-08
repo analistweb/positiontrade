@@ -71,8 +71,24 @@ const HelpDialog = () => (
 );
 
 const App = () => {
-  // Add null check for navItems
-  const safeNavItems = Array.isArray(navItems) ? navItems : [];
+  console.log("navItems:", navItems); // Debug log
+  
+  // More robust null check for navItems
+  const safeNavItems = Array.isArray(navItems) ? navItems.filter(item => {
+    // Ensure all required properties exist
+    const isValid = item && 
+      typeof item.title === 'string' && 
+      typeof item.to === 'string' && 
+      item.icon && 
+      item.page;
+    
+    if (!isValid) {
+      console.warn('Invalid nav item:', item);
+    }
+    return isValid;
+  }) : [];
+  
+  console.log("safeNavItems:", safeNavItems); // Debug log
   
   return (
     <QueryClientProvider client={queryClient}>
