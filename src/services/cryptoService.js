@@ -17,29 +17,35 @@ const TOP_COINS = [
 
 export const fetchPortfolioData = async () => {
   try {
-    const response = await axios.get(`${COINGECKO_API_URL}/coins/markets`, {
-      params: {
-        vs_currency: 'usd',
-        order: 'market_cap_desc',
-        per_page: 10,
-        page: 1,
-        sparkline: true,
-        price_change_percentage: '24h'
-      },
-      headers: getHeaders()
-    });
+    const response = await axios.get(
+      `${COINGECKO_API_URL}/coins/markets`,
+      {
+        params: {
+          vs_currency: 'usd',
+          order: 'market_cap_desc',
+          per_page: 10,
+          page: 1,
+          sparkline: true,
+          price_change_percentage: '24h'
+        },
+        headers: getHeaders()
+      }
+    );
 
-    return response.data;
+    return response.data || [];
   } catch (error) {
+    console.error('Error fetching portfolio data:', error);
     toast.error("Erro ao carregar dados do portfólio: " + error.message);
-    throw error;
+    return [];
   }
 };
 
 export const fetchWhaleTransactions = async () => {
   try {
+    console.log('Fetching whale transactions...');
+    
     // Fetch large transactions from multiple endpoints for better coverage
-    const [transfers, exchangeData] = await Promise.all([
+    const [transfersResponse, exchangeResponse] = await Promise.all([
       axios.get(`${COINGECKO_API_URL}/exchanges/binance/volume_chart`, {
         params: { days: 1 },
         headers: getHeaders()
@@ -49,9 +55,16 @@ export const fetchWhaleTransactions = async () => {
       })
     ]);
 
+    console.log('Transfers response:', transfersResponse?.data);
+    console.log('Exchange response:', exchangeResponse?.data);
+
+    // Ensure we have valid data before processing
+    const transfersData = transfersResponse?.data || [];
+    const exchangeData = exchangeResponse?.data?.status_updates || [];
+
     // Process and transform the data into our required format
-    const transactions = transfers.data
-      .filter(transfer => transfer[1] > 1000000) // Filter transactions over $1M
+    const transactions = transfersData
+      .filter(transfer => Array.isArray(transfer) && transfer[1] > 1000000) // Filter transactions over $1M
       .map(transfer => {
         const randomCoin = TOP_COINS[Math.floor(Math.random() * TOP_COINS.length)];
         return {
@@ -68,7 +81,7 @@ export const fetchWhaleTransactions = async () => {
       });
 
     // Add some exchange-specific transactions
-    const exchangeTransactions = exchangeData.data.status_updates
+    const exchangeTransactions = exchangeData
       .slice(0, 5)
       .map(update => ({
         timestamp: new Date(update.created_at).getTime(),
@@ -82,11 +95,14 @@ export const fetchWhaleTransactions = async () => {
         toType: 'Exchange'
       }));
 
-    return [...transactions, ...exchangeTransactions].sort((a, b) => b.timestamp - a.timestamp);
+    const allTransactions = [...transactions, ...exchangeTransactions].sort((a, b) => b.timestamp - a.timestamp);
+    console.log('Processed transactions:', allTransactions);
+    
+    return allTransactions;
   } catch (error) {
-    toast.error("Erro ao carregar transações: " + error.message);
     console.error('Error fetching whale transactions:', error);
-    throw error;
+    toast.error("Erro ao carregar transações: " + error.message);
+    return []; // Return empty array instead of throwing
   }
 };
 
@@ -103,7 +119,7 @@ export const fetchTopFormationData = async (coin = 'bitcoin') => {
       },
       timeout: 10000
     });
-    return response.data;
+    return response.data || {};
   } catch (error) {
     console.error('Error fetching top formation data:', error);
     throw new Error('Failed to fetch market data');
@@ -135,8 +151,8 @@ export const fetchRiskOpportunityData = async (coin = 'bitcoin') => {
       })
     ]);
     return {
-      currentPrice: priceData.data[coin],
-      marketData: marketData.data
+      currentPrice: priceData.data[coin] || {},
+      marketData: marketData.data || {}
     };
   } catch (error) {
     console.error('Error fetching risk opportunity data:', error);
