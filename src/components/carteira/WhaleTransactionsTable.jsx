@@ -7,7 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { WalletIcon, BuildingIcon, ArrowRightLeft, ArrowRight, CoinIcon } from 'lucide-react';
+import { WalletIcon, BuildingIcon, ArrowRightLeft, ArrowRight, Bitcoin } from 'lucide-react';
 
 const getTransactionType = (type, exchange, fromAddress, toAddress) => {
   if (type === 'withdrawal' && exchange) {
@@ -72,7 +72,7 @@ const WhaleTransactionsTable = ({ transactions }) => {
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
-                  <CoinIcon className="h-4 w-4" />
+                  <Bitcoin className="h-4 w-4" />
                   <span className="font-medium">{transaction?.cryptocurrency || 'N/A'}</span>
                 </div>
               </TableCell>
