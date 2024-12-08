@@ -38,17 +38,40 @@ export const fetchPortfolioData = async () => {
 
 export const fetchWhaleTransactions = async () => {
   try {
-    const response = await axios.get(`${COINGECKO_API_URL}/exchanges/binance/volume_chart`, {
-      params: { days: 1 },
-      headers: getHeaders()
-    });
+    // Simulando dados de transações de baleias com informações mais detalhadas
+    const mockTransactions = [
+      {
+        timestamp: Date.now(),
+        volume: 5000000,
+        type: 'withdrawal',
+        exchange: 'Binance',
+        fromAddress: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+        toAddress: '0x123f681646d4a755815f9cb19e1acc8565a0c2ac',
+        fromType: 'Exchange',
+        toType: 'Carteira'
+      },
+      {
+        timestamp: Date.now() - 3600000,
+        volume: 3000000,
+        type: 'deposit',
+        exchange: 'Coinbase',
+        fromAddress: '0x456f681646d4a755815f9cb19e1acc8565a0c2ac',
+        toAddress: '0x789d35Cc6634C0532925a3b844Bc454e4438f44e',
+        fromType: 'Carteira',
+        toType: 'Exchange'
+      },
+      {
+        timestamp: Date.now() - 7200000,
+        volume: 2000000,
+        type: 'transfer',
+        fromAddress: '0xabcf681646d4a755815f9cb19e1acc8565a0c2ac',
+        toAddress: '0xdefd35Cc6634C0532925a3b844Bc454e4438f44e',
+        fromType: 'Carteira',
+        toType: 'Carteira'
+      }
+    ];
 
-    return response.data.map(([timestamp, volume]) => ({
-      timestamp,
-      volume,
-      type: volume > 1000000 ? 'Whale' : 'Regular',
-      exchange: 'Binance'
-    }));
+    return mockTransactions;
   } catch (error) {
     toast.error("Erro ao carregar transações: " + error.message);
     throw error;
