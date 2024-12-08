@@ -1,43 +1,18 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useQuery } from '@tanstack/react-query';
 import { fetchPortfolioData, fetchWhaleTransactions } from '../services/cryptoService';
 import { Skeleton } from "@/components/ui/skeleton";
-import { InfoIcon, ArrowRightLeft, WalletIcon, BuildingIcon } from 'lucide-react';
-import { Badge } from "@/components/ui/badge";
+import { InfoIcon } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-const getTransactionType = (type, exchange) => {
-  if (type === 'withdrawal' && exchange) {
-    return {
-      type: 'ACUMULAÇÃO',
-      description: 'Saída da corretora para carteira pessoal',
-      icon: <WalletIcon className="h-4 w-4" />,
-      color: 'bg-green-500'
-    };
-  }
-  if (type === 'deposit' && exchange) {
-    return {
-      type: 'DISTRIBUIÇÃO',
-      description: 'Entrada na corretora vinda de carteira pessoal',
-      icon: <BuildingIcon className="h-4 w-4" />,
-      color: 'bg-yellow-500'
-    };
-  }
-  return {
-    type: 'TRANSFERÊNCIA',
-    description: 'Movimentação entre carteiras',
-    icon: <ArrowRightLeft className="h-4 w-4" />,
-    color: 'bg-blue-500'
-  };
-};
+import WhaleTransactionsTable from '../components/carteira/WhaleTransactionsTable';
+import MarketAnalysisTable from '../components/carteira/MarketAnalysisTable';
 
 const PosicaoCarteira = () => {
   const { data: portfolioData, isLoading: portfolioLoading, error: portfolioError } = useQuery({
@@ -118,47 +93,7 @@ const PosicaoCarteira = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Horário</TableHead>
-                <TableHead>Volume (USD)</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Exchange</TableHead>
-                <TableHead>Fluxo</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(whaleData || []).slice(0, 10).map((transaction, index) => {
-                const transactionInfo = getTransactionType(transaction?.type, transaction?.exchange);
-                return (
-                  <TableRow key={index}>
-                    <TableCell>
-                      {transaction?.timestamp ? new Date(transaction.timestamp).toLocaleString() : 'N/A'}
-                    </TableCell>
-                    <TableCell>${transaction?.volume?.toLocaleString() ?? 'N/A'}</TableCell>
-                    <TableCell>{transaction?.type ?? 'N/A'}</TableCell>
-                    <TableCell>{transaction?.exchange ?? 'N/A'}</TableCell>
-                    <TableCell>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Badge className={`${transactionInfo.color} text-white flex items-center gap-1`}>
-                              {transactionInfo.icon}
-                              {transactionInfo.type}
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{transactionInfo.description}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          <WhaleTransactionsTable transactions={whaleData} />
         </CardContent>
       </Card>
 
@@ -182,28 +117,7 @@ const PosicaoCarteira = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Criptomoeda</TableHead>
-                <TableHead>Preço Atual (USD)</TableHead>
-                <TableHead>Volume 24h</TableHead>
-                <TableHead>Variação 24h</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(portfolioData || []).map((coin, index) => (
-                <TableRow key={coin?.id ?? index}>
-                  <TableCell className="font-medium">{coin?.name ?? 'N/A'}</TableCell>
-                  <TableCell>${coin?.current_price?.toLocaleString() ?? 'N/A'}</TableCell>
-                  <TableCell>${coin?.total_volume?.toLocaleString() ?? 'N/A'}</TableCell>
-                  <TableCell className={coin?.price_change_percentage_24h > 0 ? 'text-green-500' : 'text-red-500'}>
-                    {coin?.price_change_percentage_24h?.toFixed(2) ?? 'N/A'}%
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <MarketAnalysisTable data={portfolioData} />
         </CardContent>
       </Card>
     </div>
