@@ -7,7 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { WalletIcon, BuildingIcon, ArrowRightLeft, ArrowRight } from 'lucide-react';
+import { WalletIcon, BuildingIcon, ArrowRightLeft, ArrowRight, CoinIcon } from 'lucide-react';
 
 const getTransactionType = (type, exchange, fromAddress, toAddress) => {
   if (type === 'withdrawal' && exchange) {
@@ -48,6 +48,7 @@ const WhaleTransactionsTable = ({ transactions }) => {
       <TableHeader>
         <TableRow>
           <TableHead>Horário</TableHead>
+          <TableHead>Criptomoeda</TableHead>
           <TableHead>Volume (USD)</TableHead>
           <TableHead>Origem</TableHead>
           <TableHead>Destino</TableHead>
@@ -68,6 +69,12 @@ const WhaleTransactionsTable = ({ transactions }) => {
             <TableRow key={index}>
               <TableCell>
                 {transaction?.timestamp ? new Date(transaction.timestamp).toLocaleString() : 'N/A'}
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <CoinIcon className="h-4 w-4" />
+                  <span className="font-medium">{transaction?.cryptocurrency || 'N/A'}</span>
+                </div>
               </TableCell>
               <TableCell>${transaction?.volume?.toLocaleString() ?? 'N/A'}</TableCell>
               <TableCell>

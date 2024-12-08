@@ -42,6 +42,7 @@ export const fetchWhaleTransactions = async () => {
     const mockTransactions = [
       {
         timestamp: Date.now(),
+        cryptocurrency: 'Bitcoin (BTC)',
         volume: 5000000,
         type: 'withdrawal',
         exchange: 'Binance',
@@ -52,6 +53,7 @@ export const fetchWhaleTransactions = async () => {
       },
       {
         timestamp: Date.now() - 3600000,
+        cryptocurrency: 'Ethereum (ETH)',
         volume: 3000000,
         type: 'deposit',
         exchange: 'Coinbase',
@@ -62,6 +64,7 @@ export const fetchWhaleTransactions = async () => {
       },
       {
         timestamp: Date.now() - 7200000,
+        cryptocurrency: 'Cardano (ADA)',
         volume: 2000000,
         type: 'transfer',
         fromAddress: '0xabcf681646d4a755815f9cb19e1acc8565a0c2ac',
