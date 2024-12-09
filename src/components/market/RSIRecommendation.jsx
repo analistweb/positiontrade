@@ -21,33 +21,42 @@ const RSIRecommendation = () => {
         console.log('Fetching RSI data...');
         const rsiData = {};
         
-        // Fetch data for each crypto
-        const promises = TOP_CRYPTOS.map(async (crypto) => {
-          const response = await axios.get(
-            `${COINGECKO_API_URL}/coins/${crypto}/market_chart`,
-            {
-              params: {
-                vs_currency: 'usd',
-                days: '7',  // Get 7 days of 4h data
-                interval: '4h'
-              },
-              headers: getHeaders()
-            }
-          );
-
-          if (response.data && response.data.prices) {
-            const prices = response.data.prices.map(price => price[1]);
-            const rsiValues = RSI.calculate({
-              values: prices,
-              period: 14  // Standard RSI period
-            });
-            
-            // Get the most recent RSI value
-            rsiData[crypto] = rsiValues[rsiValues.length - 1];
-          }
+        // Initialize rsiData with null values
+        TOP_CRYPTOS.forEach(crypto => {
+          rsiData[crypto] = null;
         });
+        
+        // Fetch data for each crypto
+        await Promise.all(TOP_CRYPTOS.map(async (crypto) => {
+          try {
+            const response = await axios.get(
+              `${COINGECKO_API_URL}/coins/${crypto}/market_chart`,
+              {
+                params: {
+                  vs_currency: 'usd',
+                  days: '7',  // Get 7 days of 4h data
+                  interval: '4h'
+                },
+                headers: getHeaders()
+              }
+            );
 
-        await Promise.all(promises);
+            if (response.data && response.data.prices) {
+              const prices = response.data.prices.map(price => price[1]);
+              const rsiValues = RSI.calculate({
+                values: prices,
+                period: 14  // Standard RSI period
+              });
+              
+              // Get the most recent RSI value
+              rsiData[crypto] = rsiValues[rsiValues.length - 1];
+            }
+          } catch (error) {
+            console.error(`Error fetching data for ${crypto}:`, error);
+            rsiData[crypto] = null;
+          }
+        }));
+
         console.log('Calculated RSI values:', rsiData);
         return rsiData;
       } catch (error) {
@@ -61,7 +70,7 @@ const RSIRecommendation = () => {
 
   const oversoldCryptos = cryptosRSI ? 
     Object.entries(cryptosRSI)
-      .filter(([_, rsi]) => rsi < 30)
+      .filter(([_, rsi]) => rsi !== null && rsi < 30)
       .sort((a, b) => a[1] - b[1]) : [];
 
   const getCryptoName = (id) => {
@@ -143,7 +152,7 @@ const RSIRecommendation = () => {
                   <div key={crypto} className="flex justify-between items-center">
                     <span>{getCryptoName(crypto)}</span>
                     <Badge variant="secondary">
-                      RSI: {cryptosRSI[crypto]?.toFixed(2)}
+                      RSI: {cryptosRSI?.[crypto]?.toFixed(2) ?? 'N/A'}
                     </Badge>
                   </div>
                 ))}
