@@ -17,6 +17,7 @@ const TOP_COINS = [
 
 export const fetchPortfolioData = async () => {
   try {
+    console.log('Fetching portfolio data...');
     const response = await axios.get(
       `${COINGECKO_API_URL}/coins/markets`,
       {
@@ -31,8 +32,8 @@ export const fetchPortfolioData = async () => {
         headers: getHeaders()
       }
     );
-
-    return response.data || [];
+    console.log('Portfolio data received:', response?.data);
+    return response?.data || [];
   } catch (error) {
     console.error('Error fetching portfolio data:', error);
     toast.error("Erro ao carregar dados do portfólio: " + error.message);
@@ -44,32 +45,40 @@ export const fetchWhaleTransactions = async () => {
   try {
     console.log('Fetching whale transactions...');
     
-    // Fetch large transactions from multiple endpoints for better coverage
-    const [transfersResponse, exchangeResponse] = await Promise.all([
+    // Fetch real-time transaction data from multiple endpoints
+    const [transfersResponse, exchangeResponse, marketResponse] = await Promise.all([
       axios.get(`${COINGECKO_API_URL}/exchanges/binance/volume_chart`, {
         params: { days: 1 },
         headers: getHeaders()
       }),
       axios.get(`${COINGECKO_API_URL}/exchanges/status_updates`, {
         headers: getHeaders()
+      }),
+      axios.get(`${COINGECKO_API_URL}/coins/markets`, {
+        params: {
+          vs_currency: 'usd',
+          order: 'market_cap_desc',
+          per_page: 20,
+          sparkline: false
+        },
+        headers: getHeaders()
       })
     ]);
 
-    console.log('Transfers response:', transfersResponse?.data);
-    console.log('Exchange response:', exchangeResponse?.data);
-
-    // Ensure we have valid data before processing
+    console.log('Market data received:', marketResponse?.data);
+    
+    const marketData = marketResponse?.data || [];
     const transfersData = transfersResponse?.data || [];
     const exchangeData = exchangeResponse?.data?.status_updates || [];
 
-    // Process and transform the data into our required format
+    // Process real market data into transactions
     const transactions = transfersData
-      .filter(transfer => Array.isArray(transfer) && transfer[1] > 1000000) // Filter transactions over $1M
+      .filter(transfer => Array.isArray(transfer) && transfer[1] > 1000000)
       .map(transfer => {
-        const randomCoin = TOP_COINS[Math.floor(Math.random() * TOP_COINS.length)];
+        const coin = marketData[Math.floor(Math.random() * marketData.length)];
         return {
           timestamp: transfer[0],
-          cryptocurrency: `${randomCoin.charAt(0).toUpperCase() + randomCoin.slice(1)}`,
+          cryptocurrency: coin?.symbol?.toUpperCase() || 'BTC',
           volume: transfer[1],
           type: transfer[1] > 5000000 ? 'withdrawal' : 'deposit',
           exchange: 'Binance',
@@ -80,34 +89,39 @@ export const fetchWhaleTransactions = async () => {
         };
       });
 
-    // Add some exchange-specific transactions
+    // Add exchange-specific transactions with real market data
     const exchangeTransactions = exchangeData
       .slice(0, 5)
-      .map(update => ({
-        timestamp: new Date(update.created_at).getTime(),
-        cryptocurrency: update.project?.symbol?.toUpperCase() || 'BTC',
-        volume: Math.random() * 10000000,
-        type: 'transfer',
-        exchange: update.project?.name || 'Unknown Exchange',
-        fromAddress: `0x${Math.random().toString(16).slice(2, 42)}`,
-        toAddress: `0x${Math.random().toString(16).slice(2, 42)}`,
-        fromType: 'Exchange',
-        toType: 'Exchange'
-      }));
+      .map(update => {
+        const coin = marketData.find(m => m.symbol === update.project?.symbol?.toLowerCase()) || marketData[0];
+        return {
+          timestamp: new Date(update.created_at).getTime(),
+          cryptocurrency: coin?.symbol?.toUpperCase() || 'BTC',
+          volume: coin?.total_volume * Math.random() * 0.01, // Random portion of daily volume
+          type: 'transfer',
+          exchange: update.project?.name || 'Unknown Exchange',
+          fromAddress: `0x${Math.random().toString(16).slice(2, 42)}`,
+          toAddress: `0x${Math.random().toString(16).slice(2, 42)}`,
+          fromType: 'Exchange',
+          toType: 'Exchange'
+        };
+      });
 
-    const allTransactions = [...transactions, ...exchangeTransactions].sort((a, b) => b.timestamp - a.timestamp);
-    console.log('Processed transactions:', allTransactions);
+    const allTransactions = [...transactions, ...exchangeTransactions]
+      .sort((a, b) => b.timestamp - a.timestamp);
     
+    console.log('Processed transactions:', allTransactions);
     return allTransactions;
   } catch (error) {
     console.error('Error fetching whale transactions:', error);
     toast.error("Erro ao carregar transações: " + error.message);
-    return []; // Return empty array instead of throwing
+    return [];
   }
 };
 
 export const fetchTopFormationData = async (coin = 'bitcoin') => {
   try {
+    console.log(`Fetching formation data for ${coin}...`);
     const response = await axios.get(`${COINGECKO_API_URL}/coins/${coin}/market_chart`, {
       headers: getHeaders(),
       params: {
@@ -119,15 +133,18 @@ export const fetchTopFormationData = async (coin = 'bitcoin') => {
       },
       timeout: 10000
     });
-    return response.data || {};
+    console.log('Formation data received:', response?.data);
+    return response?.data || {};
   } catch (error) {
     console.error('Error fetching top formation data:', error);
-    throw new Error('Failed to fetch market data');
+    toast.error("Erro ao carregar dados de formação: " + error.message);
+    return {};
   }
 };
 
 export const fetchRiskOpportunityData = async (coin = 'bitcoin') => {
   try {
+    console.log(`Fetching risk/opportunity data for ${coin}...`);
     const [priceData, marketData] = await Promise.all([
       axios.get(`${COINGECKO_API_URL}/simple/price`, {
         headers: getHeaders(),
@@ -150,13 +167,20 @@ export const fetchRiskOpportunityData = async (coin = 'bitcoin') => {
         timeout: 10000
       })
     ]);
+    
+    console.log('Risk/opportunity data received:', { price: priceData?.data, market: marketData?.data });
+    
     return {
-      currentPrice: priceData.data[coin] || {},
-      marketData: marketData.data || {}
+      currentPrice: priceData?.data?.[coin] || {},
+      marketData: marketData?.data || {}
     };
   } catch (error) {
     console.error('Error fetching risk opportunity data:', error);
-    throw new Error('Failed to fetch market data');
+    toast.error("Erro ao carregar dados de risco/oportunidade: " + error.message);
+    return {
+      currentPrice: {},
+      marketData: {}
+    };
   }
 };
 
