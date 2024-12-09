@@ -8,10 +8,11 @@ import axios from 'axios';
 import { COINGECKO_API_URL, getHeaders } from '@/config/api';
 
 const AnaliseTecnica = () => {
-  const { data: btcData, isLoading } = useQuery({
+  const { data: btcData, isLoading, error } = useQuery({
     queryKey: ['btcTechnicalAnalysis'],
     queryFn: async () => {
       try {
+        console.log('Fetching BTC technical analysis data...');
         const response = await axios.get(
           `${COINGECKO_API_URL}/coins/bitcoin/market_chart`,
           {
@@ -24,7 +25,10 @@ const AnaliseTecnica = () => {
           }
         );
 
+        console.log('Response received:', response.data);
+
         if (!response.data?.prices) {
+          console.error('No price data available in response');
           throw new Error('Dados de preço não disponíveis');
         }
 
@@ -37,21 +41,54 @@ const AnaliseTecnica = () => {
         const mma200 = prices.slice(-200).reduce((sum, p) => sum + p.price, 0) / 200;
         const mayerMultiple = prices[prices.length - 1].price / mma200;
 
+        console.log('Processed data:', { prices, mma200, mayerMultiple });
+
         return {
           prices,
           mma200,
           mayerMultiple
         };
       } catch (error) {
-        toast.error("Erro ao carregar dados do Bitcoin");
+        console.error('Error fetching BTC data:', error);
+        toast.error("Erro ao carregar dados do Bitcoin: " + error.message);
         throw error;
       }
     },
     refetchInterval: 300000 // 5 minutos
   });
 
-  if (isLoading || !btcData) {
-    return <div>Carregando análise técnica...</div>;
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-4">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-4">
+        <Card className="bg-destructive/10">
+          <CardContent className="p-6">
+            <p className="text-destructive">Erro ao carregar dados: {error.message}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!btcData || !btcData.prices || !Array.isArray(btcData.prices)) {
+    return (
+      <div className="container mx-auto p-4">
+        <Card className="bg-destructive/10">
+          <CardContent className="p-6">
+            <p className="text-destructive">Dados inválidos recebidos do servidor</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const getSignalColor = (value, threshold) => {
@@ -59,9 +96,9 @@ const AnaliseTecnica = () => {
     return value >= threshold ? 'bg-red-500' : 'bg-green-500';
   };
 
-  const currentPrice = btcData?.prices?.[btcData.prices.length - 1]?.price;
-  const mma200 = btcData?.mma200;
-  const mayerMultiple = btcData?.mayerMultiple;
+  const currentPrice = btcData.prices[btcData.prices.length - 1]?.price;
+  const mma200 = btcData.mma200;
+  const mayerMultiple = btcData.mayerMultiple;
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -111,7 +148,7 @@ const AnaliseTecnica = () => {
         <CardContent>
           <div className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={btcData?.prices ?? []}>
+              <LineChart data={btcData.prices}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
@@ -125,7 +162,7 @@ const AnaliseTecnica = () => {
                 />
                 <Line 
                   type="monotone" 
-                  dataKey={() => btcData?.mma200} 
+                  dataKey={() => btcData.mma200} 
                   stroke="#82ca9d" 
                   name="200MMA"
                   strokeDasharray="5 5"
