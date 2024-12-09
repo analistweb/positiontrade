@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { RefreshCw } from "lucide-react";
 import RSIRecommendation from '@/components/market/RSIRecommendation';
 import { RSI } from 'technicalindicators';
 import { fetchMarketData, fetchTopCoins } from '../services/marketService';
@@ -18,12 +19,17 @@ const AnalisesCompraVenda = () => {
   const [selectedDays, setSelectedDays] = useState(90);
   const [minVolume, setMinVolume] = useState(0);
   const [currentRSI, setCurrentRSI] = useState(50);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
 
-  const { data: marketData, isLoading, error } = useQuery({
+  const { data: marketData, isLoading, error, dataUpdatedAt } = useQuery({
     queryKey: ['marketData', selectedCoin, selectedDays],
     queryFn: () => fetchMarketData(selectedCoin, selectedDays),
     refetchInterval: 300000,
     retry: 3,
+    onSuccess: () => {
+      setLastUpdate(new Date());
+      toast.success('Dados atualizados com sucesso!');
+    },
     onError: (error) => {
       toast.error(`Erro ao buscar dados: ${error.message}`);
     }
@@ -76,7 +82,14 @@ const AnalisesCompraVenda = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <h1 className="text-3xl font-bold mb-6">Análise de Compra e Venda</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Análise de Compra e Venda</h1>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <RefreshCw className="h-4 w-4" />
+            <span>Atualizado: {new Date(dataUpdatedAt).toLocaleTimeString()}</span>
+            <span className="text-xs">(atualiza a cada 5 minutos)</span>
+          </div>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card className="p-4">
