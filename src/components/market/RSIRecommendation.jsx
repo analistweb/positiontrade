@@ -33,8 +33,8 @@ const RSIRecommendation = () => {
 
   const oversoldCryptos = cryptosRSI ? 
     Object.entries(cryptosRSI)
-      .filter(([_, rsi]) => rsi < 30)
-      .sort((a, b) => a[1] - b[1]) : [];
+      .filter(([_, rsi]) => rsi && rsi < 30)
+      .sort((a, b) => (a[1] || 0) - (b[1] || 0)) : [];
 
   const getCryptoName = (id) => {
     const names = {
@@ -89,7 +89,7 @@ const RSIRecommendation = () => {
                     <div key={crypto} className="flex justify-between items-center">
                       <span className="text-green-700">{getCryptoName(crypto)}</span>
                       <Badge variant="secondary">
-                        RSI: {rsi.toFixed(2)}
+                        RSI: {(rsi || 0).toFixed(2)}
                       </Badge>
                     </div>
                   ))}
@@ -115,7 +115,7 @@ const RSIRecommendation = () => {
                   <div key={crypto} className="flex justify-between items-center">
                     <span>{getCryptoName(crypto)}</span>
                     <Badge variant="secondary">
-                      RSI: {cryptosRSI[crypto].toFixed(2)}
+                      RSI: {((cryptosRSI?.[crypto]) || 0).toFixed(2)}
                     </Badge>
                   </div>
                 ))}
