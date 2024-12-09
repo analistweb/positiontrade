@@ -71,25 +71,38 @@ const HelpDialog = () => (
 );
 
 const App = () => {
-  console.log("navItems:", navItems); // Debug log
+  console.log("Initial navItems:", navItems); // Debug log
   
-  // More robust null check for navItems
-  const safeNavItems = Array.isArray(navItems) ? navItems.filter(item => {
-    // Ensure all required properties exist
-    const isValid = item && 
+  if (!Array.isArray(navItems)) {
+    console.error("navItems is not an array:", navItems);
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p>Erro ao carregar a navegação</p>
+      </div>
+    );
+  }
+
+  const safeNavItems = navItems.filter(item => {
+    if (!item || typeof item !== 'object') {
+      console.warn('Invalid nav item:', item);
+      return false;
+    }
+    
+    const isValid = 
       typeof item.title === 'string' && 
       typeof item.to === 'string' && 
       item.icon && 
       item.page;
     
     if (!isValid) {
-      console.warn('Invalid nav item:', item);
+      console.warn('Nav item missing required properties:', item);
     }
+    
     return isValid;
-  }) : [];
-  
-  console.log("safeNavItems:", safeNavItems); // Debug log
-  
+  });
+
+  console.log("Filtered safeNavItems:", safeNavItems); // Debug log
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
