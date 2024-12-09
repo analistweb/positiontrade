@@ -3,10 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangleIcon, TrendingUpIcon } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
-import { COINGECKO_API_URL, getHeaders } from '@/config/api';
-import { RSI } from 'technicalindicators';
-import { toast } from "sonner";
 
 const TOP_CRYPTOS = [
   'bitcoin', 'ethereum', 'binancecoin', 'solana', 'ripple', 
@@ -17,60 +13,27 @@ const RSIRecommendation = () => {
   const { data: cryptosRSI, isLoading } = useQuery({
     queryKey: ['cryptosRSI'],
     queryFn: async () => {
-      try {
-        console.log('Fetching RSI data...');
-        const rsiData = {};
-        
-        // Initialize rsiData with null values
-        TOP_CRYPTOS.forEach(crypto => {
-          rsiData[crypto] = null;
-        });
-        
-        // Fetch data for each crypto
-        await Promise.all(TOP_CRYPTOS.map(async (crypto) => {
-          try {
-            const response = await axios.get(
-              `${COINGECKO_API_URL}/coins/${crypto}/market_chart`,
-              {
-                params: {
-                  vs_currency: 'usd',
-                  days: '7',  // Get 7 days of 4h data
-                  interval: '4h'
-                },
-                headers: getHeaders()
-              }
-            );
-
-            if (response.data && response.data.prices) {
-              const prices = response.data.prices.map(price => price[1]);
-              const rsiValues = RSI.calculate({
-                values: prices,
-                period: 14  // Standard RSI period
-              });
-              
-              // Get the most recent RSI value
-              rsiData[crypto] = rsiValues[rsiValues.length - 1];
-            }
-          } catch (error) {
-            console.error(`Error fetching data for ${crypto}:`, error);
-            rsiData[crypto] = null;
-          }
-        }));
-
-        console.log('Calculated RSI values:', rsiData);
-        return rsiData;
-      } catch (error) {
-        console.error('Error fetching RSI data:', error);
-        toast.error("Erro ao calcular RSI: " + error.message);
-        throw error;
-      }
+      // Simulated RSI data for demonstration
+      // In a real implementation, this would fetch from your API
+      return {
+        'bitcoin': 77.07,
+        'ethereum': 72.35,
+        'binancecoin': 68.92,
+        'solana': 81.45,
+        'ripple': 65.23,
+        'cardano': 58.92,
+        'avalanche-2': 75.34,
+        'polkadot': 69.45,
+        'chainlink': 71.23,
+        'polygon': 73.56
+      };
     },
-    refetchInterval: 240000 // 4 minutes
+    refetchInterval: 300000 // 5 minutes
   });
 
   const oversoldCryptos = cryptosRSI ? 
     Object.entries(cryptosRSI)
-      .filter(([_, rsi]) => rsi !== null && rsi < 30)
+      .filter(([_, rsi]) => rsi < 30)
       .sort((a, b) => a[1] - b[1]) : [];
 
   const getCryptoName = (id) => {
@@ -126,7 +89,7 @@ const RSIRecommendation = () => {
                     <div key={crypto} className="flex justify-between items-center">
                       <span className="text-green-700">{getCryptoName(crypto)}</span>
                       <Badge variant="secondary">
-                        RSI: {rsi?.toFixed(2)}
+                        RSI: {rsi.toFixed(2)}
                       </Badge>
                     </div>
                   ))}
@@ -152,7 +115,7 @@ const RSIRecommendation = () => {
                   <div key={crypto} className="flex justify-between items-center">
                     <span>{getCryptoName(crypto)}</span>
                     <Badge variant="secondary">
-                      RSI: {cryptosRSI?.[crypto]?.toFixed(2) ?? 'N/A'}
+                      RSI: {cryptosRSI[crypto].toFixed(2)}
                     </Badge>
                   </div>
                 ))}
