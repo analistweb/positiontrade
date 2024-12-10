@@ -1,10 +1,8 @@
 import axios from 'axios';
 import { COINGECKO_API_URL, getHeaders } from '../config/api';
-import { toast } from "sonner";
 
 export const fetchMarketData = async (coinId, days) => {
   try {
-    console.log(`Fetching market data for ${coinId} over ${days} days...`);
     const response = await axios.get(
       `${COINGECKO_API_URL}/coins/${coinId}/market_chart`,
       {
@@ -16,18 +14,14 @@ export const fetchMarketData = async (coinId, days) => {
         headers: getHeaders()
       }
     );
-    console.log('Market data received:', response?.data);
-    return response?.data || {};
+    return response.data;
   } catch (error) {
-    console.error('Error fetching market data:', error);
-    toast.error("Erro ao carregar dados de mercado: " + error.message);
-    return {};
+    throw new Error('Failed to fetch market data');
   }
 };
 
 export const fetchTopCoins = async () => {
   try {
-    console.log('Fetching top coins...');
     const response = await axios.get(
       `${COINGECKO_API_URL}/coins/markets`,
       {
@@ -40,36 +34,28 @@ export const fetchTopCoins = async () => {
         headers: getHeaders()
       }
     );
-    console.log('Top coins received:', response?.data);
-    return response?.data || [];
+    return response.data;
   } catch (error) {
-    console.error('Error fetching top coins:', error);
-    toast.error("Erro ao carregar top moedas: " + error.message);
-    return [];
+    throw new Error('Failed to fetch top coins');
   }
 };
 
 export const fetchBitcoinDominance = async () => {
   try {
-    console.log('Fetching Bitcoin dominance...');
     const response = await axios.get(
       `${COINGECKO_API_URL}/global`,
       {
         headers: getHeaders()
       }
     );
-    console.log('Bitcoin dominance received:', response?.data?.data?.market_cap_percentage?.btc);
-    return response?.data?.data?.market_cap_percentage?.btc || 0;
+    return response.data.data.market_cap_percentage.btc;
   } catch (error) {
-    console.error('Error fetching Bitcoin dominance:', error);
-    toast.error("Erro ao carregar dominância do Bitcoin: " + error.message);
-    return 0;
+    throw new Error('Failed to fetch Bitcoin dominance');
   }
 };
 
 export const fetchPriceData = async () => {
   try {
-    console.log('Fetching price data...');
     const response = await axios.get(
       `${COINGECKO_API_URL}/coins/markets`,
       {
@@ -82,12 +68,9 @@ export const fetchPriceData = async () => {
         headers: getHeaders()
       }
     );
-    console.log('Price data received:', response?.data);
-    return response?.data || [];
+    return response.data;
   } catch (error) {
-    console.error('Error fetching price data:', error);
-    toast.error("Erro ao carregar dados de preço: " + error.message);
-    return [];
+    throw new Error('Failed to fetch price data');
   }
 };
 

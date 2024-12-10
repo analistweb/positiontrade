@@ -4,14 +4,10 @@ import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { toast } from "sonner";
 
 const fetchEntityTransactions = async () => {
   try {
-    console.log('Fetching entity transactions...');
     const response = await axios.get('https://api.coingecko.com/api/v3/exchanges');
-    console.log('API Response:', response.data);
-    
     const topExchanges = response.data.slice(0, 5);
     
     const transactions = topExchanges.map(exchange => ({
@@ -29,11 +25,10 @@ const fetchEntityTransactions = async () => {
       { range: "48k-50k", whaleVolume: Math.floor(Math.random() * 5000000), marketVolume: Math.floor(Math.random() * 20000000) },
     ];
 
-    console.log('Processed data:', { transactions, priceRanges });
     return { transactions, priceRanges };
   } catch (error) {
-    console.error('Error fetching entity transactions:', error);
-    throw new Error('Falha ao carregar dados da API: ' + error.message);
+    console.error('Erro ao buscar dados:', error);
+    throw new Error('Falha ao carregar dados da API');
   }
 };
 
@@ -44,41 +39,8 @@ const GruposEntidades = () => {
     refetchInterval: 300000, // Atualiza a cada 5 minutos
   });
 
-  console.log('Query data:', data);
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto p-4">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto p-4">
-        <Card className="bg-destructive/10">
-          <CardContent className="p-6">
-            <p className="text-destructive">Erro ao carregar dados: {error.message}</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!data || !data.transactions || !data.priceRanges) {
-    return (
-      <div className="container mx-auto p-4">
-        <Card className="bg-destructive/10">
-          <CardContent className="p-6">
-            <p className="text-destructive">Dados inválidos recebidos do servidor</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  if (isLoading) return <div>Carregando...</div>;
+  if (error) return <div>Erro ao carregar os dados: {error.message}</div>;
 
   return (
     <div className="container mx-auto p-4">
