@@ -28,7 +28,7 @@ const calculateRSI = (prices) => {
 };
 
 const RSIRecommendation = () => {
-  const { data: cryptosRSI, isLoading, error, refetch } = useQuery({
+  const { data: cryptosRSI = {}, isLoading, error, refetch } = useQuery({
     queryKey: ['cryptosRSI'],
     queryFn: async () => {
       try {
@@ -65,10 +65,9 @@ const RSIRecommendation = () => {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
   });
 
-  const oversoldCryptos = cryptosRSI ? 
-    Object.entries(cryptosRSI)
-      .filter(([_, rsi]) => rsi && rsi < 30)
-      .sort((a, b) => (a[1] ?? 0) - (b[1] ?? 0)) : [];
+  const oversoldCryptos = Object.entries(cryptosRSI || {})
+    .filter(([_, rsi]) => rsi && rsi < 30)
+    .sort((a, b) => (a[1] ?? 0) - (b[1] ?? 0));
 
   if (isLoading) {
     return (
