@@ -3,6 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangleIcon, TrendingUpIcon } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import { COINGECKO_API_URL, getHeaders } from '@/config/api';
+import { RSI } from 'technicalindicators';
+import { toast } from "sonner";
 
 const TOP_CRYPTOS = [
   'bitcoin', 'ethereum', 'binancecoin', 'solana', 'ripple', 
@@ -13,22 +17,45 @@ const RSIRecommendation = () => {
   const { data: cryptosRSI, isLoading } = useQuery({
     queryKey: ['cryptosRSI'],
     queryFn: async () => {
-      // Simulated RSI data for demonstration
-      // In a real implementation, this would fetch from your API
-      return {
-        'bitcoin': 77.07,
-        'ethereum': 72.35,
-        'binancecoin': 68.92,
-        'solana': 81.45,
-        'ripple': 65.23,
-        'cardano': 58.92,
-        'avalanche-2': 75.34,
-        'polkadot': 69.45,
-        'chainlink': 71.23,
-        'polygon': 73.56
-      };
+      try {
+        console.log('Fetching RSI data...');
+        const rsiData = {};
+        
+        // Fetch 4h candle data for each crypto
+        await Promise.all(TOP_CRYPTOS.map(async (crypto) => {
+          const response = await axios.get(
+            `${COINGECKO_API_URL}/coins/${crypto}/market_chart`,
+            {
+              params: {
+                vs_currency: 'usd',
+                days: '7', // 7 days of data for 4h RSI
+                interval: '4h'
+              },
+              headers: getHeaders()
+            }
+          );
+
+          if (response.data?.prices) {
+            const prices = response.data.prices.map(price => price[1]);
+            const rsiValues = RSI.calculate({
+              values: prices,
+              period: 14 // Standard RSI period
+            });
+
+            // Get the most recent RSI value
+            rsiData[crypto] = rsiValues[rsiValues.length - 1];
+          }
+        }));
+
+        console.log('RSI data calculated:', rsiData);
+        return rsiData;
+      } catch (error) {
+        console.error('Error calculating RSI:', error);
+        toast.error("Erro ao calcular RSI: " + error.message);
+        return null;
+      }
     },
-    refetchInterval: 300000 // 5 minutes
+    refetchInterval: 240000 // Refresh every 4 minutes
   });
 
   const oversoldCryptos = cryptosRSI ? 
@@ -62,7 +89,7 @@ const RSIRecommendation = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-4">Carregando dados...</div>
+          <div className="text-center py-4">Calculando RSI...</div>
         </CardContent>
       </Card>
     );
