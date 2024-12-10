@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { calculateEMA, getWeeklyData } from '../../services/marketService';
+import { Bitcoin } from 'lucide-react';
 
 const EMAAnalysis = ({ marketData, coin }) => {
   if (!marketData?.prices || marketData.prices.length < 56) {
@@ -34,11 +35,22 @@ const EMAAnalysis = ({ marketData, coin }) => {
     });
   };
 
+  // Format coin name to be more readable
+  const formatCoinName = (coinId) => {
+    return coinId
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   return (
     <Card className="mb-4">
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
-          Análise EMA (8 semanas)
+          <div className="flex items-center gap-2">
+            <Bitcoin className="h-5 w-5" />
+            <span>Análise EMA (8 semanas) - {formatCoinName(coin)}</span>
+          </div>
           {isBuySignal && (
             <Badge 
               variant="success" 

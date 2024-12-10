@@ -70,56 +70,77 @@ const HelpDialog = () => (
   </Dialog>
 );
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <BrowserRouter>
-        <div className="flex min-h-screen bg-background">
-          <nav className="w-64 glass-morphism flex-shrink-0">
-            <div className="flex flex-col h-full p-6 space-y-6">
-              <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
-                Análise de Criptomoedas
-              </h1>
-              <ul className="flex-1 space-y-2">
-                {navItems.map(({ title, to, icon, description }) => (
-                  <motion.li
-                    key={to}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Link
-                      to={to}
-                      className="flex items-center p-3 rounded-lg hover:bg-primary/20 transition-colors group relative"
-                      aria-label={`Ir para ${title}`}
+const App = () => {
+  console.log("navItems:", navItems); // Debug log
+  
+  // More robust null check for navItems
+  const safeNavItems = Array.isArray(navItems) ? navItems.filter(item => {
+    // Ensure all required properties exist
+    const isValid = item && 
+      typeof item.title === 'string' && 
+      typeof item.to === 'string' && 
+      item.icon && 
+      item.page;
+    
+    if (!isValid) {
+      console.warn('Invalid nav item:', item);
+    }
+    return isValid;
+  }) : [];
+  
+  console.log("safeNavItems:", safeNavItems); // Debug log
+  
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <BrowserRouter>
+          <div className="flex min-h-screen bg-background">
+            <nav className="w-64 glass-morphism flex-shrink-0">
+              <div className="flex flex-col h-full p-6 space-y-6">
+                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
+                  Análise de Criptomoedas
+                </h1>
+                <ul className="flex-1 space-y-2">
+                  {safeNavItems.map(({ title, to, icon, description }) => (
+                    <motion.li
+                      key={to}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      <span className="text-primary">{icon}</span>
-                      <span className="ml-3 font-medium text-foreground">{title}</span>
-                      {description && (
-                        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-64 p-2 bg-popover text-popover-foreground rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity invisible group-hover:visible z-50">
-                          <p className="text-sm">{description}</p>
-                        </div>
-                      )}
-                    </Link>
-                  </motion.li>
-                ))}
-              </ul>
-            </div>
-          </nav>
-          <main className="flex-1 p-6 overflow-y-auto">
-            <div className="container mx-auto">
-              <Routes>
-                {navItems.map(({ to, page }) => (
-                  <Route key={to} path={to} element={page} />
-                ))}
-              </Routes>
-            </div>
-          </main>
-          <HelpDialog />
-        </div>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+                      <Link
+                        to={to}
+                        className="flex items-center p-3 rounded-lg hover:bg-primary/20 transition-colors group relative"
+                        aria-label={`Ir para ${title}`}
+                      >
+                        <span className="text-primary">{icon}</span>
+                        <span className="ml-3 font-medium text-foreground">{title}</span>
+                        {description && (
+                          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-64 p-2 bg-popover text-popover-foreground rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity invisible group-hover:visible z-50">
+                            <p className="text-sm">{description}</p>
+                          </div>
+                        )}
+                      </Link>
+                    </motion.li>
+                  ))}
+                </ul>
+              </div>
+            </nav>
+            <main className="flex-1 p-6 overflow-y-auto">
+              <div className="container mx-auto">
+                <Routes>
+                  {safeNavItems.map(({ to, page }) => (
+                    <Route key={to} path={to} element={page} />
+                  ))}
+                </Routes>
+              </div>
+            </main>
+            <HelpDialog />
+          </div>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
