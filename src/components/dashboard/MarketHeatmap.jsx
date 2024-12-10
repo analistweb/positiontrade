@@ -7,7 +7,7 @@ import { COINGECKO_API_URL, getHeaders } from '@/config/api';
 import { toast } from "sonner";
 
 const MarketHeatmap = () => {
-  const { data, isLoading, error } = useQuery({
+  const { data = [], isLoading, error } = useQuery({
     queryKey: ['marketHeatmap'],
     queryFn: async () => {
       try {
@@ -25,6 +25,10 @@ const MarketHeatmap = () => {
           }
         );
 
+        if (!response.data) {
+          throw new Error('No data received from API');
+        }
+
         return response.data.map(coin => ({
           name: coin.name,
           change: coin.price_change_percentage_24h,
@@ -32,8 +36,9 @@ const MarketHeatmap = () => {
           color: coin.price_change_percentage_24h >= 0 ? 'bg-green-500' : 'bg-red-500'
         }));
       } catch (error) {
+        console.error('Error fetching market data:', error);
         toast.error("Erro ao carregar dados do mercado");
-        throw error;
+        return [];
       }
     },
     refetchInterval: 30000 // Atualiza a cada 30 segundos
@@ -64,6 +69,19 @@ const MarketHeatmap = () => {
         </CardHeader>
         <CardContent>
           <p className="text-red-500">Erro ao carregar dados do mercado</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <Card className="w-full bg-gradient-to-br from-gray-900/50 to-gray-800/50 border-none">
+        <CardHeader>
+          <CardTitle>Mapa de Calor do Mercado</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-500">Nenhum dado disponível no momento</p>
         </CardContent>
       </Card>
     );
