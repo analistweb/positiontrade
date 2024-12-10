@@ -1,40 +1,74 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangleIcon, TrendingUpIcon } from "lucide-react";
+import { AlertTriangleIcon, TrendingUpIcon, RefreshCwIcon } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
+import { COINGECKO_API_URL, getHeaders } from '@/config/api';
+import axios from 'axios';
+import { RSI } from 'technicalindicators';
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const TOP_CRYPTOS = [
   'bitcoin', 'ethereum', 'binancecoin', 'solana', 'ripple', 
   'cardano', 'avalanche-2', 'polkadot', 'chainlink', 'polygon'
 ];
 
+const calculateRSI = (prices) => {
+  if (!prices || prices.length < 14) return null;
+  
+  const values = prices.map(price => price[1]);
+  const rsi = RSI.calculate({
+    values: values,
+    period: 14
+  });
+  
+  return rsi[rsi.length - 1];
+};
+
 const RSIRecommendation = () => {
-  const { data: cryptosRSI, isLoading } = useQuery({
+  const { data: cryptosRSI, isLoading, error, refetch } = useQuery({
     queryKey: ['cryptosRSI'],
     queryFn: async () => {
-      // Simulated RSI data for demonstration
-      // In a real implementation, this would fetch from your API
-      return {
-        'bitcoin': 77.07,
-        'ethereum': 72.35,
-        'binancecoin': 68.92,
-        'solana': 81.45,
-        'ripple': 65.23,
-        'cardano': 58.92,
-        'avalanche-2': 75.34,
-        'polkadot': 69.45,
-        'chainlink': 71.23,
-        'polygon': 73.56
-      };
+      try {
+        const results = {};
+        
+        // Fetch data for each crypto in parallel
+        await Promise.all(TOP_CRYPTOS.map(async (crypto) => {
+          const response = await axios.get(
+            `${COINGECKO_API_URL}/coins/${crypto}/market_chart`, {
+              params: {
+                vs_currency: 'usd',
+                days: '7',  // Last 7 days
+                interval: '4h'  // 4-hour intervals
+              },
+              headers: getHeaders(),
+              timeout: 10000
+            }
+          );
+          
+          const rsi = calculateRSI(response.data.prices);
+          if (rsi !== null) {
+            results[crypto] = rsi;
+          }
+        }));
+        
+        return results;
+      } catch (error) {
+        console.error('Error fetching RSI data:', error);
+        toast.error('Erro ao buscar dados do RSI. Tentando novamente...');
+        throw error;
+      }
     },
-    refetchInterval: 300000 // 5 minutes
+    refetchInterval: 240000, // 4 minutes
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
   });
 
   const oversoldCryptos = cryptosRSI ? 
     Object.entries(cryptosRSI)
-      .filter(([_, rsi]) => rsi < 30)
-      .sort((a, b) => a[1] - b[1]) : [];
+      .filter(([_, rsi]) => rsi && rsi < 30)
+      .sort((a, b) => (a[1] ?? 0) - (b[1] ?? 0)) : [];
 
   const getCryptoName = (id) => {
     const names = {
@@ -62,7 +96,35 @@ const RSIRecommendation = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-4">Carregando dados...</div>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUpIcon className="h-5 w-5" />
+            Recomendação DCA
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center space-y-4">
+            <p className="text-destructive">Erro ao carregar dados do RSI</p>
+            <Button 
+              variant="outline" 
+              onClick={() => refetch()}
+              className="gap-2"
+            >
+              <RefreshCwIcon className="h-4 w-4" />
+              Tentar novamente
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
@@ -71,9 +133,19 @@ const RSIRecommendation = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUpIcon className="h-5 w-5" />
-          Recomendação DCA
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <TrendingUpIcon className="h-5 w-5" />
+            Recomendação DCA
+          </div>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => refetch()}
+            className="h-8 w-8"
+          >
+            <RefreshCwIcon className="h-4 w-4" />
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -89,7 +161,7 @@ const RSIRecommendation = () => {
                     <div key={crypto} className="flex justify-between items-center">
                       <span className="text-green-700">{getCryptoName(crypto)}</span>
                       <Badge variant="secondary">
-                        RSI: {rsi.toFixed(2)}
+                        RSI: {rsi?.toFixed(2) ?? 'N/A'}
                       </Badge>
                     </div>
                   ))}
@@ -115,7 +187,7 @@ const RSIRecommendation = () => {
                   <div key={crypto} className="flex justify-between items-center">
                     <span>{getCryptoName(crypto)}</span>
                     <Badge variant="secondary">
-                      RSI: {cryptosRSI[crypto].toFixed(2)}
+                      RSI: {cryptosRSI[crypto]?.toFixed(2) ?? 'Carregando...'}
                     </Badge>
                   </div>
                 ))}
