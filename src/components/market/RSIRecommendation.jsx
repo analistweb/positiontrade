@@ -1,6 +1,5 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { AlertTriangleIcon, TrendingUpIcon, RefreshCwIcon } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { COINGECKO_API_URL, getHeaders } from '@/config/api';
@@ -8,6 +7,8 @@ import axios from 'axios';
 import { RSI } from 'technicalindicators';
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { RSICard } from './RSICard';
+import { RSIOpportunities } from './RSIOpportunities';
 
 const TOP_CRYPTOS = [
   'bitcoin', 'ethereum', 'binancecoin', 'solana', 'ripple', 
@@ -33,14 +34,13 @@ const RSIRecommendation = () => {
       try {
         const results = {};
         
-        // Fetch data for each crypto in parallel
         await Promise.all(TOP_CRYPTOS.map(async (crypto) => {
           const response = await axios.get(
             `${COINGECKO_API_URL}/coins/${crypto}/market_chart`, {
               params: {
                 vs_currency: 'usd',
-                days: '7',  // Last 7 days
-                interval: '4h'  // 4-hour intervals
+                days: '7',
+                interval: '4h'
               },
               headers: getHeaders(),
               timeout: 10000
@@ -69,22 +69,6 @@ const RSIRecommendation = () => {
     Object.entries(cryptosRSI)
       .filter(([_, rsi]) => rsi && rsi < 30)
       .sort((a, b) => (a[1] ?? 0) - (b[1] ?? 0)) : [];
-
-  const getCryptoName = (id) => {
-    const names = {
-      'bitcoin': 'Bitcoin',
-      'ethereum': 'Ethereum',
-      'binancecoin': 'BNB',
-      'solana': 'Solana',
-      'ripple': 'XRP',
-      'cardano': 'Cardano',
-      'avalanche-2': 'Avalanche',
-      'polkadot': 'Polkadot',
-      'chainlink': 'Chainlink',
-      'polygon': 'Polygon'
-    };
-    return names[id] || id;
-  };
 
   if (isLoading) {
     return (
@@ -151,27 +135,7 @@ const RSIRecommendation = () => {
       <CardContent>
         <div className="space-y-4">
           {oversoldCryptos.length > 0 ? (
-            <>
-              <div className="bg-green-100 p-4 rounded-lg">
-                <p className="text-green-800 font-medium">
-                  ✨ Oportunidades de DCA Encontradas!
-                </p>
-                <div className="mt-3 space-y-2">
-                  {oversoldCryptos.map(([crypto, rsi]) => (
-                    <div key={crypto} className="flex justify-between items-center">
-                      <span className="text-green-700">{getCryptoName(crypto)}</span>
-                      <Badge variant="secondary">
-                        RSI: {rsi?.toFixed(2) ?? 'N/A'}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-sm text-green-600 mt-3">
-                  Estas criptomoedas apresentam RSI em níveis de sobre-venda, 
-                  sugerindo possíveis pontos de entrada para sua estratégia DCA.
-                </p>
-              </div>
-            </>
+            <RSIOpportunities oversoldCryptos={oversoldCryptos} />
           ) : (
             <div className="bg-gray-100 p-4 rounded-lg">
               <p className="text-gray-800 font-medium flex items-center gap-2">
@@ -184,12 +148,7 @@ const RSIRecommendation = () => {
               </p>
               <div className="mt-3 space-y-2">
                 {TOP_CRYPTOS.slice(0, 5).map(crypto => (
-                  <div key={crypto} className="flex justify-between items-center">
-                    <span>{getCryptoName(crypto)}</span>
-                    <Badge variant="secondary">
-                      RSI: {cryptosRSI[crypto]?.toFixed(2) ?? 'Carregando...'}
-                    </Badge>
-                  </div>
+                  <RSICard key={crypto} crypto={crypto} rsi={cryptosRSI[crypto]} />
                 ))}
               </div>
             </div>

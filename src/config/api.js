@@ -1,4 +1,4 @@
-export const COINGECKO_API_KEY = import.meta.env.VITE_COINGECKO_API_KEY;
+export const COINGECKO_API_KEY = 'CG-Qz8DkMGTZxZM4J6dQnQzxPvt';
 export const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3';
 
 export const getHeaders = () => ({
