@@ -100,3 +100,26 @@ export const getWeeklyData = (dailyPrices) => {
   
   return weeklyData;
 };
+
+export const fetchBitcoinDominance = async () => {
+  try {
+    logInfo('Fetching Bitcoin dominance data...');
+    
+    const response = await axios.get(
+      `${COINGECKO_API_URL}/global`,
+      {
+        headers: getHeaders(),
+        timeout: 10000
+      }
+    );
+
+    const dominance = response?.data?.data?.market_cap_percentage?.btc || 0;
+    logInfo('Bitcoin dominance data received:', dominance);
+    
+    return dominance;
+  } catch (error) {
+    logError('Error fetching Bitcoin dominance:', error);
+    toast.error(`Erro ao carregar dominância do Bitcoin: ${error.message}`);
+    throw error;
+  }
+};
