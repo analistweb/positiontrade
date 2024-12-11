@@ -2,55 +2,21 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from '@tanstack/react-query';
 import { motion } from "framer-motion";
-import axios from 'axios';
-import { COINGECKO_API_URL, getHeaders } from '@/config/api';
 import { toast } from "sonner";
+import { fetchMarketHeatmapData } from '@/services/marketHeatmapService';
+import { API_CONFIG, ERROR_MESSAGES } from '@/config/constants';
 
 const MarketHeatmap = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ['marketHeatmap'],
-    queryFn: async () => {
-      console.log('Fetching market heatmap data...');
-      try {
-        const response = await axios.get(
-          `${COINGECKO_API_URL}/coins/markets`,
-          {
-            params: {
-              vs_currency: 'usd',
-              order: 'market_cap_desc',
-              per_page: 8,
-              sparkline: false,
-              price_change_percentage: '24h'
-            },
-            headers: getHeaders()
-          }
-        );
-
-        console.log('Market heatmap data received:', response.data);
-
-        if (!response.data || !Array.isArray(response.data)) {
-          throw new Error('Dados inválidos recebidos da API');
-        }
-
-        return response.data.map(coin => ({
-          name: coin.name,
-          change: coin.price_change_percentage_24h,
-          marketCap: coin.market_cap,
-          color: coin.price_change_percentage_24h >= 0 ? 'bg-green-500' : 'bg-red-500'
-        }));
-      } catch (error) {
-        console.error('Error fetching market heatmap:', error);
-        const errorMessage = error.response?.status === 429 
-          ? "Limite de requisições excedido. Tente novamente em alguns minutos."
-          : "Erro ao carregar dados do mercado. Tente novamente.";
-        toast.error(errorMessage);
-        throw error;
-      }
-    },
-    refetchInterval: 30000, // Atualiza a cada 30 segundos
-    retry: 3, // Tenta 3 vezes em caso de falha
-    staleTime: 20000, // Considera os dados obsoletos após 20 segundos
-    cacheTime: 60000, // Mantém os dados em cache por 1 minuto
+    queryFn: fetchMarketHeatmapData,
+    refetchInterval: API_CONFIG.REFETCH_INTERVAL,
+    retry: API_CONFIG.RETRY_COUNT,
+    staleTime: API_CONFIG.STALE_TIME,
+    cacheTime: API_CONFIG.CACHE_TIME,
+    onError: (error) => {
+      toast.error(error.message);
+    }
   });
 
   if (isLoading) {
@@ -77,11 +43,7 @@ const MarketHeatmap = () => {
           <CardTitle>Mapa de Calor do Mercado</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-red-500">
-            {error.response?.status === 429 
-              ? "Limite de requisições excedido. Tente novamente em alguns minutos."
-              : "Erro ao carregar dados do mercado. Tente novamente."}
-          </p>
+          <p className="text-red-500">{error.message}</p>
         </CardContent>
       </Card>
     );
@@ -94,7 +56,7 @@ const MarketHeatmap = () => {
           <CardTitle>Mapa de Calor do Mercado</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-yellow-500">Nenhum dado disponível no momento.</p>
+          <p className="text-yellow-500">{ERROR_MESSAGES.NO_DATA}</p>
         </CardContent>
       </Card>
     );
