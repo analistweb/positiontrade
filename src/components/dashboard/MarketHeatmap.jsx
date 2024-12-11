@@ -10,6 +10,7 @@ const MarketHeatmap = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ['marketHeatmap'],
     queryFn: async () => {
+      console.log('Fetching market heatmap data...');
       try {
         const response = await axios.get(
           `${COINGECKO_API_URL}/coins/markets`,
@@ -25,6 +26,12 @@ const MarketHeatmap = () => {
           }
         );
 
+        console.log('Market heatmap data received:', response.data);
+
+        if (!response.data || !Array.isArray(response.data)) {
+          throw new Error('Dados inválidos recebidos da API');
+        }
+
         return response.data.map(coin => ({
           name: coin.name,
           change: coin.price_change_percentage_24h,
@@ -32,11 +39,18 @@ const MarketHeatmap = () => {
           color: coin.price_change_percentage_24h >= 0 ? 'bg-green-500' : 'bg-red-500'
         }));
       } catch (error) {
-        toast.error("Erro ao carregar dados do mercado");
+        console.error('Error fetching market heatmap:', error);
+        const errorMessage = error.response?.status === 429 
+          ? "Limite de requisições excedido. Tente novamente em alguns minutos."
+          : "Erro ao carregar dados do mercado. Tente novamente.";
+        toast.error(errorMessage);
         throw error;
       }
     },
-    refetchInterval: 30000 // Atualiza a cada 30 segundos
+    refetchInterval: 30000, // Atualiza a cada 30 segundos
+    retry: 3, // Tenta 3 vezes em caso de falha
+    staleTime: 20000, // Considera os dados obsoletos após 20 segundos
+    cacheTime: 60000, // Mantém os dados em cache por 1 minuto
   });
 
   if (isLoading) {
@@ -63,7 +77,24 @@ const MarketHeatmap = () => {
           <CardTitle>Mapa de Calor do Mercado</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-red-500">Erro ao carregar dados do mercado</p>
+          <p className="text-red-500">
+            {error.response?.status === 429 
+              ? "Limite de requisições excedido. Tente novamente em alguns minutos."
+              : "Erro ao carregar dados do mercado. Tente novamente."}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <Card className="w-full bg-gradient-to-br from-gray-900/50 to-gray-800/50 border-none">
+        <CardHeader>
+          <CardTitle>Mapa de Calor do Mercado</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-yellow-500">Nenhum dado disponível no momento.</p>
         </CardContent>
       </Card>
     );
