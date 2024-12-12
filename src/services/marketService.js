@@ -85,6 +85,30 @@ export const fetchTopCoins = async () => {
   }
 };
 
+export const fetchBitcoinDominance = async () => {
+  try {
+    logInfo('Fetching Bitcoin dominance...');
+    
+    const response = await axios.get(
+      `${COINGECKO_API_URL}/global`,
+      {
+        headers: getHeaders()
+      }
+    );
+
+    if (!response.data || !response.data.data || !response.data.data.market_cap_percentage || !response.data.data.market_cap_percentage.btc) {
+      throw new Error('Dados de dominância do Bitcoin inválidos');
+    }
+
+    logInfo('Bitcoin dominance data received successfully');
+    return response.data.data.market_cap_percentage.btc;
+  } catch (error) {
+    logError('Error fetching Bitcoin dominance:', error);
+    toast.error(`Erro ao carregar dominância do Bitcoin: ${error.message}`);
+    throw error;
+  }
+};
+
 export const calculateEMA = (prices, period = 56) => {
   if (!prices || prices.length < period) {
     return null;
