@@ -1,6 +1,27 @@
 import axios from 'axios';
+import { toast } from "sonner";
 
 const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3';
+
+export const fetchPortfolioData = async () => {
+  try {
+    const response = await axios.get(`${COINGECKO_API_URL}/coins/markets`, {
+      params: {
+        vs_currency: 'usd',
+        order: 'market_cap_desc',
+        per_page: 10,
+        page: 1,
+        sparkline: true,
+        price_change_percentage: '24h'
+      }
+    });
+
+    return response.data;
+  } catch (error) {
+    toast.error("Erro ao carregar dados do portfólio: " + error.message);
+    throw error;
+  }
+};
 
 export const fetchTopFormationData = async () => {
   try {
@@ -24,7 +45,6 @@ export const fetchTopFormationData = async () => {
 };
 
 export const fetchWhaleTransactions = async () => {
-  // Simulando dados mais detalhados de transações
   const mockTransactions = [
     {
       timestamp: Date.now(),
@@ -55,27 +75,78 @@ export const fetchWhaleTransactions = async () => {
       destination: "Wallet",
       destinationAddress: "rB5...9Uj",
       exchange: null
+    },
+    {
+      timestamp: Date.now() - 5400000,
+      type: "Venda",
+      cryptoAmount: 500,
+      cryptoSymbol: "SOL",
+      volume: 2000000,
+      destination: "Exchange",
+      destinationAddress: null,
+      exchange: "Coinbase"
+    },
+    {
+      timestamp: Date.now() - 7200000,
+      type: "Compra",
+      cryptoAmount: 300,
+      cryptoSymbol: "ADA",
+      volume: 1500000,
+      destination: "Wallet",
+      destinationAddress: "addr1...xyz",
+      exchange: null
+    },
+    {
+      timestamp: Date.now() - 9000000,
+      type: "Venda",
+      cryptoAmount: 100,
+      cryptoSymbol: "BTC",
+      volume: 500000,
+      destination: "Exchange",
+      destinationAddress: null,
+      exchange: "Kraken"
+    },
+    {
+      timestamp: Date.now() - 10800000,
+      type: "Compra",
+      cryptoAmount: 250,
+      cryptoSymbol: "ETH",
+      volume: 3000000,
+      destination: "Wallet",
+      destinationAddress: "bc1q...abc",
+      exchange: null
+    },
+    {
+      timestamp: Date.now() - 12600000,
+      type: "Venda",
+      cryptoAmount: 400,
+      cryptoSymbol: "XRP",
+      volume: 1000000,
+      destination: "Exchange",
+      destinationAddress: null,
+      exchange: "FTX"
+    },
+    {
+      timestamp: Date.now() - 14400000,
+      type: "Compra",
+      cryptoAmount: 600,
+      cryptoSymbol: "SOL",
+      volume: 2500000,
+      destination: "Wallet",
+      destinationAddress: "addr1...abc",
+      exchange: null
+    },
+    {
+      timestamp: Date.now() - 16200000,
+      type: "Venda",
+      cryptoAmount: 800,
+      cryptoSymbol: "ADA",
+      volume: 1200000,
+      destination: "Exchange",
+      destinationAddress: null,
+      exchange: "Binance"
     }
   ];
-
-  // Adicionando mais transações simuladas
-  const types = ["Compra", "Venda"];
-  const symbols = ["BTC", "ETH", "XRP", "SOL", "ADA"];
-  const exchanges = ["Binance", "Coinbase", "Kraken", "FTX"];
-  
-  for (let i = 0; i < 7; i++) {
-    const isWallet = Math.random() > 0.5;
-    mockTransactions.push({
-      timestamp: Date.now() - (i + 4) * 1800000,
-      type: types[Math.floor(Math.random() * types.length)],
-      cryptoAmount: Math.floor(Math.random() * 1000) + 1,
-      cryptoSymbol: symbols[Math.floor(Math.random() * symbols.length)],
-      volume: Math.floor(Math.random() * 5000000) + 500000,
-      destination: isWallet ? "Wallet" : "Exchange",
-      destinationAddress: isWallet ? `${Math.random().toString(36).substring(2, 15)}...${Math.random().toString(36).substring(2, 6)}` : null,
-      exchange: isWallet ? null : exchanges[Math.floor(Math.random() * exchanges.length)]
-    });
-  }
 
   return mockTransactions;
 };
