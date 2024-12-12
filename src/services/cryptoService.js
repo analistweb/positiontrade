@@ -1,25 +1,25 @@
 import axios from 'axios';
-import { toast } from "sonner";
 
 const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3';
 
-export const fetchPortfolioData = async () => {
+export const fetchTopFormationData = async () => {
   try {
-    const response = await axios.get(`${COINGECKO_API_URL}/coins/markets`, {
+    const response = await axios.get(`${COINGECKO_API_URL}/coins/bitcoin/market_chart`, {
       params: {
         vs_currency: 'usd',
-        order: 'market_cap_desc',
-        per_page: 10,
-        page: 1,
-        sparkline: true,
-        price_change_percentage: '24h'
+        days: 30,
+        interval: 'daily'
       }
     });
 
-    return response.data;
+    return {
+      prices: response.data.prices,
+      total_volumes: response.data.total_volumes,
+      market_caps: response.data.market_caps
+    };
   } catch (error) {
-    toast.error("Erro ao carregar dados do portfólio: " + error.message);
-    throw error;
+    console.error('Error fetching top formation data:', error);
+    throw new Error('Failed to fetch market data. Please try again later.');
   }
 };
 
