@@ -1,8 +1,7 @@
-import { HomeIcon, TrendingUpIcon, WalletIcon, UsersIcon, ActivityIcon, AlertTriangleIcon, BarChartIcon } from "lucide-react";
+import { HomeIcon, TrendingUpIcon, WalletIcon, ActivityIcon, AlertTriangleIcon, BarChartIcon } from "lucide-react";
 import Dashboard from "./pages/Dashboard.jsx";
 import AnalisesCompraVenda from "./pages/AnalisesCompraVenda.jsx";
 import PosicaoCarteira from "./pages/PosicaoCarteira.jsx";
-import GruposEntidades from "./pages/GruposEntidades.jsx";
 import FormacaoTopo from "./pages/FormacaoTopo.jsx";
 import RiscoOportunidade from "./pages/RiscoOportunidade.jsx";
 import AnaliseTecnica from "./pages/AnaliseTecnica.jsx";
@@ -23,18 +22,11 @@ export const navItems = [
     description: "Analise o melhor momento para comprar ou vender baseado em indicadores técnicos e volume de negociação"
   },
   {
-    title: "Posição da Carteira",
+    title: "Carteira e Movimentações",
     to: "/posicao-carteira",
     icon: <WalletIcon className="h-4 w-4" />,
     page: <PosicaoCarteira />,
-    description: "Acompanhe suas criptomoedas e analise o desempenho do seu portfólio ao longo do tempo"
-  },
-  {
-    title: "Grupos de Entidades",
-    to: "/grupos-entidades",
-    icon: <UsersIcon className="h-4 w-4" />,
-    page: <GruposEntidades />,
-    description: "Monitore as movimentações de grandes investidores e exchanges para identificar tendências"
+    description: "Acompanhe suas criptomoedas e analise movimentações de grandes investidores"
   },
   {
     title: "Formação de Topo",
