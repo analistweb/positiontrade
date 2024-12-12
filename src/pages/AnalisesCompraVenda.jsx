@@ -49,8 +49,8 @@ const AnalisesCompraVenda = () => {
   });
 
   React.useEffect(() => {
-    if (marketData?.prices && Array.isArray(marketData.prices) && marketData.prices.length > 0) {
-      const prices = marketData.prices.map(price => price[1]);
+    if (marketData?.historical?.prices && Array.isArray(marketData.historical.prices)) {
+      const prices = marketData.historical.prices.map(price => price[1]);
       const rsiValues = RSI.calculate({ values: prices, period: 14 });
       setCurrentRSI(rsiValues[rsiValues.length - 1] || 50);
     }
@@ -152,7 +152,7 @@ const AnalisesCompraVenda = () => {
                   <CardTitle>Volume de Negociação</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <VolumeChart marketData={marketData} minVolume={minVolume} />
+                  <VolumeChart marketData={marketData?.historical} minVolume={minVolume} />
                 </CardContent>
               </Card>
             </motion.div>
@@ -163,9 +163,9 @@ const AnalisesCompraVenda = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <EMAAnalysis marketData={marketData} coin={selectedCoin} />
+              <EMAAnalysis marketData={marketData?.historical} coin={selectedCoin} />
               <RSIRecommendation rsiValue={currentRSI} />
-              <MarketStats marketData={marketData} />
+              <MarketStats marketData={marketData?.current} />
             </motion.div>
           </div>
         </motion.div>
