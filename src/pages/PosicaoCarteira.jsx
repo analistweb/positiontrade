@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useQuery } from '@tanstack/react-query';
 import { fetchPortfolioData, fetchWhaleTransactions } from '../services/cryptoService';
@@ -11,14 +12,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import WhaleTransactionsTable from '../components/carteira/WhaleTransactionsTable';
-import MarketAnalysisTable from '../components/carteira/MarketAnalysisTable';
 
 const PosicaoCarteira = () => {
   const { data: portfolioData, isLoading: portfolioLoading, error: portfolioError } = useQuery({
     queryKey: ['portfolio'],
     queryFn: fetchPortfolioData,
-    refetchInterval: 30000,
+    refetchInterval: 30000, // Atualiza a cada 30 segundos
   });
 
   const { data: whaleData, isLoading: whaleLoading, error: whaleError } = useQuery({
@@ -93,7 +92,26 @@ const PosicaoCarteira = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <WhaleTransactionsTable transactions={whaleData} />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Horário</TableHead>
+                <TableHead>Volume (USD)</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Exchange</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {whaleData?.slice(0, 10).map((transaction, index) => (
+                <TableRow key={index}>
+                  <TableCell>{new Date(transaction.timestamp).toLocaleString()}</TableCell>
+                  <TableCell>${transaction.volume.toLocaleString()}</TableCell>
+                  <TableCell>{transaction.type}</TableCell>
+                  <TableCell>{transaction.exchange}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
@@ -117,7 +135,28 @@ const PosicaoCarteira = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <MarketAnalysisTable data={portfolioData} />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Criptomoeda</TableHead>
+                <TableHead>Preço Atual (USD)</TableHead>
+                <TableHead>Volume 24h</TableHead>
+                <TableHead>Variação 24h</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {portfolioData?.map((coin) => (
+                <TableRow key={coin.id}>
+                  <TableCell className="font-medium">{coin.name}</TableCell>
+                  <TableCell>${coin.current_price.toLocaleString()}</TableCell>
+                  <TableCell>${coin.total_volume.toLocaleString()}</TableCell>
+                  <TableCell className={coin.price_change_percentage_24h > 0 ? 'text-green-500' : 'text-red-500'}>
+                    {coin.price_change_percentage_24h.toFixed(2)}%
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

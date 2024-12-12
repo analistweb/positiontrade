@@ -1,63 +1,27 @@
 import axios from 'axios';
-import { COINGECKO_API_URL, getHeaders, API_CONFIG } from '../config/api';
-import { toast } from "sonner";
-import { logError, logInfo } from '../config/logger';
+import { COINGECKO_API_URL, getHeaders } from '../config/api';
 
-export const fetchMarketData = async (coinId = 'bitcoin', days = 90) => {
+export const fetchMarketData = async (coinId, days) => {
   try {
-    logInfo(`Fetching market data for ${coinId} over ${days} days...`);
-    
     const response = await axios.get(
-      `${COINGECKO_API_URL}/simple/price`,
-      {
-        params: {
-          ids: coinId,
-          vs_currencies: 'usd',
-          include_24hr_vol: true,
-          include_24hr_change: true,
-          include_market_cap: true
-        },
-        headers: getHeaders()
-      }
-    );
-
-    if (!response.data || !response.data[coinId]) {
-      throw new Error('Dados inválidos recebidos da API');
-    }
-
-    const historicalResponse = await axios.get(
       `${COINGECKO_API_URL}/coins/${coinId}/market_chart`,
       {
         params: {
           vs_currency: 'usd',
           days: days,
-          interval: days > 90 ? 'daily' : 'hourly'
+          interval: 'daily'
         },
         headers: getHeaders()
       }
     );
-
-    if (!historicalResponse.data) {
-      throw new Error('Dados históricos inválidos');
-    }
-
-    logInfo('Market data received successfully');
-    return {
-      current: response.data[coinId],
-      historical: historicalResponse.data
-    };
+    return response.data;
   } catch (error) {
-    logError('Error fetching market data:', error);
-    const errorMessage = error.response?.data?.error || error.message;
-    toast.error(`Erro ao carregar dados de mercado: ${errorMessage}`);
-    throw error;
+    throw new Error('Failed to fetch market data');
   }
 };
 
 export const fetchTopCoins = async () => {
   try {
-    logInfo('Fetching top coins...');
-    
     const response = await axios.get(
       `${COINGECKO_API_URL}/coins/markets`,
       {
@@ -65,47 +29,48 @@ export const fetchTopCoins = async () => {
           vs_currency: 'usd',
           order: 'market_cap_desc',
           per_page: 10,
-          sparkline: false,
-          price_change_percentage: '24h'
+          sparkline: false
         },
         headers: getHeaders()
       }
     );
-
-    if (!response.data || !Array.isArray(response.data)) {
-      throw new Error('Dados inválidos recebidos da API');
-    }
-
-    logInfo('Top coins received successfully');
     return response.data;
   } catch (error) {
-    logError('Error fetching top coins:', error);
-    toast.error(`Erro ao carregar top moedas: ${error.message}`);
-    throw error;
+    throw new Error('Failed to fetch top coins');
   }
 };
 
 export const fetchBitcoinDominance = async () => {
   try {
-    logInfo('Fetching Bitcoin dominance...');
-    
     const response = await axios.get(
       `${COINGECKO_API_URL}/global`,
       {
         headers: getHeaders()
       }
     );
-
-    if (!response.data || !response.data.data || !response.data.data.market_cap_percentage || !response.data.data.market_cap_percentage.btc) {
-      throw new Error('Dados de dominância do Bitcoin inválidos');
-    }
-
-    logInfo('Bitcoin dominance data received successfully');
     return response.data.data.market_cap_percentage.btc;
   } catch (error) {
-    logError('Error fetching Bitcoin dominance:', error);
-    toast.error(`Erro ao carregar dominância do Bitcoin: ${error.message}`);
-    throw error;
+    throw new Error('Failed to fetch Bitcoin dominance');
+  }
+};
+
+export const fetchPriceData = async () => {
+  try {
+    const response = await axios.get(
+      `${COINGECKO_API_URL}/coins/markets`,
+      {
+        params: {
+          vs_currency: 'usd',
+          order: 'market_cap_desc',
+          per_page: 5,
+          sparkline: true
+        },
+        headers: getHeaders()
+      }
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error('Failed to fetch price data');
   }
 };
 
@@ -125,16 +90,14 @@ export const calculateEMA = (prices, period = 56) => {
 };
 
 export const getWeeklyData = (dailyPrices) => {
-  if (!dailyPrices || !Array.isArray(dailyPrices)) {
-    return [];
-  }
-
   const weeklyData = [];
   let currentWeek = [];
   
+  // Assuming prices are ordered from oldest to newest
   dailyPrices.forEach((price, index) => {
     currentWeek.push(price);
     
+    // Check if it's the last day of the week (every 7 days) or last price
     if ((index + 1) % 7 === 0 || index === dailyPrices.length - 1) {
       const weekHigh = Math.max(...currentWeek.map(p => p[1]));
       const weekClose = currentWeek[currentWeek.length - 1][1];

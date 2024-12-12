@@ -2,21 +2,41 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from '@tanstack/react-query';
 import { motion } from "framer-motion";
+import axios from 'axios';
+import { COINGECKO_API_URL, getHeaders } from '@/config/api';
 import { toast } from "sonner";
-import { fetchMarketHeatmapData } from '@/services/marketHeatmapService';
-import { API_CONFIG, ERROR_MESSAGES } from '@/config/constants';
 
 const MarketHeatmap = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ['marketHeatmap'],
-    queryFn: fetchMarketHeatmapData,
-    refetchInterval: API_CONFIG.REFETCH_INTERVAL,
-    retry: API_CONFIG.RETRY_COUNT,
-    staleTime: API_CONFIG.STALE_TIME,
-    cacheTime: API_CONFIG.CACHE_TIME,
-    onError: (error) => {
-      toast.error(error.message);
-    }
+    queryFn: async () => {
+      try {
+        const response = await axios.get(
+          `${COINGECKO_API_URL}/coins/markets`,
+          {
+            params: {
+              vs_currency: 'usd',
+              order: 'market_cap_desc',
+              per_page: 8,
+              sparkline: false,
+              price_change_percentage: '24h'
+            },
+            headers: getHeaders()
+          }
+        );
+
+        return response.data.map(coin => ({
+          name: coin.name,
+          change: coin.price_change_percentage_24h,
+          marketCap: coin.market_cap,
+          color: coin.price_change_percentage_24h >= 0 ? 'bg-green-500' : 'bg-red-500'
+        }));
+      } catch (error) {
+        toast.error("Erro ao carregar dados do mercado");
+        throw error;
+      }
+    },
+    refetchInterval: 30000 // Atualiza a cada 30 segundos
   });
 
   if (isLoading) {
@@ -43,20 +63,7 @@ const MarketHeatmap = () => {
           <CardTitle>Mapa de Calor do Mercado</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-red-500">{error.message}</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!data || data.length === 0) {
-    return (
-      <Card className="w-full bg-gradient-to-br from-gray-900/50 to-gray-800/50 border-none">
-        <CardHeader>
-          <CardTitle>Mapa de Calor do Mercado</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-yellow-500">{ERROR_MESSAGES.NO_DATA}</p>
+          <p className="text-red-500">Erro ao carregar dados do mercado</p>
         </CardContent>
       </Card>
     );
