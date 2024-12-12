@@ -31,23 +31,28 @@ const AnalisesCompraVenda = () => {
     cacheTime: API_CONFIG.CACHE_TIME,
     onError: (error) => {
       console.error('Market data fetch error:', error);
+      toast.error(`Erro ao carregar dados de mercado: ${error.message}`);
     }
   });
 
-  const { data: topCoins, isLoading: topCoinsLoading } = useQuery({
+  const { data: topCoins, isLoading: topCoinsLoading, error: topCoinsError } = useQuery({
     queryKey: ['topCoins'],
     queryFn: fetchTopCoins,
     refetchInterval: API_CONFIG.REFETCH_INTERVAL,
     retry: API_CONFIG.RETRY_COUNT,
     staleTime: API_CONFIG.STALE_TIME,
-    cacheTime: API_CONFIG.CACHE_TIME
+    cacheTime: API_CONFIG.CACHE_TIME,
+    onError: (error) => {
+      console.error('Top coins fetch error:', error);
+      toast.error(`Erro ao carregar top moedas: ${error.message}`);
+    }
   });
 
   React.useEffect(() => {
-    if (marketData?.prices) {
+    if (marketData?.prices && Array.isArray(marketData.prices) && marketData.prices.length > 0) {
       const prices = marketData.prices.map(price => price[1]);
       const rsiValues = RSI.calculate({ values: prices, period: 14 });
-      setCurrentRSI(rsiValues[rsiValues.length - 1]);
+      setCurrentRSI(rsiValues[rsiValues.length - 1] || 50);
     }
   }, [marketData]);
 
@@ -65,12 +70,12 @@ const AnalisesCompraVenda = () => {
     );
   }
 
-  if (marketError) {
+  if (marketError || topCoinsError) {
     return (
       <div className="container mx-auto p-4">
         <ErrorDisplay 
           title="Erro ao carregar dados" 
-          message={marketError.message} 
+          message={(marketError || topCoinsError)?.message} 
         />
       </div>
     );

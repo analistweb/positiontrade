@@ -1,9 +1,9 @@
 import axios from 'axios';
-import { COINGECKO_API_URL, getHeaders, API_CONFIG } from '../config/api';
+import { COINGECKO_API_URL, getHeaders } from '../config/api';
 import { toast } from "sonner";
 import { logError, logInfo } from '../config/logger';
 
-export const fetchMarketData = async (coinId, days) => {
+export const fetchMarketData = async (coinId = 'bitcoin', days = 90) => {
   try {
     logInfo(`Fetching market data for ${coinId} over ${days} days...`);
     
@@ -13,22 +13,23 @@ export const fetchMarketData = async (coinId, days) => {
         params: {
           vs_currency: 'usd',
           days: days,
-          interval: 'daily'
+          interval: days > 90 ? 'daily' : 'hourly'
         },
-        headers: getHeaders(),
-        timeout: 10000 // 10 segundos timeout
+        headers: getHeaders()
       }
     );
 
-    logInfo('Market data received:', response?.data);
-    return response?.data || {};
+    if (!response.data) {
+      throw new Error('No data received from API');
+    }
+
+    logInfo('Market data received:', response.data);
+    return response.data;
   } catch (error) {
     logError('Error fetching market data:', error);
-    
-    const errorMessage = error.response?.data?.status?.error_message || error.message;
+    const errorMessage = error.response?.data?.error || error.message;
     toast.error(`Erro ao carregar dados de mercado: ${errorMessage}`);
-    
-    throw error; // Propaga o erro para ser tratado pelo React Query
+    throw error;
   }
 };
 
@@ -45,16 +46,45 @@ export const fetchTopCoins = async () => {
           per_page: 10,
           sparkline: false
         },
-        headers: getHeaders(),
-        timeout: 10000
+        headers: getHeaders()
       }
     );
 
-    logInfo('Top coins received:', response?.data);
-    return response?.data || [];
+    if (!response.data) {
+      throw new Error('No data received from API');
+    }
+
+    logInfo('Top coins received:', response.data);
+    return response.data;
   } catch (error) {
     logError('Error fetching top coins:', error);
     toast.error(`Erro ao carregar top moedas: ${error.message}`);
+    throw error;
+  }
+};
+
+export const fetchBitcoinDominance = async () => {
+  try {
+    logInfo('Fetching Bitcoin dominance data...');
+    
+    const response = await axios.get(
+      `${COINGECKO_API_URL}/global`,
+      {
+        headers: getHeaders()
+      }
+    );
+
+    if (!response.data?.data?.market_cap_percentage?.btc) {
+      throw new Error('Invalid Bitcoin dominance data received');
+    }
+
+    const dominance = response.data.data.market_cap_percentage.btc;
+    logInfo('Bitcoin dominance data received:', dominance);
+    
+    return dominance;
+  } catch (error) {
+    logError('Error fetching Bitcoin dominance:', error);
+    toast.error(`Erro ao carregar dominância do Bitcoin: ${error.message}`);
     throw error;
   }
 };
@@ -78,11 +108,9 @@ export const getWeeklyData = (dailyPrices) => {
   const weeklyData = [];
   let currentWeek = [];
   
-  // Assuming prices are ordered from oldest to newest
   dailyPrices.forEach((price, index) => {
     currentWeek.push(price);
     
-    // Check if it's the last day of the week (every 7 days) or last price
     if ((index + 1) % 7 === 0 || index === dailyPrices.length - 1) {
       const weekHigh = Math.max(...currentWeek.map(p => p[1]));
       const weekClose = currentWeek[currentWeek.length - 1][1];
@@ -99,27 +127,4 @@ export const getWeeklyData = (dailyPrices) => {
   });
   
   return weeklyData;
-};
-
-export const fetchBitcoinDominance = async () => {
-  try {
-    logInfo('Fetching Bitcoin dominance data...');
-    
-    const response = await axios.get(
-      `${COINGECKO_API_URL}/global`,
-      {
-        headers: getHeaders(),
-        timeout: 10000
-      }
-    );
-
-    const dominance = response?.data?.data?.market_cap_percentage?.btc || 0;
-    logInfo('Bitcoin dominance data received:', dominance);
-    
-    return dominance;
-  } catch (error) {
-    logError('Error fetching Bitcoin dominance:', error);
-    toast.error(`Erro ao carregar dominância do Bitcoin: ${error.message}`);
-    throw error;
-  }
 };
