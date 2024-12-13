@@ -7,9 +7,10 @@ import axios from 'axios';
 import SentimentGauge from './SentimentGauge';
 import SentimentIndicator from './SentimentIndicator';
 import { calculateSentimentScore } from '../../utils/sentimentCalculator';
+import { toast } from "sonner";
 
 const MarketSentiment = () => {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['marketSentiment'],
     queryFn: async () => {
       try {
@@ -25,6 +26,11 @@ const MarketSentiment = () => {
         });
 
         const marketData = response.data;
+        
+        if (!marketData.market_data) {
+          throw new Error('Dados de mercado não disponíveis');
+        }
+
         const sentimentScore = calculateSentimentScore(marketData);
         
         return {
@@ -39,19 +45,19 @@ const MarketSentiment = () => {
             },
             {
               name: 'Menções em Redes Sociais',
-              value: `${marketData.community_data.twitter_followers.toLocaleString()}`,
+              value: `${marketData.community_data?.twitter_followers?.toLocaleString() || '0'}`,
               status: 'positive',
               description: 'Total de seguidores no Twitter como indicador de interesse social'
             },
             {
               name: 'Dominância de Mercado',
-              value: `${marketData.market_data.market_cap_percentage.toFixed(2)}%`,
+              value: `${marketData.market_data.market_cap_percentage?.toFixed(2) || '0'}%`,
               status: marketData.market_data.market_cap_change_percentage_24h > 0 ? 'positive' : 'negative',
               description: 'Percentual de dominância do Bitcoin no mercado'
             },
             {
               name: 'Variação de Preço 24h',
-              value: `${marketData.market_data.price_change_percentage_24h.toFixed(2)}%`,
+              value: `${marketData.market_data.price_change_percentage_24h?.toFixed(2) || '0'}%`,
               status: marketData.market_data.price_change_percentage_24h > 0 ? 'positive' : 'negative',
               description: 'Variação percentual do preço nas últimas 24 horas'
             }
@@ -59,13 +65,29 @@ const MarketSentiment = () => {
         };
       } catch (error) {
         console.error('Erro ao buscar dados de sentimento:', error);
+        toast.error('Erro ao carregar dados de sentimento do mercado');
         throw error;
       }
     },
     refetchInterval: 300000 // 5 minutos
   });
 
-  if (isLoading) {
+  if (error) {
+    return (
+      <Card className="w-full bg-card/50 border-border/50">
+        <CardHeader>
+          <CardTitle>Análise de Sentimento do Mercado</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center text-destructive">
+            Erro ao carregar dados. Por favor, tente novamente mais tarde.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isLoading || !data) {
     return (
       <Card className="w-full bg-card/50 border-border/50">
         <CardHeader>
