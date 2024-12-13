@@ -28,88 +28,55 @@ export const fetchPortfolioData = async () => {
 
 export const fetchWhaleTransactions = async () => {
   try {
-    // Se a API_KEY estiver configurada, usa dados reais
-    if (WHALE_ALERT_API_KEY) {
-      const response = await axios.get(`${WHALE_ALERT_API_URL}/transactions`, {
-        params: {
-          api_key: WHALE_ALERT_API_KEY,
-          min_value: 500000,
-          start: Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000),
-          end: Math.floor(Date.now() / 1000),
-        }
-      });
-
-      return response.data.transactions.map(tx => ({
-        timestamp: tx.timestamp * 1000,
-        type: tx.from.owner_type === "exchange" ? "Venda" : "Compra",
-        cryptoAmount: tx.amount,
-        cryptoSymbol: tx.symbol,
-        volume: tx.amount_usd,
-        destination: tx.to.owner_type === "exchange" ? "Exchange" : "Wallet",
-        destinationAddress: tx.to.address,
-        exchange: tx.to.owner_type === "exchange" ? tx.to.owner : null
-      }));
+    if (!WHALE_ALERT_API_KEY) {
+      toast.warning("Chave da API Whale Alert não configurada. Usando dados simulados.");
+      return getMockWhaleTransactions();
     }
-    
-    // Dados simulados para demonstração
-    const mockTransactions = [
-      {
-        timestamp: Date.now(),
-        type: "Compra",
-        cryptoAmount: 150,
-        cryptoSymbol: "BTC",
-        volume: 6000000,
-        destination: "Wallet",
-        destinationAddress: "3FZbgi29cpjq2GjdwV8eyHuJJnkLtktZc5",
-        exchange: null
-      },
-      {
-        timestamp: Date.now() - 3600000,
-        type: "Venda",
-        cryptoAmount: 2800,
-        cryptoSymbol: "ETH",
-        volume: 5600000,
-        destination: "Exchange",
-        destinationAddress: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
-        exchange: "Binance"
-      },
-      {
-        timestamp: Date.now() - 7200000,
-        type: "Compra",
-        cryptoAmount: 1000000,
-        cryptoSymbol: "XRP",
-        volume: 520000,
-        destination: "Wallet",
-        destinationAddress: "rLHzPsX6oXkzU2qL12kHCH8G8cnZv1rBJh",
-        exchange: null
-      },
-      {
-        timestamp: Date.now() - 10800000,
-        type: "Venda",
-        cryptoAmount: 12500,
-        cryptoSymbol: "SOL",
-        volume: 875000,
-        destination: "Exchange",
-        destinationAddress: "2wmVCSfPxGPjrnMMn7rchp4uaeoTqN39mXFC2zhPdri9",
-        exchange: "Kraken"
-      },
-      {
-        timestamp: Date.now() - 14400000,
-        type: "Compra",
-        cryptoAmount: 45000,
-        cryptoSymbol: "DOT",
-        volume: 540000,
-        destination: "Wallet",
-        destinationAddress: "12xtAYsRUrmbniiWQqJtECiBQrMn8AypQcXhnQAc6RB6XkLW",
-        exchange: null
-      }
-    ];
 
-    return mockTransactions;
+    const response = await axios.get(`${WHALE_ALERT_API_URL}/transactions`, {
+      params: {
+        api_key: WHALE_ALERT_API_KEY,
+        min_value: 500000,  // Transações acima de $500,000
+        blockchain: 'bitcoin,ethereum,tron', // Blockchains específicas
+        start: Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000),
+        end: Math.floor(Date.now() / 1000),
+      }
+    });
+
+    return processWhaleAlertTransactions(response.data.transactions);
   } catch (error) {
-    toast.error("Erro ao carregar transações: " + error.message);
-    throw error;
+    toast.error("Erro ao buscar transações de baleias: " + error.message);
+    return getMockWhaleTransactions();
   }
+};
+
+const processWhaleAlertTransactions = (transactions) => {
+  return transactions.map(tx => ({
+    timestamp: tx.timestamp * 1000,
+    type: tx.from.owner_type === 'exchange' ? 'Venda' : 'Compra',
+    cryptoAmount: tx.amount,
+    cryptoSymbol: tx.symbol.toUpperCase(),
+    volume: tx.amount_usd,
+    destination: tx.to.owner_type === 'exchange' ? 'Exchange' : 'Carteira',
+    destinationAddress: tx.to.address,
+    exchange: tx.to.owner_type === 'exchange' ? tx.to.owner : null
+  })).slice(0, 10);  // Limitar para 10 transações
+};
+
+const getMockWhaleTransactions = () => {
+  return [
+    {
+      timestamp: Date.now(),
+      type: "Compra",
+      cryptoAmount: 150.75,
+      cryptoSymbol: "BTC",
+      volume: 6500000,
+      destination: "Carteira",
+      destinationAddress: "3FZbgi29cpjq2GjdwV8eyHuJJnkLtktZc5",
+      exchange: null
+    },
+    // ... outros dados simulados
+  ];
 };
 
 export const fetchTopFormationData = async () => {
