@@ -4,45 +4,91 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from '@tanstack/react-query';
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import axios from 'axios';
 
 const MarketSentiment = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['marketSentiment'],
     queryFn: async () => {
-      // Simulated data - in production, this would come from an API
-      return {
-        overallSentiment: 'bullish',
-        sentimentScore: 75,
-        indicators: [
-          { 
-            name: 'Índice Medo & Ganância', 
-            value: 65, 
-            status: 'positive',
-            description: 'Mercado em estado de ganância moderada, indicando otimismo dos investidores'
-          },
-          { 
-            name: 'Menções em Redes Sociais', 
-            value: '↑ 23%', 
-            status: 'positive',
-            description: 'Aumento significativo nas discussões sobre criptomoedas nas redes sociais'
-          },
-          { 
-            name: 'Volume de Negociação', 
-            value: '↓ 5%', 
-            status: 'neutral',
-            description: 'Leve queda no volume de negociações, indicando momento de cautela'
-          },
-          { 
-            name: 'Interesse Institucional', 
-            value: '↑ 15%', 
-            status: 'positive',
-            description: 'Crescimento no interesse de investidores institucionais, sugerindo confiança no mercado'
+      try {
+        // Buscar dados do Bitcoin como referência de mercado
+        const response = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin', {
+          params: {
+            localization: false,
+            tickers: false,
+            market_data: true,
+            community_data: true,
+            developer_data: false,
+            sparkline: false
           }
-        ]
-      };
+        });
+
+        const marketData = response.data;
+        
+        // Calcular score de sentimento baseado em métricas reais
+        const sentimentScore = calculateSentimentScore(marketData);
+        
+        return {
+          overallSentiment: sentimentScore > 50 ? 'bullish' : 'bearish',
+          sentimentScore,
+          indicators: [
+            {
+              name: 'Volume de Mercado 24h',
+              value: `${(marketData.market_data.total_volume.usd / 1000000000).toFixed(2)}B USD`,
+              status: marketData.market_data.price_change_percentage_24h > 0 ? 'positive' : 'negative',
+              description: `Volume total de negociação nas últimas 24 horas`
+            },
+            {
+              name: 'Menções em Redes Sociais',
+              value: `${marketData.community_data.twitter_followers.toLocaleString()}`,
+              status: 'positive',
+              description: 'Total de seguidores no Twitter como indicador de interesse social'
+            },
+            {
+              name: 'Dominância de Mercado',
+              value: `${marketData.market_data.market_cap_percentage.toFixed(2)}%`,
+              status: marketData.market_data.market_cap_change_percentage_24h > 0 ? 'positive' : 'negative',
+              description: 'Percentual de dominância do Bitcoin no mercado'
+            },
+            {
+              name: 'Variação de Preço 24h',
+              value: `${marketData.market_data.price_change_percentage_24h.toFixed(2)}%`,
+              status: marketData.market_data.price_change_percentage_24h > 0 ? 'positive' : 'negative',
+              description: 'Variação percentual do preço nas últimas 24 horas'
+            }
+          ]
+        };
+      } catch (error) {
+        console.error('Erro ao buscar dados de sentimento:', error);
+        throw error;
+      }
     },
-    refetchInterval: 60000
+    refetchInterval: 300000 // 5 minutos
   });
+
+  const calculateSentimentScore = (marketData) => {
+    let score = 50; // Score base
+
+    // Ajusta score baseado na variação de preço
+    if (marketData.market_data.price_change_percentage_24h > 0) {
+      score += 10;
+    } else {
+      score -= 10;
+    }
+
+    // Ajusta score baseado no volume
+    if (marketData.market_data.total_volume.usd > marketData.market_data.market_cap.usd * 0.1) {
+      score += 10;
+    }
+
+    // Ajusta score baseado na dominância
+    if (marketData.market_data.market_cap_percentage > 45) {
+      score += 10;
+    }
+
+    // Limita o score entre 0 e 100
+    return Math.max(0, Math.min(100, score));
+  };
 
   if (isLoading) {
     return (
