@@ -3,37 +3,60 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangleIcon, TrendingUpIcon } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import { RSI } from 'technicalindicators';
 
 const TOP_CRYPTOS = [
   'bitcoin', 'ethereum', 'binancecoin', 'solana', 'ripple', 
   'cardano', 'avalanche-2', 'polkadot', 'chainlink', 'polygon'
 ];
 
+const calculateRSI = (prices) => {
+  const values = prices.map(price => price[1]);
+  const rsiValues = RSI.calculate({
+    values: values,
+    period: 14
+  });
+  return rsiValues[rsiValues.length - 1];
+};
+
 const RSIRecommendation = () => {
   const { data: cryptosRSI, isLoading } = useQuery({
     queryKey: ['cryptosRSI'],
     queryFn: async () => {
-      // Simulated RSI data for demonstration
-      // In a real implementation, this would fetch from your API
-      return {
-        'bitcoin': 77.07,
-        'ethereum': 72.35,
-        'binancecoin': 68.92,
-        'solana': 81.45,
-        'ripple': 65.23,
-        'cardano': 58.92,
-        'avalanche-2': 75.34,
-        'polkadot': 69.45,
-        'chainlink': 71.23,
-        'polygon': 73.56
-      };
+      const rsiData = {};
+      
+      // Buscar dados de preço para cada criptomoeda
+      await Promise.all(TOP_CRYPTOS.map(async (crypto) => {
+        try {
+          const response = await axios.get(
+            `https://api.coingecko.com/api/v3/coins/${crypto}/market_chart`, {
+              params: {
+                vs_currency: 'usd',
+                days: 14,
+                interval: 'daily'
+              }
+            }
+          );
+          
+          const rsi = calculateRSI(response.data.prices);
+          rsiData[crypto] = rsi;
+        } catch (error) {
+          console.error(`Erro ao buscar dados para ${crypto}:`, error);
+          rsiData[crypto] = null;
+        }
+      }));
+      
+      return rsiData;
     },
-    refetchInterval: 300000 // 5 minutes
+    refetchInterval: 300000, // 5 minutos
+    retry: 3,
+    staleTime: 240000 // 4 minutos
   });
 
   const oversoldCryptos = cryptosRSI ? 
     Object.entries(cryptosRSI)
-      .filter(([_, rsi]) => rsi < 30)
+      .filter(([_, rsi]) => rsi && rsi < 30)
       .sort((a, b) => a[1] - b[1]) : [];
 
   const getCryptoName = (id) => {
@@ -89,7 +112,7 @@ const RSIRecommendation = () => {
                     <div key={crypto} className="flex justify-between items-center">
                       <span className="text-green-700">{getCryptoName(crypto)}</span>
                       <Badge variant="secondary">
-                        RSI: {rsi.toFixed(2)}
+                        RSI: {rsi?.toFixed(2) || 'N/A'}
                       </Badge>
                     </div>
                   ))}
@@ -115,7 +138,7 @@ const RSIRecommendation = () => {
                   <div key={crypto} className="flex justify-between items-center">
                     <span>{getCryptoName(crypto)}</span>
                     <Badge variant="secondary">
-                      RSI: {cryptosRSI[crypto].toFixed(2)}
+                      RSI: {cryptosRSI[crypto]?.toFixed(2) || 'N/A'}
                     </Badge>
                   </div>
                 ))}
