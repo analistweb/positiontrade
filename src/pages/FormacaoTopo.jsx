@@ -18,6 +18,14 @@ const FormacaoTopo = () => {
   });
 
   const analisarPadroesTopo = (precos) => {
+    if (!precos || !Array.isArray(precos)) {
+      return {
+        rsi: 0,
+        bandaSuperior: 0,
+        indicaFormacaoTopo: false
+      };
+    }
+
     // Cálculo do RSI
     const rsiValues = RSI.calculate({
       values: precos,
@@ -38,12 +46,14 @@ const FormacaoTopo = () => {
 
     return {
       rsi: ultimoRSI,
-      bandaSuperior: ultimoBB.upper,
-      indicaFormacaoTopo: ultimoRSI > 70 && ultimoPreco >= ultimoBB.upper
+      bandaSuperior: ultimoBB?.upper || 0,
+      indicaFormacaoTopo: ultimoRSI > 70 && ultimoPreco >= (ultimoBB?.upper || 0)
     };
   };
 
   const preverFormacaoTopo = async (precos) => {
+    if (!precos || !Array.isArray(precos)) return null;
+
     try {
       // Criar e treinar um modelo simples de ML
       const model = tf.sequential();
@@ -68,15 +78,36 @@ const FormacaoTopo = () => {
     }
   };
 
-  if (isLoading) return <div className="p-4">Carregando dados...</div>;
-  if (error) return <div className="p-4 text-red-500">Erro: {error.message}</div>;
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-4">
+        <Card>
+          <CardContent className="flex items-center justify-center min-h-[400px]">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-  const chartData = data.prices.map(([timestamp, price]) => ({
+  if (error || !data || !data.prices) {
+    return (
+      <div className="container mx-auto p-4">
+        <Card>
+          <CardContent className="p-4 text-center text-red-500">
+            Erro ao carregar dados. Por favor, tente novamente mais tarde.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const chartData = (data.prices || []).map(([timestamp, price]) => ({
     date: new Date(timestamp).toLocaleDateString(),
     price: price
   }));
 
-  const precos = data.prices.map(([_, price]) => price);
+  const precos = (data.prices || []).map(([_, price]) => price);
   const analise = analisarPadroesTopo(precos);
 
   return (
@@ -108,8 +139,8 @@ const FormacaoTopo = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <p>RSI Atual: {analise.rsi?.toFixed(2)}</p>
-              <p>Banda Superior: ${analise.bandaSuperior?.toFixed(2)}</p>
+              <p>RSI Atual: {analise.rsi?.toFixed(2) || 'N/A'}</p>
+              <p>Banda Superior: ${analise.bandaSuperior?.toFixed(2) || 'N/A'}</p>
               <p className={analise.indicaFormacaoTopo ? "text-red-500 font-bold" : "text-green-500"}>
                 {analise.indicaFormacaoTopo 
                   ? "⚠️ Possível formação de topo detectada" 
@@ -125,8 +156,8 @@ const FormacaoTopo = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <p>Volume de Grandes Entidades: ${(data.total_volumes[data.total_volumes.length - 1][1] / 1000000).toFixed(2)}M</p>
-              <p>Variação 24h: {((data.prices[data.prices.length - 1][1] - data.prices[data.prices.length - 24][1]) / data.prices[data.prices.length - 24][1] * 100).toFixed(2)}%</p>
+              <p>Volume de Grandes Entidades: ${((data.total_volumes || [])[data.total_volumes?.length - 1]?.[1] / 1000000)?.toFixed(2) || 0}M</p>
+              <p>Variação 24h: {((data.prices?.[data.prices.length - 1]?.[1] - data.prices?.[data.prices.length - 24]?.[1]) / data.prices?.[data.prices.length - 24]?.[1] * 100)?.toFixed(2) || 0}%</p>
             </div>
           </CardContent>
         </Card>
