@@ -6,9 +6,10 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { toast } from "sonner";
 import axios from 'axios';
 import { COINGECKO_API_URL, getHeaders } from '@/config/api';
+import { motion } from "framer-motion";
 
 const AnaliseTecnica = () => {
-  const { data: btcData, isLoading } = useQuery({
+  const { data: btcData, isLoading, error } = useQuery({
     queryKey: ['btcTechnicalAnalysis'],
     queryFn: async () => {
       try {
@@ -23,6 +24,11 @@ const AnaliseTecnica = () => {
             headers: getHeaders()
           }
         );
+
+        if (!response.data || !response.data.prices) {
+          console.error('Invalid response data:', response.data);
+          throw new Error('Dados inválidos recebidos da API');
+        }
 
         const prices = response.data.prices.map(price => ({
           date: new Date(price[0]).toLocaleDateString(),
@@ -39,6 +45,7 @@ const AnaliseTecnica = () => {
           mayerMultiple
         };
       } catch (error) {
+        console.error('Erro ao carregar dados do Bitcoin:', error);
         toast.error("Erro ao carregar dados do Bitcoin");
         throw error;
       }
@@ -47,7 +54,33 @@ const AnaliseTecnica = () => {
   });
 
   if (isLoading) {
-    return <div>Carregando análise técnica...</div>;
+    return (
+      <div className="container mx-auto p-4">
+        <Card className="w-full">
+          <CardContent className="h-[300px] flex items-center justify-center">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full"
+            />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error || !btcData || !btcData.prices) {
+    return (
+      <div className="container mx-auto p-4">
+        <Card className="w-full">
+          <CardContent className="p-6">
+            <p className="text-destructive text-center">
+              Erro ao carregar dados. Por favor, tente novamente mais tarde.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const getSignalColor = (value, threshold) => {
