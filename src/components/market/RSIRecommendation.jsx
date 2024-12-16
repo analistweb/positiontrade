@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 const TOP_CRYPTOS = [
   'bitcoin',
   'ethereum',
-  'binancecoin',
+  'babydoge',
   'cardano',
   'polkadot'
 ];
@@ -68,7 +68,7 @@ const RSIRecommendation = () => {
     const names = {
       'bitcoin': 'Bitcoin',
       'ethereum': 'Ethereum',
-      'binancecoin': 'BNB',
+      'babydoge': 'Baby Doge Coin',
       'cardano': 'Cardano',
       'polkadot': 'Polkadot'
     };
