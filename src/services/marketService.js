@@ -1,30 +1,55 @@
 import axios from 'axios';
 import { COINGECKO_API_URL, getHeaders } from '../config/api';
+import { toast } from "sonner";
+
+const api = axios.create({
+  baseURL: COINGECKO_API_URL,
+  timeout: 10000
+});
+
+// Implementa delay entre tentativas
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Função de retry com backoff exponencial
+const fetchWithRetry = async (fn, retries = 3, backoff = 1000) => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries === 0) throw error;
+    
+    if (error.response?.status === 429) {
+      await delay(backoff);
+      return fetchWithRetry(fn, retries - 1, backoff * 2);
+    }
+    
+    throw error;
+  }
+};
 
 export const fetchMarketData = async (coinId, days) => {
   try {
-    const response = await axios.get(
-      `${COINGECKO_API_URL}/coins/${coinId}/market_chart`,
-      {
+    const response = await fetchWithRetry(() => 
+      api.get(`/coins/${coinId}/market_chart`, {
         params: {
           vs_currency: 'usd',
           days: days,
           interval: 'daily'
         },
         headers: getHeaders()
-      }
+      })
     );
     return response.data;
   } catch (error) {
-    throw new Error('Failed to fetch market data');
+    console.error('Erro ao buscar dados de mercado:', error);
+    toast.error('Erro ao carregar dados de mercado. Tentando novamente...');
+    throw error;
   }
 };
 
 export const fetchTopCoins = async () => {
   try {
-    const response = await axios.get(
-      `${COINGECKO_API_URL}/coins/markets`,
-      {
+    const response = await fetchWithRetry(() =>
+      api.get('/coins/markets', {
         params: {
           vs_currency: 'usd',
           order: 'market_cap_desc',
@@ -32,11 +57,13 @@ export const fetchTopCoins = async () => {
           sparkline: false
         },
         headers: getHeaders()
-      }
+      })
     );
     return response.data;
   } catch (error) {
-    throw new Error('Failed to fetch top coins');
+    console.error('Erro ao buscar top moedas:', error);
+    toast.error('Erro ao carregar lista de moedas. Tentando novamente...');
+    throw error;
   }
 };
 
