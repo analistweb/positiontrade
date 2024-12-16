@@ -25,13 +25,19 @@ const MarketHeatmap = () => {
           }
         );
 
+        if (!response.data || !Array.isArray(response.data)) {
+          console.error('Invalid response data:', response.data);
+          throw new Error('Invalid response data format');
+        }
+
         return response.data.map(coin => ({
           name: coin.name,
-          change: coin.price_change_percentage_24h,
-          marketCap: coin.market_cap,
-          color: coin.price_change_percentage_24h >= 0 ? 'bg-green-500' : 'bg-red-500'
+          change: coin.price_change_percentage_24h || 0,
+          marketCap: coin.market_cap || 0,
+          color: (coin.price_change_percentage_24h || 0) >= 0 ? 'bg-green-500' : 'bg-red-500'
         }));
       } catch (error) {
+        console.error('Error fetching market data:', error);
         toast.error("Erro ao carregar dados do mercado");
         throw error;
       }
@@ -56,7 +62,7 @@ const MarketHeatmap = () => {
     );
   }
 
-  if (error) {
+  if (error || !data) {
     return (
       <Card className="w-full bg-gradient-to-br from-gray-900/50 to-gray-800/50 border-none">
         <CardHeader>
@@ -78,7 +84,7 @@ const MarketHeatmap = () => {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {data.map((coin, index) => (
+          {Array.isArray(data) && data.map((coin, index) => (
             <motion.div
               key={coin.name}
               initial={{ scale: 0, opacity: 0 }}
