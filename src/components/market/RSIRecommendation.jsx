@@ -16,13 +16,22 @@ const TOP_CRYPTOS = [
 ];
 
 const calculateRSI = (prices) => {
-  if (!prices || !Array.isArray(prices)) return null;
-  const values = prices.map(price => price[1]);
-  const rsiValues = RSI.calculate({
-    values: values,
-    period: 14
-  });
-  return rsiValues[rsiValues.length - 1];
+  if (!prices || !Array.isArray(prices) || prices.length < 14) {
+    console.log('Invalid price data for RSI calculation:', prices);
+    return null;
+  }
+  
+  try {
+    const values = prices.map(price => price[1]);
+    const rsiValues = RSI.calculate({
+      values: values,
+      period: 14
+    });
+    return rsiValues[rsiValues.length - 1];
+  } catch (error) {
+    console.error('Error calculating RSI:', error);
+    return null;
+  }
 };
 
 const RSIRecommendation = () => {
@@ -31,7 +40,7 @@ const RSIRecommendation = () => {
     queryFn: async () => {
       const rsiData = {};
       
-      await Promise.all(TOP_CRYPTOS.map(async (crypto) => {
+      const results = await Promise.allSettled(TOP_CRYPTOS.map(async (crypto) => {
         try {
           const response = await axios.get(
             `https://api.coingecko.com/api/v3/coins/${crypto}/market_chart`,
@@ -44,13 +53,27 @@ const RSIRecommendation = () => {
             }
           );
           
+          if (!response.data?.prices) {
+            console.error(`No price data available for ${crypto}`);
+            return { crypto, rsi: null };
+          }
+
           const rsi = calculateRSI(response.data.prices);
-          rsiData[crypto] = rsi;
+          return { crypto, rsi };
         } catch (error) {
-          console.error(`Erro ao buscar dados para ${crypto}:`, error);
-          rsiData[crypto] = null;
+          console.error(`Error fetching data for ${crypto}:`, error);
+          return { crypto, rsi: null };
         }
       }));
+      
+      results.forEach(result => {
+        if (result.status === 'fulfilled') {
+          rsiData[result.value.crypto] = result.value.rsi;
+        } else {
+          console.error(`Failed to process ${result.reason}`);
+          rsiData[result.reason.crypto] = null;
+        }
+      });
       
       return rsiData;
     },
@@ -61,8 +84,8 @@ const RSIRecommendation = () => {
 
   const oversoldCryptos = cryptosRSI ? 
     Object.entries(cryptosRSI)
-      .filter(([_, rsi]) => rsi && rsi < 30)
-      .sort((a, b) => a[1] - b[1]) : [];
+      .filter(([_, rsi]) => rsi !== null && rsi < 30)
+      .sort((a, b) => (a[1] || 0) - (b[1] || 0)) : [];
 
   const getCryptoName = (id) => {
     const names = {
