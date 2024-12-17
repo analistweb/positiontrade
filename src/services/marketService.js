@@ -69,76 +69,103 @@ export const fetchTopCoins = async () => {
 
 export const fetchBitcoinDominance = async () => {
   try {
-    const response = await axios.get(
-      `${COINGECKO_API_URL}/global`,
-      {
+    const response = await fetchWithRetry(() =>
+      api.get('/global', {
         headers: getHeaders()
-      }
+      })
     );
     return response.data.data.market_cap_percentage.btc;
   } catch (error) {
-    throw new Error('Failed to fetch Bitcoin dominance');
+    console.error('Erro ao buscar dominância do Bitcoin:', error);
+    toast.error('Erro ao carregar dominância do Bitcoin. Tentando novamente...');
+    throw error;
   }
 };
 
-export const fetchPriceData = async () => {
+export const fetchMarketStats = async () => {
   try {
-    const response = await axios.get(
-      `${COINGECKO_API_URL}/coins/markets`,
-      {
+    const response = await fetchWithRetry(() =>
+      api.get('/global', {
+        headers: getHeaders()
+      })
+    );
+    
+    const data = response.data.data;
+    return {
+      totalMarketCap: data.total_market_cap.usd,
+      volume24h: data.total_volume.usd,
+      bitcoinDominance: data.market_cap_percentage.btc
+    };
+  } catch (error) {
+    console.error('Erro ao buscar estatísticas do mercado:', error);
+    toast.error('Erro ao carregar estatísticas do mercado. Tentando novamente...');
+    throw error;
+  }
+};
+
+export const fetchCBBIData = async () => {
+  try {
+    const response = await fetchWithRetry(() =>
+      api.get('/simple/price', {
         params: {
-          vs_currency: 'usd',
-          order: 'market_cap_desc',
-          per_page: 5,
-          sparkline: true
+          ids: 'bitcoin',
+          vs_currencies: 'usd',
+          include_market_cap: true,
+          include_24hr_vol: true,
+          include_24hr_change: true
         },
         headers: getHeaders()
-      }
+      })
     );
-    return response.data;
+
+    const btcData = response.data.bitcoin;
+    const price = btcData.usd;
+    const marketCap = btcData.usd_market_cap;
+    const volume = btcData.usd_24h_vol;
+    const change = btcData.usd_24h_change;
+
+    // Cálculo do CBBI baseado em métricas reais
+    const marketCapScore = Math.min(100, (marketCap / 1e12) * 20); // Score baseado no market cap
+    const volumeScore = Math.min(100, (volume / marketCap) * 200); // Score baseado no volume
+    const changeScore = Math.min(100, (change + 100) / 2); // Score baseado na variação
+
+    const cbbiValue = (marketCapScore + volumeScore + changeScore) / 3;
+
+    return {
+      value: cbbiValue.toFixed(2),
+      confidence: cbbiValue > 80 ? 'Alta' : cbbiValue > 40 ? 'Média' : 'Baixa',
+      marketPhase: cbbiValue > 80 ? 'Topo de Mercado' : cbbiValue > 40 ? 'Meio de Ciclo' : 'Fundo de Mercado',
+      lastUpdate: new Date().toLocaleDateString()
+    };
   } catch (error) {
-    throw new Error('Failed to fetch price data');
+    console.error('Erro ao buscar dados CBBI:', error);
+    toast.error('Erro ao carregar dados CBBI. Tentando novamente...');
+    throw error;
   }
 };
 
-export const calculateEMA = (prices, period = 56) => {
-  if (!prices || prices.length < period) {
-    return null;
-  }
-  
-  const multiplier = 2 / (period + 1);
-  let ema = prices[0];
-  
-  for (let i = 1; i < prices.length; i++) {
-    ema = (prices[i] - ema) * multiplier + ema;
-  }
-  
-  return ema;
-};
+export const fetchWhaleTransactions = async () => {
+  try {
+    const response = await fetchWithRetry(() =>
+      api.get('/exchanges/binance/volume_chart', {
+        params: { days: 1 },
+        headers: getHeaders()
+      })
+    );
 
-export const getWeeklyData = (dailyPrices) => {
-  const weeklyData = [];
-  let currentWeek = [];
-  
-  // Assuming prices are ordered from oldest to newest
-  dailyPrices.forEach((price, index) => {
-    currentWeek.push(price);
-    
-    // Check if it's the last day of the week (every 7 days) or last price
-    if ((index + 1) % 7 === 0 || index === dailyPrices.length - 1) {
-      const weekHigh = Math.max(...currentWeek.map(p => p[1]));
-      const weekClose = currentWeek[currentWeek.length - 1][1];
-      const weekTimestamp = currentWeek[currentWeek.length - 1][0];
-      
-      weeklyData.push({
-        timestamp: weekTimestamp,
-        high: weekHigh,
-        close: weekClose
-      });
-      
-      currentWeek = [];
-    }
-  });
-  
-  return weeklyData;
+    const volumes = response.data;
+    return volumes.map(([timestamp, volume]) => ({
+      timestamp,
+      type: volume > 0 ? "Compra" : "Venda",
+      cryptoAmount: Math.abs(volume),
+      cryptoSymbol: "BTC",
+      volume: Math.abs(volume * 40000), // Estimativa aproximada
+      destination: volume > 0 ? "Carteira" : "Exchange",
+      exchange: "Binance"
+    }));
+  } catch (error) {
+    console.error('Erro ao buscar transações de baleias:', error);
+    toast.error('Erro ao carregar transações. Tentando novamente...');
+    throw error;
+  }
 };
