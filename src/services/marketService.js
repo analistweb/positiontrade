@@ -26,6 +26,46 @@ const fetchWithRetry = async (fn, retries = 3, backoff = 1000) => {
   }
 };
 
+export const calculateEMA = (prices, period = 14) => {
+  const multiplier = 2 / (period + 1);
+  let ema = prices[0];
+  
+  for (let i = 1; i < prices.length; i++) {
+    ema = (prices[i] - ema) * multiplier + ema;
+  }
+  
+  return ema;
+};
+
+export const getWeeklyData = (prices) => {
+  const weeklyData = [];
+  let currentWeek = {
+    high: -Infinity,
+    low: Infinity,
+    open: prices[0]?.[1] || 0,
+    close: 0
+  };
+  
+  prices.forEach(([timestamp, price], index) => {
+    const date = new Date(timestamp);
+    currentWeek.high = Math.max(currentWeek.high, price);
+    currentWeek.low = Math.min(currentWeek.low, price);
+    
+    if (date.getDay() === 6 || index === prices.length - 1) {
+      currentWeek.close = price;
+      weeklyData.push({ ...currentWeek });
+      currentWeek = {
+        high: -Infinity,
+        low: Infinity,
+        open: prices[index + 1]?.[1] || 0,
+        close: 0
+      };
+    }
+  });
+  
+  return weeklyData;
+};
+
 export const fetchMarketData = async (coinId, days) => {
   try {
     const response = await fetchWithRetry(() => 
@@ -98,36 +138,47 @@ export const fetchMarketStats = async () => {
     };
   } catch (error) {
     console.error('Erro ao buscar estatísticas do mercado:', error);
-    toast.error('Erro ao carregar estatísticas do mercado. Tentando novamente...');
+    toast.error('Erro ao carregar estatísticas do mercado');
     throw error;
   }
 };
 
 export const fetchCBBIData = async () => {
   try {
-    const response = await fetchWithRetry(() =>
-      api.get('/simple/price', {
-        params: {
-          ids: 'bitcoin',
-          vs_currencies: 'usd',
-          include_market_cap: true,
-          include_24hr_vol: true,
-          include_24hr_change: true
-        },
-        headers: getHeaders()
-      })
-    );
+    const [priceResponse, marketCapResponse] = await Promise.all([
+      fetchWithRetry(() =>
+        api.get('/simple/price', {
+          params: {
+            ids: 'bitcoin',
+            vs_currencies: 'usd',
+            include_24hr_vol: true,
+            include_24hr_change: true
+          },
+          headers: getHeaders()
+        })
+      ),
+      fetchWithRetry(() =>
+        api.get('/coins/bitcoin', {
+          params: {
+            localization: false,
+            tickers: false,
+            market_data: true,
+            community_data: false,
+            developer_data: false,
+            sparkline: false
+          },
+          headers: getHeaders()
+        })
+      )
+    ]);
 
-    const btcData = response.data.bitcoin;
-    const price = btcData.usd;
-    const marketCap = btcData.usd_market_cap;
-    const volume = btcData.usd_24h_vol;
-    const change = btcData.usd_24h_change;
+    const price = priceResponse.data.bitcoin;
+    const marketData = marketCapResponse.data.market_data;
 
-    // Cálculo do CBBI baseado em métricas reais
-    const marketCapScore = Math.min(100, (marketCap / 1e12) * 20); // Score baseado no market cap
-    const volumeScore = Math.min(100, (volume / marketCap) * 200); // Score baseado no volume
-    const changeScore = Math.min(100, (change + 100) / 2); // Score baseado na variação
+    // Cálculo do CBBI usando dados reais
+    const marketCapScore = Math.min(100, (marketData.market_cap.usd / 1e12) * 20);
+    const volumeScore = Math.min(100, (price.usd_24h_vol / marketData.market_cap.usd) * 200);
+    const changeScore = Math.min(100, (price.usd_24h_change + 100) / 2);
 
     const cbbiValue = (marketCapScore + volumeScore + changeScore) / 3;
 
@@ -139,7 +190,7 @@ export const fetchCBBIData = async () => {
     };
   } catch (error) {
     console.error('Erro ao buscar dados CBBI:', error);
-    toast.error('Erro ao carregar dados CBBI. Tentando novamente...');
+    toast.error('Erro ao carregar dados CBBI');
     throw error;
   }
 };
