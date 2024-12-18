@@ -5,6 +5,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import PortfolioOverview from '../components/portfolio/PortfolioOverview';
 import WhaleTransactions from '../components/portfolio/WhaleTransactions';
+import CryptoComparison from '../components/portfolio/CryptoComparison';
+import MarketSentiment from '../components/portfolio/MarketSentiment';
 
 const PosicaoCarteira = () => {
   const { data: portfolioData, isLoading: portfolioLoading, error: portfolioError } = useQuery({
@@ -24,6 +26,8 @@ const PosicaoCarteira = () => {
       <div className="container mx-auto p-4 space-y-6">
         <h1 className="text-3xl font-bold">Carteira e Movimentações</h1>
         <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+          <Skeleton className="h-[400px] w-full" />
+          <Skeleton className="h-[400px] w-full" />
           <Skeleton className="h-[400px] w-full" />
           <Skeleton className="h-[400px] w-full" />
         </div>
@@ -53,6 +57,8 @@ const PosicaoCarteira = () => {
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
         <PortfolioOverview portfolioData={portfolioData} />
         <WhaleTransactions transactions={whaleData} />
+        <CryptoComparison cryptoData={portfolioData} />
+        <MarketSentiment />
       </div>
     </div>
   );
