@@ -142,3 +142,44 @@ export const getWeeklyData = (dailyPrices) => {
   
   return weeklyData;
 };
+
+export const calculateRSI = (prices) => {
+  if (!prices || !Array.isArray(prices) || prices.length < 14) {
+    console.log('Invalid price data for RSI calculation:', prices);
+    return null;
+  }
+  
+  try {
+    const values = prices.map(price => price[1]);
+    const changes = [];
+    
+    for (let i = 1; i < values.length; i++) {
+      changes.push(values[i] - values[i - 1]);
+    }
+    
+    const gains = changes.map(change => change > 0 ? change : 0);
+    const losses = changes.map(change => change < 0 ? Math.abs(change) : 0);
+    
+    const period = 14;
+    let avgGain = gains.slice(0, period).reduce((a, b) => a + b) / period;
+    let avgLoss = losses.slice(0, period).reduce((a, b) => a + b) / period;
+    
+    const rsiValues = [];
+    let rs = avgGain / avgLoss;
+    let rsi = 100 - (100 / (1 + rs));
+    rsiValues.push(rsi);
+    
+    for (let i = period; i < changes.length; i++) {
+      avgGain = ((avgGain * (period - 1)) + gains[i]) / period;
+      avgLoss = ((avgLoss * (period - 1)) + losses[i]) / period;
+      rs = avgGain / avgLoss;
+      rsi = 100 - (100 / (1 + rs));
+      rsiValues.push(rsi);
+    }
+    
+    return rsiValues[rsiValues.length - 1];
+  } catch (error) {
+    console.error('Error calculating RSI:', error);
+    return null;
+  }
+};
