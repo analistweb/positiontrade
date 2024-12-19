@@ -42,7 +42,7 @@ const MarketHeatmap = () => {
         throw error;
       }
     },
-    refetchInterval: 30000
+    refetchInterval: 30000 // Atualiza a cada 30 segundos
   });
 
   if (isLoading) {
