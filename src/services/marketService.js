@@ -26,6 +26,46 @@ const fetchWithRetry = async (fn, retries = 3, backoff = 1000) => {
   }
 };
 
+export const calculateEMA = (prices, period = 14) => {
+  const multiplier = 2 / (period + 1);
+  let ema = prices[0];
+  
+  for (let i = 1; i < prices.length; i++) {
+    ema = (prices[i] - ema) * multiplier + ema;
+  }
+  
+  return ema;
+};
+
+export const getWeeklyData = (prices) => {
+  const weeklyData = [];
+  let currentWeek = {
+    high: -Infinity,
+    low: Infinity,
+    open: prices[0]?.[1] || 0,
+    close: 0
+  };
+  
+  prices.forEach(([timestamp, price], index) => {
+    const date = new Date(timestamp);
+    currentWeek.high = Math.max(currentWeek.high, price);
+    currentWeek.low = Math.min(currentWeek.low, price);
+    
+    if (date.getDay() === 6 || index === prices.length - 1) {
+      currentWeek.close = price;
+      weeklyData.push({ ...currentWeek });
+      currentWeek = {
+        high: -Infinity,
+        low: Infinity,
+        open: prices[index + 1]?.[1] || 0,
+        close: 0
+      };
+    }
+  });
+  
+  return weeklyData;
+};
+
 export const fetchMarketData = async (coinId, days) => {
   try {
     const response = await fetchWithRetry(() => 
@@ -69,117 +109,114 @@ export const fetchTopCoins = async () => {
 
 export const fetchBitcoinDominance = async () => {
   try {
-    const response = await axios.get(
-      `${COINGECKO_API_URL}/global`,
-      {
+    const response = await fetchWithRetry(() =>
+      api.get('/global', {
         headers: getHeaders()
-      }
+      })
     );
     return response.data.data.market_cap_percentage.btc;
   } catch (error) {
-    throw new Error('Failed to fetch Bitcoin dominance');
+    console.error('Erro ao buscar dominância do Bitcoin:', error);
+    toast.error('Erro ao carregar dominância do Bitcoin. Tentando novamente...');
+    throw error;
   }
 };
 
-export const fetchPriceData = async () => {
+export const fetchMarketStats = async () => {
   try {
-    const response = await axios.get(
-      `${COINGECKO_API_URL}/coins/markets`,
-      {
-        params: {
-          vs_currency: 'usd',
-          order: 'market_cap_desc',
-          per_page: 5,
-          sparkline: true
-        },
+    const response = await fetchWithRetry(() =>
+      api.get('/global', {
         headers: getHeaders()
-      }
+      })
     );
-    return response.data;
-  } catch (error) {
-    throw new Error('Failed to fetch price data');
-  }
-};
-
-export const calculateEMA = (prices, period = 56) => {
-  if (!prices || prices.length < period) {
-    return null;
-  }
-  
-  const multiplier = 2 / (period + 1);
-  let ema = prices[0];
-  
-  for (let i = 1; i < prices.length; i++) {
-    ema = (prices[i] - ema) * multiplier + ema;
-  }
-  
-  return ema;
-};
-
-export const getWeeklyData = (dailyPrices) => {
-  const weeklyData = [];
-  let currentWeek = [];
-  
-  // Assuming prices are ordered from oldest to newest
-  dailyPrices.forEach((price, index) => {
-    currentWeek.push(price);
     
-    // Check if it's the last day of the week (every 7 days) or last price
-    if ((index + 1) % 7 === 0 || index === dailyPrices.length - 1) {
-      const weekHigh = Math.max(...currentWeek.map(p => p[1]));
-      const weekClose = currentWeek[currentWeek.length - 1][1];
-      const weekTimestamp = currentWeek[currentWeek.length - 1][0];
-      
-      weeklyData.push({
-        timestamp: weekTimestamp,
-        high: weekHigh,
-        close: weekClose
-      });
-      
-      currentWeek = [];
-    }
-  });
-  
-  return weeklyData;
+    const data = response.data.data;
+    return {
+      totalMarketCap: data.total_market_cap.usd,
+      volume24h: data.total_volume.usd,
+      bitcoinDominance: data.market_cap_percentage.btc
+    };
+  } catch (error) {
+    console.error('Erro ao buscar estatísticas do mercado:', error);
+    toast.error('Erro ao carregar estatísticas do mercado');
+    throw error;
+  }
 };
 
-export const calculateRSI = (prices) => {
-  if (!prices || !Array.isArray(prices) || prices.length < 14) {
-    console.log('Invalid price data for RSI calculation:', prices);
-    return null;
-  }
-  
+export const fetchCBBIData = async () => {
   try {
-    const values = prices.map(price => price[1]);
-    const changes = [];
-    
-    for (let i = 1; i < values.length; i++) {
-      changes.push(values[i] - values[i - 1]);
-    }
-    
-    const gains = changes.map(change => change > 0 ? change : 0);
-    const losses = changes.map(change => change < 0 ? Math.abs(change) : 0);
-    
-    const period = 14;
-    let avgGain = gains.slice(0, period).reduce((a, b) => a + b) / period;
-    let avgLoss = losses.slice(0, period).reduce((a, b) => a + b) / period;
-    
-    const rsiValues = [];
-    let rs = avgGain / avgLoss;
-    let rsi = 100 - (100 / (1 + rs));
-    rsiValues.push(rsi);
-    
-    for (let i = period; i < changes.length; i++) {
-      avgGain = ((avgGain * (period - 1)) + gains[i]) / period;
-      avgLoss = ((avgLoss * (period - 1)) + losses[i]) / period;
-      rs = avgGain / avgLoss;
-      rsi = 100 - (100 / (1 + rs));
-      rsiValues.push(rsi);
-    }
-    
-    return rsiValues[rsiValues.length - 1];
+    const [priceResponse, marketCapResponse] = await Promise.all([
+      fetchWithRetry(() =>
+        api.get('/simple/price', {
+          params: {
+            ids: 'bitcoin',
+            vs_currencies: 'usd',
+            include_24hr_vol: true,
+            include_24hr_change: true
+          },
+          headers: getHeaders()
+        })
+      ),
+      fetchWithRetry(() =>
+        api.get('/coins/bitcoin', {
+          params: {
+            localization: false,
+            tickers: false,
+            market_data: true,
+            community_data: false,
+            developer_data: false,
+            sparkline: false
+          },
+          headers: getHeaders()
+        })
+      )
+    ]);
+
+    const price = priceResponse.data.bitcoin;
+    const marketData = marketCapResponse.data.market_data;
+
+    // Cálculo do CBBI usando dados reais
+    const marketCapScore = Math.min(100, (marketData.market_cap.usd / 1e12) * 20);
+    const volumeScore = Math.min(100, (price.usd_24h_vol / marketData.market_cap.usd) * 200);
+    const changeScore = Math.min(100, (price.usd_24h_change + 100) / 2);
+
+    const cbbiValue = (marketCapScore + volumeScore + changeScore) / 3;
+
+    return {
+      value: cbbiValue.toFixed(2),
+      confidence: cbbiValue > 80 ? 'Alta' : cbbiValue > 40 ? 'Média' : 'Baixa',
+      marketPhase: cbbiValue > 80 ? 'Topo de Mercado' : cbbiValue > 40 ? 'Meio de Ciclo' : 'Fundo de Mercado',
+      lastUpdate: new Date().toLocaleDateString()
+    };
   } catch (error) {
-    console.error('Error calculating RSI:', error);
-    return null;
+    console.error('Erro ao buscar dados CBBI:', error);
+    toast.error('Erro ao carregar dados CBBI');
+    throw error;
+  }
+};
+
+export const fetchWhaleTransactions = async () => {
+  try {
+    const response = await fetchWithRetry(() =>
+      api.get('/exchanges/binance/volume_chart', {
+        params: { days: 1 },
+        headers: getHeaders()
+      })
+    );
+
+    const volumes = response.data;
+    return volumes.map(([timestamp, volume]) => ({
+      timestamp,
+      type: volume > 0 ? "Compra" : "Venda",
+      cryptoAmount: Math.abs(volume),
+      cryptoSymbol: "BTC",
+      volume: Math.abs(volume * 40000), // Estimativa aproximada
+      destination: volume > 0 ? "Carteira" : "Exchange",
+      exchange: "Binance"
+    }));
+  } catch (error) {
+    console.error('Erro ao buscar transações de baleias:', error);
+    toast.error('Erro ao carregar transações. Tentando novamente...');
+    throw error;
   }
 };

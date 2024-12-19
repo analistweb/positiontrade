@@ -5,24 +5,13 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from "sonner";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
+import { fetchCBBIData } from '../../services/marketService';
 
 const CBBIIndicator = () => {
   const { data: cbbiData, isLoading, error } = useQuery({
     queryKey: ['cbbi'],
-    queryFn: async () => {
-      // Using a more stable calculation based on historical data
-      const baseValue = 75; // Current CBBI value as of November 2024
-      const variation = Math.sin(Date.now() / 86400000) * 2; // Small daily variation
-      const value = baseValue + variation;
-      
-      return {
-        value: value.toFixed(2),
-        confidence: value > 80 ? 'Alta' : value > 40 ? 'Média' : 'Baixa',
-        marketPhase: value > 80 ? 'Topo de Mercado' : value > 40 ? 'Meio de Ciclo' : 'Fundo de Mercado',
-        lastUpdate: new Date().toLocaleDateString()
-      };
-    },
-    refetchInterval: 60000, // Atualiza a cada minuto
+    queryFn: fetchCBBIData,
+    refetchInterval: 60000,
     onError: (error) => {
       toast.error(`Erro ao atualizar CBBI: ${error.message}`);
     }
@@ -34,7 +23,7 @@ const CBBIIndicator = () => {
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span>Índice CBBI</span>
-            <Tooltip content="O CBBI está em 75 devido ao atual ciclo de mercado do Bitcoin, indicando uma fase de transição">
+            <Tooltip content="O CBBI é calculado usando métricas como capitalização de mercado, volume e variação de preço">
               <Info className="w-4 h-4 text-muted-foreground cursor-help" />
             </Tooltip>
           </div>
@@ -73,9 +62,8 @@ const CBBIIndicator = () => {
               </div>
             </div>
             <div className="text-xs text-muted-foreground mt-4">
-              <p>O CBBI é um índice que utiliza 9 métricas para análise do ciclo do Bitcoin.</p>
-              <p>O valor atual de 75 indica uma fase de transição no mercado, com tendência de alta.</p>
-              <p className="mt-2">Fonte: CBBI.info - Novembro 2024</p>
+              <p>O CBBI é um índice que utiliza métricas reais do mercado para análise do ciclo do Bitcoin.</p>
+              <p>Os dados são atualizados a cada minuto com informações do CoinGecko.</p>
             </div>
           </div>
         )}
