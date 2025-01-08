@@ -1,14 +1,43 @@
-export const COINGECKO_API_KEY = import.meta.env.VITE_COINGECKO_API_KEY;
 export const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3';
-export const COINGECKO_PRO_URL = 'https://pro-api.coingecko.com/api/v3';
 
 export const getHeaders = () => ({
-  'Content-Type': 'application/json',
-  'x-cg-pro-api-key': COINGECKO_API_KEY
+  'Accept': 'application/json',
+  'Content-Type': 'application/json'
 });
 
 export const handleApiError = (error, context) => {
-  console.error(`Erro ao buscar ${context}:`, error);
-  const message = error.response?.data?.error || error.message;
-  throw new Error(`Falha ao carregar ${context}: ${message}`);
+  console.error(`Erro ao ${context}:`, error);
+  
+  if (error.response) {
+    // Erro com resposta do servidor
+    if (error.response.status === 429) {
+      return new Error('Limite de requisições atingido. Por favor, aguarde alguns minutos.');
+    }
+    return new Error(`Erro ${error.response.status}: ${error.response.data?.error || 'Erro desconhecido'}`);
+  }
+  
+  if (error.request) {
+    // Erro de rede/sem resposta
+    return new Error('Erro de conexão. Verifique sua internet ou tente novamente mais tarde.');
+  }
+  
+  // Outros erros
+  return new Error(error.message || 'Erro desconhecido');
+};
+
+export const MOCK_DATA = {
+  bitcoin: {
+    prices: Array.from({ length: 30 }, (_, i) => [
+      Date.now() - (29 - i) * 24 * 60 * 60 * 1000,
+      40000 + Math.random() * 5000
+    ]),
+    market_caps: Array.from({ length: 30 }, (_, i) => [
+      Date.now() - (29 - i) * 24 * 60 * 60 * 1000,
+      800000000000 + Math.random() * 50000000000
+    ]),
+    total_volumes: Array.from({ length: 30 }, (_, i) => [
+      Date.now() - (29 - i) * 24 * 60 * 60 * 1000,
+      30000000000 + Math.random() * 5000000000
+    ])
+  }
 };

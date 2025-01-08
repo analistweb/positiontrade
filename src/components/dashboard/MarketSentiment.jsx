@@ -8,13 +8,14 @@ import SentimentGauge from './SentimentGauge';
 import SentimentIndicator from './SentimentIndicator';
 import { calculateSentimentScore } from '../../utils/sentimentCalculator';
 import { toast } from "sonner";
+import { COINGECKO_API_URL, getHeaders, handleApiError } from '../../config/api';
 
 const MarketSentiment = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ['marketSentiment'],
     queryFn: async () => {
       try {
-        const response = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin', {
+        const response = await axios.get(`${COINGECKO_API_URL}/coins/bitcoin`, {
           params: {
             localization: false,
             tickers: false,
@@ -22,7 +23,8 @@ const MarketSentiment = () => {
             community_data: true,
             developer_data: false,
             sparkline: false
-          }
+          },
+          headers: getHeaders()
         });
 
         const marketData = response.data;
@@ -64,9 +66,40 @@ const MarketSentiment = () => {
           ]
         };
       } catch (error) {
-        console.error('Erro ao buscar dados de sentimento:', error);
-        toast.error('Erro ao carregar dados de sentimento do mercado');
-        throw error;
+        const handledError = handleApiError(error, 'buscar dados de sentimento');
+        toast.error(handledError.message);
+        
+        // Retorna dados mockados em caso de erro
+        return {
+          overallSentiment: 'neutral',
+          sentimentScore: 50,
+          indicators: [
+            {
+              name: 'Volume de Mercado 24h',
+              value: '30B USD',
+              status: 'neutral',
+              description: 'Volume total de negociação nas últimas 24 horas'
+            },
+            {
+              name: 'Menções em Redes Sociais',
+              value: '1M+',
+              status: 'neutral',
+              description: 'Total de seguidores no Twitter como indicador de interesse social'
+            },
+            {
+              name: 'Dominância de Mercado',
+              value: '45%',
+              status: 'neutral',
+              description: 'Percentual de dominância do Bitcoin no mercado'
+            },
+            {
+              name: 'Variação de Preço 24h',
+              value: '0%',
+              status: 'neutral',
+              description: 'Variação percentual do preço nas últimas 24 horas'
+            }
+          ]
+        };
       }
     },
     refetchInterval: 300000 // 5 minutos
