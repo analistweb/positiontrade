@@ -2,18 +2,50 @@ import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { TrendingUp, DollarSign, Bitcoin } from "lucide-react";
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import { COINGECKO_API_URL, getHeaders } from '@/config/api';
+import { toast } from "sonner";
 
 const MarketStats = ({ bitcoinDominance, dominanceLoading, dominanceError }) => {
+  const { data: marketData, isLoading } = useQuery({
+    queryKey: ['globalMarketData'],
+    queryFn: async () => {
+      try {
+        const response = await axios.get(
+          `${COINGECKO_API_URL}/global`,
+          { headers: getHeaders() }
+        );
+        return response.data.data;
+      } catch (error) {
+        toast.error('Erro ao carregar dados globais do mercado');
+        throw error;
+      }
+    },
+    refetchInterval: 60000 // Atualiza a cada minuto
+  });
+
+  const formatCurrency = (value) => {
+    if (!value) return '0';
+    const trillion = 1000000000000;
+    const billion = 1000000000;
+    
+    if (value >= trillion) {
+      return `R$ ${(value / trillion).toFixed(2)} T`;
+    }
+    return `R$ ${(value / billion).toFixed(2)} B`;
+  };
+
   const statCards = [
     {
       title: "Capitalização de Mercado",
-      value: "R$ 6,15 T",
+      value: isLoading ? "Carregando..." : formatCurrency(marketData?.total_market_cap?.usd),
       icon: <DollarSign className="w-6 h-6 text-green-400" />,
       color: "from-green-500/20 to-green-500/5"
     },
     {
       title: "Volume 24h",
-      value: "R$ 394,5 B",
+      value: isLoading ? "Carregando..." : formatCurrency(marketData?.total_volume?.usd),
       icon: <TrendingUp className="w-6 h-6 text-blue-400" />,
       color: "from-blue-500/20 to-blue-500/5"
     },
