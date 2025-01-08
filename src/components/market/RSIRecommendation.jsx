@@ -12,13 +12,13 @@ import CryptoList from './CryptoList';
 const TOP_CRYPTOS = ['bitcoin', 'ethereum', 'babydoge', 'cardano', 'polkadot'];
 
 const calculateRSI = (prices) => {
-  if (!prices?.length || prices.length < 7) return null;
+  if (!prices?.length || prices.length < 14) return null;
   
   try {
     const values = prices.map(price => price[1]);
     const rsiValues = RSI.calculate({
       values: values,
-      period: 7 // Reduzido de 14 para 7 dias
+      period: 14 // Mantendo o período original de 14 dias
     });
     return rsiValues[rsiValues.length - 1];
   } catch (error) {
@@ -44,14 +44,15 @@ const RSIRecommendation = () => {
     queryFn: async () => {
       const rsiData = {};
       
-      const results = await Promise.allSettled(TOP_CRYPTOS.map(async (crypto) => {
+      // Usando Promise.all para fazer todas as requisições em paralelo
+      const results = await Promise.all(TOP_CRYPTOS.map(async (crypto) => {
         try {
           const response = await axios.get(
             `https://api.coingecko.com/api/v3/coins/${crypto}/market_chart`,
             {
               params: {
                 vs_currency: 'usd',
-                days: 7, // Reduzido de 14 para 7 dias
+                days: 14,
                 interval: 'daily'
               }
             }
@@ -73,7 +74,7 @@ const RSIRecommendation = () => {
       
       return rsiData;
     },
-    refetchInterval: 60000, // Reduzido para 1 minuto
+    refetchInterval: 60000, // Atualiza a cada minuto
     staleTime: 30000, // Dados considerados frescos por 30 segundos
     cacheTime: 60000 * 5, // Cache mantido por 5 minutos
     retry: 2,
