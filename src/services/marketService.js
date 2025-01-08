@@ -106,3 +106,22 @@ export const getWeeklyData = (prices) => {
   
   return weeklyData;
 };
+
+export const fetchBitcoinDominance = async () => {
+  try {
+    const response = await axios.get(
+      `${COINGECKO_API_URL}/global`,
+      {
+        headers: getHeaders()
+      }
+    );
+    
+    return response.data.data.market_cap_percentage.btc;
+  } catch (error) {
+    const handledError = handleApiError(error, 'buscar dominância do Bitcoin');
+    toast.error(handledError.message);
+    
+    // Return mock data in case of error
+    return 45.5; // Mock Bitcoin dominance percentage
+  }
+};
