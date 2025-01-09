@@ -6,11 +6,11 @@ import { RSI } from 'technicalindicators';
 import { motion, AnimatePresence } from "framer-motion";
 import { RSICard } from './RSICard';
 import { CryptoList } from './CryptoList';
+import { toast } from "sonner";
 
 const TOP_CRYPTOS = [
   'bitcoin',
   'ethereum',
-  'babydoge',
   'cardano',
   'polkadot'
 ];
@@ -55,6 +55,7 @@ const RSIRecommendation = () => {
           
           if (!response.data?.prices) {
             console.error(`No price data available for ${crypto}`);
+            toast.error(`Erro ao carregar dados para ${crypto}`);
             return { crypto, rsi: null };
           }
 
@@ -62,17 +63,13 @@ const RSIRecommendation = () => {
           return { crypto, rsi };
         } catch (error) {
           console.error(`Error fetching data for ${crypto}:`, error);
+          toast.error(`Erro ao carregar dados para ${crypto}`);
           return { crypto, rsi: null };
         }
       }));
       
       results.forEach(result => {
-        if (result.status === 'fulfilled') {
-          rsiData[result.value.crypto] = result.value.rsi;
-        } else {
-          console.error(`Failed to process ${result.reason}`);
-          rsiData[result.reason.crypto] = null;
-        }
+        rsiData[result.crypto] = result.rsi;
       });
       
       return rsiData;
@@ -110,7 +107,7 @@ const RSIRecommendation = () => {
         <div className="bg-destructive/10 p-6 rounded-lg">
           <p className="text-destructive flex items-center gap-2">
             <AlertTriangleIcon className="h-5 w-5" />
-            Erro ao carregar dados. Tentando novamente...
+            Erro ao carregar dados. Tentando novamente em alguns segundos...
           </p>
         </div>
       </RSICard>
