@@ -39,9 +39,16 @@ const RSIRecommendation = () => {
     queryKey: ['cryptosRSI'],
     queryFn: async () => {
       const rsiData = {};
+      let delay = 0;
       
-      const results = await Promise.all(TOP_CRYPTOS.map(async (crypto) => {
+      for (const crypto of TOP_CRYPTOS) {
         try {
+          // Add delay between requests to avoid rate limiting
+          if (delay > 0) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+          delay = 1000; // 1 second delay between requests
+          
           const response = await axios.get(
             `https://api.coingecko.com/api/v3/coins/${crypto}/market_chart`,
             {
@@ -56,21 +63,18 @@ const RSIRecommendation = () => {
           if (!response.data?.prices) {
             console.error(`No price data available for ${crypto}`);
             toast.error(`Erro ao carregar dados para ${crypto}`);
-            return { crypto, rsi: null };
+            rsiData[crypto] = null;
+            continue;
           }
 
           const rsi = calculateRSI(response.data.prices);
-          return { crypto, rsi };
+          rsiData[crypto] = rsi;
         } catch (error) {
           console.error(`Error fetching data for ${crypto}:`, error);
           toast.error(`Erro ao carregar dados para ${crypto}`);
-          return { crypto, rsi: null };
+          rsiData[crypto] = null;
         }
-      }));
-      
-      results.forEach(result => {
-        rsiData[result.crypto] = result.rsi;
-      });
+      }
       
       return rsiData;
     },
