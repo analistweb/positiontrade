@@ -36,7 +36,6 @@ api.interceptors.response.use(undefined, async (err) => {
 
 export const fetchPortfolioData = async () => {
   try {
-    // Busca os top 10 tokens por market cap
     const response = await api.get('/coins/markets', {
       params: {
         vs_currency: 'usd',
@@ -55,7 +54,6 @@ export const fetchPortfolioData = async () => {
       throw new Error('Dados não disponíveis');
     }
 
-    // Simula quantidade aleatória para cada token no portfólio
     return response.data.map(coin => ({
       ...coin,
       quantity: Number((Math.random() * 10).toFixed(4)),
@@ -70,7 +68,6 @@ export const fetchPortfolioData = async () => {
 
 export const fetchWhaleTransactions = async () => {
   try {
-    // Busca dados reais de preços para simular transações
     const response = await api.get('/coins/markets', {
       params: {
         vs_currency: 'usd',
@@ -84,8 +81,7 @@ export const fetchWhaleTransactions = async () => {
       throw new Error('Dados não disponíveis');
     }
 
-    // Gera transações simuladas com dados reais de preços
-    return response.data.flatMap(coin => {
+    const transactions = response.data.flatMap(coin => {
       const baseTime = Date.now();
       return Array(2).fill().map((_, index) => ({
         timestamp: baseTime - index * 3600000,
@@ -97,7 +93,9 @@ export const fetchWhaleTransactions = async () => {
         destinationAddress: `0x${Array(40).fill().map(() => Math.floor(Math.random() * 16).toString(16)).join('')}`,
         exchange: ["Binance", "Coinbase", "Kraken", "FTX"][Math.floor(Math.random() * 4)]
       }));
-    })).sort((a, b) => b.timestamp - a.timestamp);
+    });
+
+    return transactions.sort((a, b) => b.timestamp - a.timestamp);
   } catch (error) {
     console.error('Erro ao buscar transações:', error);
     toast.error("Erro ao carregar transações");
