@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from "framer-motion";
+import { AlertTriangle } from "lucide-react";
 import { CryptoList } from './CryptoList';
 import { RSICard } from './RSICard';
 import { LoadingRSI } from './LoadingRSI';
@@ -40,7 +41,7 @@ const RSIRecommendation = () => {
         ) : (
           <div className="bg-gray-100 dark:bg-gray-800/50 p-6 rounded-lg">
             <p className="text-gray-800 dark:text-gray-200 font-semibold text-lg flex items-center gap-2">
-              <AlertTriangleIcon className="h-5 w-5 text-yellow-500" />
+              <AlertTriangle className="h-5 w-5 text-yellow-500" />
               Nenhuma oportunidade encontrada
             </p>
             <p className="text-sm text-gray-600 dark:text-gray-300 mt-3">
