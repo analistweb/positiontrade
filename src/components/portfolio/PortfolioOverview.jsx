@@ -12,6 +12,9 @@ import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 
 const PortfolioOverview = ({ portfolioData }) => {
+  const totalValue = portfolioData?.reduce((acc, coin) => 
+    acc + (coin.quantity * coin.current_price), 0) || 0;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -21,20 +24,25 @@ const PortfolioOverview = ({ portfolioData }) => {
     >
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl">
-            Seu Portfólio
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <InfoIcon className="h-4 w-4 text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="max-w-xs">
-                    Visão geral das suas criptomoedas e seu desempenho atual
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span>Seu Portfólio</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <InfoIcon className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">
+                      Visão geral das suas criptomoedas e seu desempenho atual
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <div className="text-xl">
+              Total: ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -43,8 +51,9 @@ const PortfolioOverview = ({ portfolioData }) => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Criptomoeda</TableHead>
+                  <TableHead>Quantidade</TableHead>
                   <TableHead>Preço (USD)</TableHead>
-                  <TableHead className="hidden md:table-cell">Volume 24h</TableHead>
+                  <TableHead>Valor Total</TableHead>
                   <TableHead>Variação 24h</TableHead>
                 </TableRow>
               </TableHeader>
@@ -62,9 +71,13 @@ const PortfolioOverview = ({ portfolioData }) => {
                         <span className="text-muted-foreground">({coin.symbol.toUpperCase()})</span>
                       </div>
                     </TableCell>
+                    <TableCell>{coin.quantity}</TableCell>
                     <TableCell>${coin.current_price.toLocaleString()}</TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      ${coin.total_volume.toLocaleString()}
+                    <TableCell>
+                      ${(coin.quantity * coin.current_price).toLocaleString('en-US', { 
+                        minimumFractionDigits: 2, 
+                        maximumFractionDigits: 2 
+                      })}
                     </TableCell>
                     <TableCell>
                       <Badge 

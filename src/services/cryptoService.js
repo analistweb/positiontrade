@@ -2,16 +2,12 @@ import axios from 'axios';
 import { toast } from "sonner";
 
 const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3';
-const WHALE_ALERT_API_URL = 'https://api.whale-alert.io/v1';
-const WHALE_ALERT_API_KEY = import.meta.env.VITE_WHALE_ALERT_API_KEY;
 
-// Configuração do axios com timeout e retry
 const api = axios.create({
   baseURL: COINGECKO_API_URL,
   timeout: 10000,
   headers: {
     'Accept': 'application/json',
-    'Content-Type': 'application/json',
   }
 });
 
@@ -24,10 +20,10 @@ api.interceptors.response.use(undefined, async (err) => {
   config.retry -= 1;
   
   if (config.retry === 0) {
+    toast.error(`Erro ao buscar dados: ${message}`);
     return Promise.reject(err);
   }
 
-  // Delay exponencial entre tentativas
   const backoff = new Promise((resolve) => {
     setTimeout(() => {
       resolve();
@@ -40,6 +36,7 @@ api.interceptors.response.use(undefined, async (err) => {
 
 export const fetchPortfolioData = async () => {
   try {
+    // Busca os top 10 tokens por market cap
     const response = await api.get('/coins/markets', {
       params: {
         vs_currency: 'usd',
@@ -58,86 +55,54 @@ export const fetchPortfolioData = async () => {
       throw new Error('Dados não disponíveis');
     }
 
-    return response.data;
+    // Simula quantidade aleatória para cada token no portfólio
+    return response.data.map(coin => ({
+      ...coin,
+      quantity: Number((Math.random() * 10).toFixed(4)),
+      value_usd: Number((Math.random() * 10000).toFixed(2))
+    }));
   } catch (error) {
     console.error('Erro ao carregar dados do portfólio:', error);
-    toast.error("Erro ao carregar dados do portfólio: " + (error.response?.data?.error || error.message));
+    toast.error("Erro ao carregar dados do portfólio");
     throw error;
   }
 };
 
 export const fetchWhaleTransactions = async () => {
   try {
-    if (!WHALE_ALERT_API_KEY) {
-      console.warn("Chave da API Whale Alert não configurada. Usando dados simulados.");
-      return getMockWhaleTransactions();
-    }
-
-    const response = await axios.get(`${WHALE_ALERT_API_URL}/transactions`, {
+    // Busca dados reais de preços para simular transações
+    const response = await api.get('/coins/markets', {
       params: {
-        api_key: WHALE_ALERT_API_KEY,
-        min_value: 500000,
-        blockchain: 'bitcoin,ethereum,tron',
-        start: Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000),
-        end: Math.floor(Date.now() / 1000),
-      },
-      retry: 3,
-      retryDelay: 1000
+        vs_currency: 'usd',
+        order: 'volume_desc',
+        per_page: 5,
+        sparkline: false
+      }
     });
 
-    if (!response.data?.transactions) {
-      throw new Error('Dados de transações não disponíveis');
+    if (!response.data) {
+      throw new Error('Dados não disponíveis');
     }
 
-    return processWhaleAlertTransactions(response.data.transactions);
+    // Gera transações simuladas com dados reais de preços
+    return response.data.flatMap(coin => {
+      const baseTime = Date.now();
+      return Array(2).fill().map((_, index) => ({
+        timestamp: baseTime - index * 3600000,
+        type: Math.random() > 0.5 ? "Compra" : "Venda",
+        cryptoAmount: Number((Math.random() * 100).toFixed(2)),
+        cryptoSymbol: coin.symbol.toUpperCase(),
+        volume: Number((Math.random() * coin.current_price * 1000).toFixed(2)),
+        destination: Math.random() > 0.5 ? "Carteira" : "Exchange",
+        destinationAddress: `0x${Array(40).fill().map(() => Math.floor(Math.random() * 16).toString(16)).join('')}`,
+        exchange: ["Binance", "Coinbase", "Kraken", "FTX"][Math.floor(Math.random() * 4)]
+      }));
+    })).sort((a, b) => b.timestamp - a.timestamp);
   } catch (error) {
-    console.error('Erro ao buscar transações de baleias:', error);
-    toast.error("Erro ao buscar transações: " + (error.response?.data?.error || error.message));
-    return getMockWhaleTransactions();
+    console.error('Erro ao buscar transações:', error);
+    toast.error("Erro ao carregar transações");
+    throw error;
   }
-};
-
-const processWhaleAlertTransactions = (transactions) => {
-  if (!Array.isArray(transactions)) {
-    console.error('Dados de transações inválidos');
-    return [];
-  }
-
-  return transactions.map(tx => ({
-    timestamp: tx.timestamp * 1000,
-    type: tx.from.owner_type === 'exchange' ? 'Venda' : 'Compra',
-    cryptoAmount: tx.amount,
-    cryptoSymbol: tx.symbol.toUpperCase(),
-    volume: tx.amount_usd,
-    destination: tx.to.owner_type === 'exchange' ? 'Exchange' : 'Carteira',
-    destinationAddress: tx.to.address,
-    exchange: tx.to.owner_type === 'exchange' ? tx.to.owner : null
-  })).slice(0, 10);
-};
-
-const getMockWhaleTransactions = () => {
-  return [
-    {
-      timestamp: Date.now(),
-      type: "Compra",
-      cryptoAmount: 150.75,
-      cryptoSymbol: "BTC",
-      volume: 6500000,
-      destination: "Carteira",
-      destinationAddress: "3FZbgi29cpjq2GjdwV8eyHuJJnkLtktZc5",
-      exchange: null
-    },
-    {
-      timestamp: Date.now() - 3600000,
-      type: "Venda",
-      cryptoAmount: 2500,
-      cryptoSymbol: "ETH",
-      volume: 4800000,
-      destination: "Exchange",
-      destinationAddress: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
-      exchange: "Binance"
-    }
-  ];
 };
 
 export const fetchTopFormationData = async () => {
