@@ -25,11 +25,26 @@ jobs:
     - name: Run tests
       run: npm run test
       
+    - name: Run E2E tests
+      uses: cypress-io/github-action@v6
+      with:
+        browser: chrome
+        headed: false
+        
     - name: Generate coverage report
       run: npm run test:coverage
+      
+    - name: Run Lighthouse
+      run: npx lighthouse http://localhost:3000 --output-path=./lighthouse-report.html --view
       
     - name: Upload coverage report
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: coverage/
+        
+    - name: Upload Lighthouse report
+      uses: actions/upload-artifact@v4
+      with:
+        name: lighthouse-report
+        path: lighthouse-report.html
