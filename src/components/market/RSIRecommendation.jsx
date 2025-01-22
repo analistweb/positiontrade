@@ -5,18 +5,75 @@ import { CryptoList } from './CryptoList';
 import { RSICard } from './RSICard';
 import { LoadingRSI } from './LoadingRSI';
 import { ErrorRSI } from './ErrorRSI';
-import { useRSIData } from '../../hooks/useRSIData';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import { COINGECKO_API_URL, getHeaders } from '@/config/api';
+import { toast } from "sonner";
 
 const RSIRecommendation = () => {
-  const { data: cryptosRSI, isLoading, error, isError } = useRSIData();
+  const { data: cryptosRSI, isLoading, error } = useQuery({
+    queryKey: ['cryptosRSI'],
+    queryFn: async () => {
+      try {
+        const response = await axios.get(
+          `${COINGECKO_API_URL}/coins/markets`,
+          {
+            params: {
+              vs_currency: 'usd',
+              order: 'market_cap_desc',
+              per_page: 10,
+              sparkline: true,
+              price_change_percentage: '24h'
+            },
+            headers: getHeaders()
+          }
+        );
 
-  if (isLoading) {
-    return <LoadingRSI />;
-  }
+        if (!response.data) {
+          throw new Error('Dados RSI não disponíveis');
+        }
 
-  if (isError) {
-    return <ErrorRSI />;
-  }
+        const rsiData = {};
+        response.data.forEach(coin => {
+          const prices = coin.sparkline_in_7d.price;
+          if (prices && prices.length > 0) {
+            const gains = [];
+            const losses = [];
+            
+            for (let i = 1; i < prices.length; i++) {
+              const difference = prices[i] - prices[i - 1];
+              if (difference >= 0) {
+                gains.push(difference);
+                losses.push(0);
+              } else {
+                gains.push(0);
+                losses.push(Math.abs(difference));
+              }
+            }
+            
+            const avgGain = gains.reduce((sum, gain) => sum + gain, 0) / gains.length;
+            const avgLoss = losses.reduce((sum, loss) => sum + loss, 0) / losses.length;
+            
+            const rs = avgGain / avgLoss;
+            const rsi = 100 - (100 / (1 + rs));
+            
+            rsiData[coin.id] = rsi;
+          }
+        });
+
+        console.log('RSI data calculated:', rsiData);
+        return rsiData;
+      } catch (error) {
+        console.error('Error calculating RSI:', error);
+        toast.error('Erro ao calcular RSI');
+        throw error;
+      }
+    },
+    refetchInterval: 300000 // 5 minutes
+  });
+
+  if (isLoading) return <LoadingRSI />;
+  if (error) return <ErrorRSI />;
 
   const oversoldCryptos = cryptosRSI ? 
     Object.entries(cryptosRSI)

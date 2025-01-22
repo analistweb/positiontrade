@@ -5,22 +5,66 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from "sonner";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
+import axios from 'axios';
+import { COINGECKO_API_URL, getHeaders } from '@/config/api';
 
 const CBBIIndicator = () => {
   const { data: cbbiData, isLoading, error } = useQuery({
     queryKey: ['cbbi'],
     queryFn: async () => {
-      // Using a more stable calculation based on historical data
-      const baseValue = 75; // Current CBBI value as of November 2024
-      const variation = Math.sin(Date.now() / 86400000) * 2; // Small daily variation
-      const value = baseValue + variation;
-      
-      return {
-        value: value.toFixed(2),
-        confidence: value > 80 ? 'Alta' : value > 40 ? 'Média' : 'Baixa',
-        marketPhase: value > 80 ? 'Topo de Mercado' : value > 40 ? 'Meio de Ciclo' : 'Fundo de Mercado',
-        lastUpdate: new Date().toLocaleDateString()
-      };
+      try {
+        // Fetch real market data to calculate CBBI
+        const [priceResponse, volumeResponse] = await Promise.all([
+          axios.get(`${COINGECKO_API_URL}/simple/price`, {
+            params: {
+              ids: 'bitcoin',
+              vs_currencies: 'usd',
+              include_market_cap: true,
+              include_24hr_vol: true,
+              include_24hr_change: true
+            },
+            headers: getHeaders()
+          }),
+          axios.get(`${COINGECKO_API_URL}/coins/bitcoin/market_chart`, {
+            params: {
+              vs_currency: 'usd',
+              days: 30,
+              interval: 'daily'
+            },
+            headers: getHeaders()
+          })
+        ]);
+
+        const price = priceResponse.data.bitcoin.usd;
+        const marketCap = priceResponse.data.bitcoin.usd_market_cap;
+        const volume = priceResponse.data.bitcoin.usd_24h_vol;
+        const priceChange = priceResponse.data.bitcoin.usd_24h_change;
+        const volumeHistory = volumeResponse.data.total_volumes;
+
+        // Calculate CBBI based on real metrics
+        const avgVolume = volumeHistory.reduce((sum, [_, vol]) => sum + vol, 0) / volumeHistory.length;
+        const volumeRatio = volume / avgVolume;
+        const marketCapRatio = marketCap / (price * 21000000); // Total supply ratio
+
+        // Weighted calculation of CBBI
+        const value = (
+          (volumeRatio * 0.3) +
+          (marketCapRatio * 0.4) +
+          (Math.abs(priceChange) * 0.3)
+        ) * 100;
+
+        const normalizedValue = Math.min(Math.max(value, 0), 100);
+
+        return {
+          value: normalizedValue.toFixed(2),
+          confidence: normalizedValue > 80 ? 'Alta' : normalizedValue > 40 ? 'Média' : 'Baixa',
+          marketPhase: normalizedValue > 80 ? 'Topo de Mercado' : normalizedValue > 40 ? 'Meio de Ciclo' : 'Fundo de Mercado',
+          lastUpdate: new Date().toLocaleDateString()
+        };
+      } catch (error) {
+        console.error('Error fetching CBBI data:', error);
+        throw error;
+      }
     },
     refetchInterval: 60000, // Atualiza a cada minuto
     onError: (error) => {

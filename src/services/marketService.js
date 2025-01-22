@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { COINGECKO_API_URL, getHeaders, handleApiError, MOCK_DATA } from '../config/api';
+import { COINGECKO_API_URL, getHeaders, handleApiError } from '../config/api';
 import { toast } from "sonner";
 
 export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
@@ -16,14 +16,16 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
       }
     );
 
+    if (!response.data) {
+      throw new Error('Dados não disponíveis');
+    }
+
+    console.log('Market data fetched successfully:', response.data);
     return response.data;
   } catch (error) {
     const handledError = handleApiError(error, 'buscar dados de mercado');
     toast.error(handledError.message);
-    
-    // Retorna dados mockados em caso de erro
-    console.log('Usando dados mockados devido a erro na API');
-    return MOCK_DATA[coin] || MOCK_DATA.bitcoin;
+    throw handledError;
   }
 };
 
@@ -36,25 +38,23 @@ export const fetchTopCoins = async () => {
           vs_currency: 'usd',
           order: 'market_cap_desc',
           per_page: 10,
-          sparkline: false
+          sparkline: false,
+          price_change_percentage: '24h'
         },
         headers: getHeaders()
       }
     );
 
+    if (!response.data) {
+      throw new Error('Dados não disponíveis');
+    }
+
+    console.log('Top coins fetched successfully:', response.data);
     return response.data;
   } catch (error) {
     const handledError = handleApiError(error, 'buscar top moedas');
     toast.error(handledError.message);
-    
-    // Retorna lista mockada em caso de erro
-    return [
-      { id: 'bitcoin', name: 'Bitcoin', symbol: 'btc' },
-      { id: 'ethereum', name: 'Ethereum', symbol: 'eth' },
-      { id: 'binancecoin', name: 'BNB', symbol: 'bnb' },
-      { id: 'ripple', name: 'XRP', symbol: 'xrp' },
-      { id: 'cardano', name: 'Cardano', symbol: 'ada' }
-    ];
+    throw handledError;
   }
 };
 
@@ -116,12 +116,47 @@ export const fetchBitcoinDominance = async () => {
       }
     );
     
+    if (!response.data?.data?.market_cap_percentage?.btc) {
+      throw new Error('Dados de dominância do Bitcoin não disponíveis');
+    }
+
+    console.log('Bitcoin dominance fetched successfully:', response.data.data.market_cap_percentage.btc);
     return response.data.data.market_cap_percentage.btc;
   } catch (error) {
     const handledError = handleApiError(error, 'buscar dominância do Bitcoin');
     toast.error(handledError.message);
-    
-    // Return mock data in case of error
-    return 45.5; // Mock Bitcoin dominance percentage
+    throw handledError;
+  }
+};
+
+export const fetchMarketSentiment = async () => {
+  try {
+    const response = await axios.get(
+      `${COINGECKO_API_URL}/simple/price`,
+      {
+        params: {
+          ids: 'bitcoin',
+          vs_currencies: 'usd',
+          include_24hr_change: true,
+          include_last_updated_at: true
+        },
+        headers: getHeaders()
+      }
+    );
+
+    if (!response.data?.bitcoin) {
+      throw new Error('Dados de sentimento não disponíveis');
+    }
+
+    console.log('Market sentiment data fetched successfully:', response.data);
+    return {
+      price: response.data.bitcoin.usd,
+      change24h: response.data.bitcoin.usd_24h_change,
+      lastUpdated: new Date(response.data.bitcoin.last_updated_at * 1000)
+    };
+  } catch (error) {
+    const handledError = handleApiError(error, 'buscar sentimento do mercado');
+    toast.error(handledError.message);
+    throw handledError;
   }
 };
