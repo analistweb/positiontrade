@@ -12,8 +12,6 @@ import { fetchMarketData, fetchTopCoins } from '../services/marketService';
 import VolumeChart from '../components/market/VolumeChart';
 import MarketStats from '../components/market/MarketStats';
 import EMAAnalysis from '../components/market/EMAAnalysis';
-import { AlertCircle } from 'lucide-react';
-import { MOCK_DATA } from '../config/api';
 
 const AnalisesCompraVenda = () => {
   const [selectedCoin, setSelectedCoin] = useState('bitcoin');
@@ -28,18 +26,13 @@ const AnalisesCompraVenda = () => {
     retry: 3,
     onError: (error) => {
       toast.error(`Erro ao buscar dados: ${error.message}`);
-      return MOCK_DATA.bitcoin; // Fallback to mock data
     }
   });
 
   const { data: topCoins } = useQuery({
     queryKey: ['topCoins'],
     queryFn: fetchTopCoins,
-    refetchInterval: 300000,
-    onError: (error) => {
-      toast.error(`Erro ao buscar lista de moedas: ${error.message}`);
-      return [{ id: 'bitcoin', name: 'Bitcoin' }]; // Fallback to Bitcoin only
-    }
+    refetchInterval: 300000
   });
 
   React.useEffect(() => {
@@ -69,12 +62,7 @@ const AnalisesCompraVenda = () => {
       <div className="container mx-auto p-4">
         <Card className="bg-destructive/10">
           <CardContent className="p-6">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-destructive" />
-              <p className="text-destructive" role="alert" aria-live="polite">
-                Erro ao carregar dados: {error.message}. Tentando novamente em alguns segundos...
-              </p>
-            </div>
+            <p className="text-destructive">Erro ao carregar dados: {error.message}</p>
           </CardContent>
         </Card>
       </div>

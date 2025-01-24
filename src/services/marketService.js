@@ -1,10 +1,9 @@
 import axios from 'axios';
-import { COINGECKO_API_URL, getHeaders, handleApiError, MOCK_DATA } from '../config/api';
+import { COINGECKO_API_URL, getHeaders, handleApiError } from '../config/api';
 import { toast } from "sonner";
 
 export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
   try {
-    console.log('Fetching market data for:', coin);
     const response = await axios.get(
       `${COINGECKO_API_URL}/coins/${coin}/market_chart`,
       {
@@ -13,27 +12,19 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
           days: days,
           interval: 'daily'
         },
-        headers: getHeaders(),
-        timeout: 5000 // 5 second timeout
+        headers: getHeaders()
       }
     );
 
     if (!response.data) {
-      console.warn('No data available, falling back to mock data');
-      return MOCK_DATA[coin] || MOCK_DATA.bitcoin;
+      throw new Error('Dados não disponíveis');
     }
 
     console.log('Market data fetched successfully:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Error fetching market data:', error);
     const handledError = handleApiError(error, 'buscar dados de mercado');
-    
-    if (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED') {
-      console.warn('Network error, falling back to mock data');
-      return MOCK_DATA[coin] || MOCK_DATA.bitcoin;
-    }
-    
+    toast.error(handledError.message);
     throw handledError;
   }
 };
