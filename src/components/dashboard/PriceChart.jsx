@@ -34,14 +34,24 @@ const PriceChart = ({ data, isLoading, error }) => {
     );
   }
 
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  };
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="glass-morphism p-4 rounded-lg">
-          <p className="text-gray-200 font-semibold">{label}</p>
+        <div className="glass-morphism p-4 rounded-lg bg-gray-900/90 border border-gray-700">
+          <p className="text-gray-200 font-semibold mb-2">{label}</p>
           {payload.map((entry, index) => (
-            <p key={index} style={{ color: entry.color }}>
-              {entry.name}: ${entry.value.toLocaleString()}
+            <p key={index} className="flex items-center gap-2" style={{ color: entry.color }}>
+              <span className="font-medium">{entry.name}:</span>
+              <span className="font-mono">{formatCurrency(entry.value)}</span>
             </p>
           ))}
         </div>
@@ -79,6 +89,7 @@ const PriceChart = ({ data, isLoading, error }) => {
               }}
               tick={{ fill: '#9ca3af', fontSize: 12 }}
               stroke="rgba(255,255,255,0.1)"
+              tickFormatter={formatCurrency}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend 
