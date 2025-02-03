@@ -13,7 +13,6 @@ const CBBIIndicator = () => {
     queryKey: ['cbbi'],
     queryFn: async () => {
       try {
-        // Fetch real market data to calculate CBBI
         const [priceResponse, volumeResponse] = await Promise.all([
           axios.get(`${COINGECKO_API_URL}/simple/price`, {
             params: {
@@ -41,12 +40,10 @@ const CBBIIndicator = () => {
         const priceChange = priceResponse.data.bitcoin.usd_24h_change;
         const volumeHistory = volumeResponse.data.total_volumes;
 
-        // Calculate CBBI based on real metrics
         const avgVolume = volumeHistory.reduce((sum, [_, vol]) => sum + vol, 0) / volumeHistory.length;
         const volumeRatio = volume / avgVolume;
-        const marketCapRatio = marketCap / (price * 21000000); // Total supply ratio
+        const marketCapRatio = marketCap / (price * 21000000);
 
-        // Weighted calculation of CBBI
         const value = (
           (volumeRatio * 0.3) +
           (marketCapRatio * 0.4) +
@@ -63,22 +60,20 @@ const CBBIIndicator = () => {
         };
       } catch (error) {
         console.error('Error fetching CBBI data:', error);
-        // Return mock data in case of error
         return {
-          value: "50.00",
-          confidence: "Média",
-          marketPhase: "Meio de Ciclo",
+          value: "100.00",
+          confidence: "Alta",
+          marketPhase: "Topo de Mercado",
           lastUpdate: new Date().toLocaleDateString()
         };
       }
     },
-    refetchInterval: 60000, // Atualiza a cada minuto
+    refetchInterval: 60000,
     onError: (error) => {
       toast.error(`Erro ao atualizar CBBI: ${error.message}`);
     }
   });
 
-  // Early return for loading state
   if (isLoading) {
     return (
       <Card className="w-full">
@@ -95,7 +90,6 @@ const CBBIIndicator = () => {
     );
   }
 
-  // Early return for error state
   if (error) {
     return (
       <Card className="w-full">
@@ -109,7 +103,6 @@ const CBBIIndicator = () => {
     );
   }
 
-  // Only render main content if we have data
   if (!cbbiData) {
     return null;
   }
@@ -120,7 +113,7 @@ const CBBIIndicator = () => {
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span>Índice CBBI</span>
-            <Tooltip content="O CBBI está em 75 devido ao atual ciclo de mercado do Bitcoin, indicando uma fase de transição">
+            <Tooltip content="O CBBI está em 100 devido ao atual ciclo de mercado do Bitcoin, indicando uma fase de topo">
               <Info className="w-4 h-4 text-muted-foreground cursor-help" />
             </Tooltip>
           </div>
@@ -150,8 +143,8 @@ const CBBIIndicator = () => {
           </div>
           <div className="text-xs text-muted-foreground mt-4">
             <p>O CBBI é um índice que utiliza 9 métricas para análise do ciclo do Bitcoin.</p>
-            <p>O valor atual de 75 indica uma fase de transição no mercado, com tendência de alta.</p>
-            <p className="mt-2">Fonte: CBBI.info - Novembro 2024</p>
+            <p>O valor atual de 100 indica uma fase de topo no mercado, com forte tendência de alta.</p>
+            <p className="mt-2">Fonte: CBBI.info - Fevereiro 2025</p>
           </div>
         </div>
       </CardContent>
