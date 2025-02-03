@@ -48,30 +48,44 @@ export const MOCK_DATA = {
   }
 };
 
-// Adiciona configuração de cache otimizado
-const cacheConfig = {
-  maxAge: 5 * 60 * 1000, // 5 minutos
-  exclude: {
-    query: false,
-    methods: ['POST', 'PUT', 'DELETE', 'PATCH']
-  },
-  adapter: async (config) => {
-    const { method, url, params } = config;
-    const cacheKey = `${method}:${url}:${JSON.stringify(params)}`;
-    
-    // Verifica cache antes de fazer requisição
-    const cachedResponse = calculationCache.get(cacheKey);
-    if (cachedResponse) {
-      console.log(`Cache hit for ${cacheKey}`);
-      return cachedResponse;
-    }
-    
-    // Faz requisição e armazena no cache
-    const response = await axios(config);
-    calculationCache.put(cacheKey, response);
-    return response;
-  }
-};
+// Configuração do axios com retry e cache simplificado
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
-// Aplica configuração de cache ao axios
-axios.defaults.adapter = cacheConfig.adapter;
+axios.interceptors.request.use(async (config) => {
+  const cacheKey = `${config.method}:${config.url}:${JSON.stringify(config.params)}`;
+  const cachedResponse = cache.get(cacheKey);
+  
+  if (cachedResponse && Date.now() - cachedResponse.timestamp < CACHE_TTL) {
+    console.log(`Cache hit for ${cacheKey}`);
+    return Promise.reject({
+      config,
+      response: cachedResponse.data,
+      __CACHE_HIT__: true
+    });
+  }
+  
+  return config;
+});
+
+axios.interceptors.response.use(
+  (response) => {
+    const config = response.config;
+    const cacheKey = `${config.method}:${config.url}:${JSON.stringify(config.params)}`;
+    
+    cache.set(cacheKey, {
+      timestamp: Date.now(),
+      data: response
+    });
+    
+    return response;
+  },
+  (error) => {
+    if (error.__CACHE_HIT__) {
+      return Promise.resolve(error.response);
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default axios;
