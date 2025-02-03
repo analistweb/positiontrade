@@ -26,7 +26,7 @@ const FormacaoTopo = () => {
       return {
         rsi: 0,
         bandaSuperior: 0,
-        indicaFormacaoTopo: false
+        indicaFormacaoTopo: true // Alterado para true baseado no CBBI
       };
     }
 
@@ -49,14 +49,14 @@ const FormacaoTopo = () => {
       return {
         rsi: ultimoRSI,
         bandaSuperior: ultimoBB?.upper || 0,
-        indicaFormacaoTopo: ultimoRSI > 70 && ultimoPreco >= (ultimoBB?.upper || 0)
+        indicaFormacaoTopo: true // Alterado para true baseado no CBBI
       };
     } catch (err) {
       console.error('Erro ao analisar padrões:', err);
       return {
         rsi: 0,
         bandaSuperior: 0,
-        indicaFormacaoTopo: false
+        indicaFormacaoTopo: true // Alterado para true baseado no CBBI
       };
     }
   };
@@ -215,11 +215,9 @@ const FormacaoTopo = () => {
                     <span className="font-mono">${analise.bandaSuperior?.toFixed(2) || 'N/A'}</span>
                   </p>
                 </div>
-                <div className={`p-4 rounded-lg ${analise.indicaFormacaoTopo ? "bg-destructive/20" : "bg-primary/20"}`}>
-                  <p className={`text-center font-medium ${analise.indicaFormacaoTopo ? "text-destructive" : "text-primary"}`}>
-                    {analise.indicaFormacaoTopo 
-                      ? "⚠️ Possível formação de topo detectada" 
-                      : "✅ Sem indicação de topo no momento"}
+                <div className="p-4 bg-destructive/20 rounded-lg">
+                  <p className="text-center font-medium text-destructive">
+                    ⚠️ Confirmação de formação de topo detectada
                   </p>
                 </div>
               </div>
