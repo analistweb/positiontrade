@@ -9,6 +9,39 @@ import { RSI, BollingerBands } from 'technicalindicators';
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
+const analisarPadroesTopo = (precos) => {
+  if (!precos || precos.length < 14) {
+    return {
+      rsi: null,
+      bandaSuperior: null,
+      bandaInferior: null
+    };
+  }
+
+  // Calcula o RSI
+  const rsiInput = {
+    values: precos,
+    period: 14
+  };
+  const rsiValues = RSI.calculate(rsiInput);
+  const rsiAtual = rsiValues[rsiValues.length - 1];
+
+  // Calcula as Bandas de Bollinger
+  const bbInput = {
+    period: 20,
+    values: precos,
+    stdDev: 2
+  };
+  const bb = BollingerBands.calculate(bbInput);
+  const ultimaBB = bb[bb.length - 1];
+
+  return {
+    rsi: rsiAtual,
+    bandaSuperior: ultimaBB?.upper,
+    bandaInferior: ultimaBB?.lower
+  };
+};
+
 const FormacaoTopo = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ['topFormation'],
