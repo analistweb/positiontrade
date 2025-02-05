@@ -12,17 +12,7 @@ import { motion } from "framer-motion";
 const FormacaoTopo = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ['topFormation'],
-    queryFn: async () => {
-      const response = await fetchTopFormationData();
-      // Ajustando os preços para refletir o valor correto
-      return {
-        ...response,
-        prices: response.prices.map(([timestamp]) => [
-          timestamp,
-          98833 + (Math.random() * 100 - 50) // Variação de ±50 para simular flutuações
-        ])
-      };
-    },
+    queryFn: fetchTopFormationData,
     refetchInterval: 60000,
     retry: 3,
     onError: (error) => {
@@ -30,70 +20,6 @@ const FormacaoTopo = () => {
       console.error('Erro detalhado:', error);
     }
   });
-
-  const analisarPadroesTopo = (precos) => {
-    if (!precos?.length) {
-      return {
-        rsi: 0,
-        bandaSuperior: 0,
-        indicaFormacaoTopo: true // Alterado para true baseado no CBBI
-      };
-    }
-
-    try {
-      const rsiValues = RSI.calculate({
-        values: precos,
-        period: 14
-      });
-
-      const bbValues = BollingerBands.calculate({
-        period: 20,
-        values: precos,
-        stdDev: 2
-      });
-
-      const ultimoRSI = rsiValues[rsiValues.length - 1];
-      const ultimoBB = bbValues[bbValues.length - 1];
-      const ultimoPreco = precos[precos.length - 1];
-
-      return {
-        rsi: ultimoRSI,
-        bandaSuperior: ultimoBB?.upper || 0,
-        indicaFormacaoTopo: true // Alterado para true baseado no CBBI
-      };
-    } catch (err) {
-      console.error('Erro ao analisar padrões:', err);
-      return {
-        rsi: 0,
-        bandaSuperior: 0,
-        indicaFormacaoTopo: true // Alterado para true baseado no CBBI
-      };
-    }
-  };
-
-  const preverFormacaoTopo = async (precos) => {
-    if (!precos?.length) return null;
-
-    try {
-      const model = tf.sequential();
-      model.add(tf.layers.dense({ units: 1, inputShape: [10] }));
-      
-      const dados = precos.slice(-30);
-      const xs = tf.tensor2d(dados.slice(0, -1), [dados.length - 1, 1]);
-      const ys = tf.tensor2d(dados.slice(1), [dados.length - 1, 1]);
-      
-      await model.compile({ optimizer: 'sgd', loss: 'meanSquaredError' });
-      await model.fit(xs, ys, { epochs: 10 });
-      
-      const ultimosDados = tf.tensor2d(dados.slice(-10), [1, 10]);
-      const previsao = model.predict(ultimosDados);
-      
-      return previsao.dataSync()[0];
-    } catch (error) {
-      console.error('Erro na previsão:', error);
-      return null;
-    }
-  };
 
   if (isLoading) {
     return (

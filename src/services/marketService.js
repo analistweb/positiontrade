@@ -2,43 +2,6 @@ import axios from 'axios';
 import { COINGECKO_API_URL, getHeaders, handleApiError } from '../config/api';
 import { toast } from "sonner";
 
-// Mock data for when API fails
-const MOCK_MARKET_DATA = {
-  prices: Array.from({ length: 30 }, (_, i) => [
-    Date.now() - (29 - i) * 24 * 60 * 60 * 1000,
-    40000 + Math.random() * 5000
-  ]),
-  market_caps: Array.from({ length: 30 }, (_, i) => [
-    Date.now() - (29 - i) * 24 * 60 * 60 * 1000,
-    800000000000 + Math.random() * 50000000000
-  ]),
-  total_volumes: Array.from({ length: 30 }, (_, i) => [
-    Date.now() - (29 - i) * 24 * 60 * 60 * 1000,
-    30000000000 + Math.random() * 5000000000
-  ])
-};
-
-const MOCK_TOP_COINS = [
-  {
-    id: 'bitcoin',
-    symbol: 'btc',
-    name: 'Bitcoin',
-    current_price: 45000,
-    market_cap: 800000000000,
-    market_cap_rank: 1,
-    price_change_percentage_24h: 2.5
-  },
-  {
-    id: 'ethereum',
-    symbol: 'eth',
-    name: 'Ethereum',
-    current_price: 2500,
-    market_cap: 300000000000,
-    market_cap_rank: 2,
-    price_change_percentage_24h: 1.8
-  }
-];
-
 export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
   try {
     console.log(`Fetching market data for ${coin} over ${days} days`);
@@ -51,21 +14,19 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
           interval: 'daily'
         },
         headers: getHeaders(),
-        timeout: 5000 // 5 second timeout
+        timeout: 5000
       }
     );
 
     if (!response.data) {
-      console.warn('No data received from API, falling back to mock data');
-      return MOCK_MARKET_DATA;
+      throw new Error('Dados não disponíveis');
     }
 
     console.log('Market data fetched successfully:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error fetching market data:', error);
-    toast.error(`Erro ao carregar dados de mercado: ${error.message}. Usando dados simulados.`);
-    return MOCK_MARKET_DATA;
+    throw error;
   }
 };
 
@@ -88,16 +49,14 @@ export const fetchTopCoins = async () => {
     );
 
     if (!response.data) {
-      console.warn('No data received from API, falling back to mock data');
-      return MOCK_TOP_COINS;
+      throw new Error('Dados não disponíveis');
     }
 
     console.log('Top coins fetched successfully:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error fetching top coins:', error);
-    toast.error(`Erro ao carregar top moedas: ${error.message}. Usando dados simulados.`);
-    return MOCK_TOP_COINS;
+    throw error;
   }
 };
 
