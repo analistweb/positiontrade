@@ -77,3 +77,28 @@ export const fetchWhaleTransactions = async () => {
     return handleServiceError(error, 'Buscar transações de grandes players');
   }
 };
+
+export const fetchTopFormationData = async () => {
+  try {
+    const response = await axios.get(`${COINGECKO_API_URL}/coins/bitcoin/market_chart`, {
+      params: {
+        vs_currency: 'usd',
+        days: 30,
+        interval: 'daily'
+      },
+      headers: getHeaders()
+    });
+
+    if (!response.data) {
+      throw new Error('Dados de formação de topo não disponíveis');
+    }
+
+    return {
+      prices: response.data.prices,
+      market_caps: response.data.market_caps,
+      total_volumes: response.data.total_volumes
+    };
+  } catch (error) {
+    return handleServiceError(error, 'Buscar dados de formação de topo');
+  }
+};
