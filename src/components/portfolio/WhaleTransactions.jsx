@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -28,7 +29,7 @@ const WhaleTransactions = ({ transactions }) => {
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="max-w-xs">
-                    Análise on-chain de movimentações significativas baseada em dados do Nansen
+                    Análise de movimentações significativas baseada em dados de grandes players do mercado
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -78,7 +79,7 @@ const WhaleTransactions = ({ transactions }) => {
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-medium">
-                              {tx.cryptoAmount.toLocaleString()} {tx.cryptoSymbol}
+                              {tx.cryptoAmount} {tx.cryptoSymbol}
                             </span>
                             <span className="text-sm text-muted-foreground">
                               {formatCurrency(tx.volume)}
@@ -95,14 +96,15 @@ const WhaleTransactions = ({ transactions }) => {
                             ) : (
                               <>
                                 <Building className="h-4 w-4 text-primary" />
-                                <span>{tx.exchange || 'Exchange'}</span>
+                                <span>{tx.exchange}</span>
                               </>
                             )}
                             {tx.destinationAddress && (
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger>
-                                    <ExternalLink className="h-4 w-4 text-muted-foreground cursor-pointer" 
+                                    <ExternalLink 
+                                      className="h-4 w-4 text-muted-foreground cursor-pointer hover:text-primary transition-colors" 
                                       onClick={() => window.open(`https://etherscan.io/address/${tx.destinationAddress}`, '_blank')}
                                     />
                                   </TooltipTrigger>
@@ -117,8 +119,15 @@ const WhaleTransactions = ({ transactions }) => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="bg-primary/10">
-                            {Math.floor(Math.random() * 40 + 60)}/100
+                          <Badge 
+                            variant="outline" 
+                            className={`bg-primary/10 ${
+                              tx.smartMoneyScore >= 80 ? 'text-green-500' : 
+                              tx.smartMoneyScore >= 60 ? 'text-yellow-500' : 
+                              'text-red-500'
+                            }`}
+                          >
+                            {tx.smartMoneyScore}/100
                           </Badge>
                         </TableCell>
                       </motion.tr>
@@ -133,40 +142,49 @@ const WhaleTransactions = ({ transactions }) => {
                 <Card className="p-4">
                   <h3 className="text-lg font-semibold mb-2">Análise de Comportamento</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-lg bg-primary/5">
-                      <p className="text-sm font-medium">Acumulação de Smart Money</p>
-                      <p className="text-2xl font-bold text-primary">
-                        {Math.floor(Math.random() * 30 + 70)}%
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Carteiras com histórico de sucesso estão acumulando
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-primary/5">
-                      <p className="text-sm font-medium">Fluxo de Exchange</p>
-                      <p className="text-2xl font-bold text-green-500">
-                        Saída Líquida
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Tokens sendo movidos para carteiras privadas
-                      </p>
-                    </div>
+                    {transactions && (
+                      <>
+                        <div className="p-4 rounded-lg bg-primary/5">
+                          <p className="text-sm font-medium">Tendência Dominante</p>
+                          <p className="text-2xl font-bold text-primary">
+                            {transactions.filter(tx => tx.type === "Compra").length > 
+                             transactions.filter(tx => tx.type === "Venda").length 
+                             ? "Acumulação" : "Distribuição"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Baseado nas últimas {transactions.length} transações
+                          </p>
+                        </div>
+                        <div className="p-4 rounded-lg bg-primary/5">
+                          <p className="text-sm font-medium">Volume Médio</p>
+                          <p className="text-2xl font-bold text-green-500">
+                            {formatCurrency(
+                              transactions.reduce((acc, tx) => acc + tx.volume, 0) / 
+                              transactions.length
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Média por transação
+                          </p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </Card>
 
                 <Card className="p-4">
                   <h3 className="text-lg font-semibold mb-2">Principais Movimentações</h3>
                   <div className="space-y-2">
-                    {[1, 2, 3].map((_, index) => (
+                    {transactions?.slice(0, 3).map((tx, index) => (
                       <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-primary/5">
                         <div>
-                          <p className="font-medium">Carteira {index + 1}</p>
+                          <p className="font-medium">{tx.destination === "Carteira" ? "Carteira Privada" : tx.exchange}</p>
                           <p className="text-sm text-muted-foreground">
-                            {formatCurrency(Math.random() * 1000000 + 500000)}
+                            {formatCurrency(tx.volume)}
                           </p>
                         </div>
-                        <Badge variant={index % 2 === 0 ? "success" : "destructive"}>
-                          {index % 2 === 0 ? "Compra" : "Venda"}
+                        <Badge variant={tx.type === "Compra" ? "success" : "destructive"}>
+                          {tx.type}
                         </Badge>
                       </div>
                     ))}
