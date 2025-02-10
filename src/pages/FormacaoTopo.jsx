@@ -6,8 +6,14 @@ import { fetchTopFormationData } from '../services/cryptoService';
 import { toast } from "sonner";
 import * as tf from '@tensorflow/tfjs';
 import { RSI, BollingerBands } from 'technicalindicators';
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle, Info, Clock, TrendingDown, TrendingUp, HelpCircle } from "lucide-react";
 import { motion } from "framer-motion";
+import {
+  Tooltip as TooltipUI,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const analisarPadroesTopo = (precos) => {
   if (!precos || precos.length < 14) {
@@ -43,7 +49,7 @@ const analisarPadroesTopo = (precos) => {
 };
 
 const FormacaoTopo = () => {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, dataUpdatedAt } = useQuery({
     queryKey: ['topFormation'],
     queryFn: fetchTopFormationData,
     refetchInterval: 60000,
@@ -114,6 +120,8 @@ const FormacaoTopo = () => {
   const precos = data.prices.map(([_, price]) => price);
   const analise = analisarPadroesTopo(precos);
 
+  const lastUpdateTime = new Date(dataUpdatedAt).toLocaleTimeString();
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       <motion.div
@@ -121,8 +129,13 @@ const FormacaoTopo = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <h1 className="text-3xl font-bold mb-6">Formação de Topo</h1>
-      </motion.div>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Formação de Topo</h1>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            <span>Última atualização: {lastUpdateTime}</span>
+          </div>
+        </motion.div>
       
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -185,26 +198,95 @@ const FormacaoTopo = () => {
         >
           <Card>
             <CardHeader>
-              <CardTitle>Indicadores Técnicos</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Indicadores Técnicos
+                <TooltipProvider>
+                  <TooltipUI>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-sm">
+                      <p>Indicadores técnicos são ferramentas estatísticas que ajudam a analisar o mercado</p>
+                    </TooltipContent>
+                  </TooltipUI>
+                </TooltipProvider>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="p-4 bg-card/50 rounded-lg">
-                  <p className="flex justify-between items-center">
-                    <span>RSI Atual:</span>
-                    <span className="font-mono">{analise.rsi?.toFixed(2) || 'N/A'}</span>
-                  </p>
+                  <div className="flex justify-between items-start">
+                    <TooltipProvider>
+                      <TooltipUI>
+                        <TooltipTrigger className="flex items-center gap-2">
+                          <span>RSI Atual:</span>
+                          <Info className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm p-4">
+                          <p>O RSI (Índice de Força Relativa) mede a velocidade e magnitude das mudanças de preço:</p>
+                          <ul className="list-disc list-inside mt-2">
+                            <li>RSI > 70: Mercado sobrecomprado</li>
+                            <li>RSI < 30: Mercado sobrevendido</li>
+                            <li>Entre 30-70: Zona neutra</li>
+                          </ul>
+                        </TooltipContent>
+                      </TooltipUI>
+                    </TooltipProvider>
+                    <span className={`font-mono ${
+                      analise.rsi > 70 ? "text-red-500" : 
+                      analise.rsi < 30 ? "text-green-500" : 
+                      "text-yellow-500"
+                    }`}>
+                      {analise.rsi?.toFixed(2) || 'N/A'}
+                    </span>
+                  </div>
                 </div>
+
                 <div className="p-4 bg-card/50 rounded-lg">
-                  <p className="flex justify-between items-center">
-                    <span>Banda Superior:</span>
+                  <div className="flex justify-between items-start">
+                    <TooltipProvider>
+                      <TooltipUI>
+                        <TooltipTrigger className="flex items-center gap-2">
+                          <span>Banda Superior:</span>
+                          <Info className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm p-4">
+                          <p>Bandas de Bollinger são indicadores de volatilidade:</p>
+                          <ul className="list-disc list-inside mt-2">
+                            <li>Preço próximo à banda superior: Possível sobrevalorização</li>
+                            <li>Preço entre as bandas: Volatilidade normal</li>
+                            <li>Usado para identificar possíveis reversões</li>
+                          </ul>
+                        </TooltipContent>
+                      </TooltipUI>
+                    </TooltipProvider>
                     <span className="font-mono">${analise.bandaSuperior?.toFixed(2) || 'N/A'}</span>
-                  </p>
+                  </div>
                 </div>
+
                 <div className="p-4 bg-destructive/20 rounded-lg">
-                  <p className="text-center font-medium text-destructive">
-                    ⚠️ Confirmação de formação de topo detectada
-                  </p>
+                  <div className="flex items-center justify-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                    <p className="text-center font-medium text-destructive">
+                      Confirmação de formação de topo detectada
+                    </p>
+                    <TooltipProvider>
+                      <TooltipUI>
+                        <TooltipTrigger>
+                          <Info className="h-4 w-4 text-destructive" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm p-4">
+                          <p>Uma formação de topo é identificada quando:</p>
+                          <ul className="list-disc list-inside mt-2">
+                            <li>RSI mostra condições de sobrecompra</li>
+                            <li>Preço atinge ou ultrapassa a Banda Superior</li>
+                            <li>Volume de vendas aumenta significativamente</li>
+                          </ul>
+                          <p className="mt-2 text-destructive">Considere reduzir exposição ao risco</p>
+                        </TooltipContent>
+                      </TooltipUI>
+                    </TooltipProvider>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -218,31 +300,81 @@ const FormacaoTopo = () => {
         >
           <Card>
             <CardHeader>
-              <CardTitle>Análise de Entidades</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Análise de Entidades
+                <TooltipProvider>
+                  <TooltipUI>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-sm">
+                      <p>Análise do comportamento das grandes entidades (whales) do mercado</p>
+                    </TooltipContent>
+                  </TooltipUI>
+                </TooltipProvider>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="p-4 bg-card/50 rounded-lg">
-                  <p className="flex justify-between items-center">
-                    <span>Volume de Grandes Entidades:</span>
+                  <div className="flex justify-between items-start">
+                    <TooltipProvider>
+                      <TooltipUI>
+                        <TooltipTrigger className="flex items-center gap-2">
+                          <span>Volume de Grandes Entidades:</span>
+                          <Info className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm p-4">
+                          <p>Volume movimentado por grandes players (whales):</p>
+                          <ul className="list-disc list-inside mt-2">
+                            <li>Alto volume: Possível mudança de tendência</li>
+                            <li>Volume crescente: Aumento de interesse institucional</li>
+                            <li>Volume > $20B: Atividade significativa</li>
+                          </ul>
+                        </TooltipContent>
+                      </TooltipUI>
+                    </TooltipProvider>
                     <span className="font-mono">
                       ${((data.total_volumes?.[data.total_volumes.length - 1]?.[1] || 0) / 1000000).toFixed(2)}M
                     </span>
-                  </p>
+                  </div>
                 </div>
+
                 <div className="p-4 bg-card/50 rounded-lg">
-                  <p className="flex justify-between items-center">
-                    <span>Variação 24h:</span>
-                    <span className={`font-mono ${
-                      ((data.prices?.[data.prices.length - 1]?.[1] - data.prices?.[data.prices.length - 24]?.[1]) / 
-                      data.prices?.[data.prices.length - 24]?.[1] * 100) > 0 
-                        ? "text-green-500" 
-                        : "text-red-500"
-                    }`}>
+                  <div className="flex justify-between items-start">
+                    <TooltipProvider>
+                      <TooltipUI>
+                        <TooltipTrigger className="flex items-center gap-2">
+                          <span>Variação 24h:</span>
+                          <Info className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm p-4">
+                          <p>Variação percentual nas últimas 24 horas:</p>
+                          <ul className="list-disc list-inside mt-2">
+                            <li>Positiva: Movimento de alta no período</li>
+                            <li>Negativa: Movimento de baixa no período</li>
+                            <li>Alta volatilidade: Variação > 5%</li>
+                          </ul>
+                        </TooltipContent>
+                      </TooltipUI>
+                    </TooltipProvider>
+                    <div className="flex items-center gap-2">
                       {((data.prices?.[data.prices.length - 1]?.[1] - data.prices?.[data.prices.length - 24]?.[1]) / 
-                        data.prices?.[data.prices.length - 24]?.[1] * 100)?.toFixed(2) || 0}%
-                    </span>
-                  </p>
+                        data.prices?.[data.prices.length - 24]?.[1] * 100) > 0 ? 
+                        <TrendingUp className="h-4 w-4 text-green-500" /> :
+                        <TrendingDown className="h-4 w-4 text-red-500" />
+                      }
+                      <span className={`font-mono ${
+                        ((data.prices?.[data.prices.length - 1]?.[1] - data.prices?.[data.prices.length - 24]?.[1]) / 
+                        data.prices?.[data.prices.length - 24]?.[1] * 100) > 0 
+                          ? "text-green-500" 
+                          : "text-red-500"
+                      }`}>
+                        {((data.prices?.[data.prices.length - 1]?.[1] - data.prices?.[data.prices.length - 24]?.[1]) / 
+                          data.prices?.[data.prices.length - 24]?.[1] * 100)?.toFixed(2) || 0}%
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
