@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -135,7 +136,8 @@ const FormacaoTopo = () => {
             <Clock className="h-4 w-4" />
             <span>Última atualização: {lastUpdateTime}</span>
           </div>
-        </motion.div>
+        </div>
+      </motion.div>
       
       <motion.div
         initial={{ opacity: 0, y: 20 }}
