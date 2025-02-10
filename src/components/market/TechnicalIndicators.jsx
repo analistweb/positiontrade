@@ -46,8 +46,8 @@ const TechnicalIndicators = ({ analise }) => {
                     <TooltipContent className="max-w-sm p-4">
                       <p>O RSI (Índice de Força Relativa) mede a velocidade e magnitude das mudanças de preço:</p>
                       <ul className="list-disc list-inside mt-2">
-                        <li>RSI > 70: Mercado sobrecomprado</li>
-                        <li>RSI < 30: Mercado sobrevendido</li>
+                        <li>RSI {'>'} 70: Mercado sobrecomprado</li>
+                        <li>RSI {'<'} 30: Mercado sobrevendido</li>
                         <li>Entre 30-70: Zona neutra</li>
                       </ul>
                     </TooltipContent>
@@ -117,3 +117,4 @@ const TechnicalIndicators = ({ analise }) => {
 };
 
 export default TechnicalIndicators;
+
