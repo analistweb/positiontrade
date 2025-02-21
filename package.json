@@ -73,6 +73,7 @@
     "tailwindcss-animate": "^1.0.7",
     "technicalindicators": "^3.1.0",
     "vaul": "^0.9.1",
+    "vite-plugin-pwa": "^0.21.1",
     "vitest": "^2.1.8",
     "winston": "^3.17.0",
     "zod": "^3.23.8"
