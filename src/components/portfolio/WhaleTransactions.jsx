@@ -7,8 +7,17 @@ import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TransactionList from './whale-transactions/TransactionList';
 import TransactionInsights from './whale-transactions/TransactionInsights';
+import { useQuery } from '@tanstack/react-query';
+import { fetchWhaleTransactions } from '@/services/cryptoService';
+import { Toaster } from "@/components/ui/sonner";
 
-const WhaleTransactions = ({ transactions }) => {
+const WhaleTransactions = () => {
+  const { data: transactions, isLoading, error } = useQuery({
+    queryKey: ['whaleTransactions'],
+    queryFn: fetchWhaleTransactions,
+    refetchInterval: 30000 // Atualiza a cada 30 segundos
+  });
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -16,6 +25,7 @@ const WhaleTransactions = ({ transactions }) => {
       transition={{ duration: 0.5, delay: 0.2 }}
       className="w-full"
     >
+      <Toaster />
       <Card className="shadow-lg border-primary/20">
         <CardHeader className="bg-gradient-to-r from-blue-50/5 to-purple-50/5">
           <CardTitle className="flex items-center gap-2 text-xl text-primary">
@@ -43,7 +53,11 @@ const WhaleTransactions = ({ transactions }) => {
             </TabsList>
             
             <TabsContent value="transactions">
-              <TransactionList transactions={transactions} />
+              <TransactionList 
+                transactions={transactions} 
+                isLoading={isLoading}
+                error={error}
+              />
             </TabsContent>
 
             <TabsContent value="insights">

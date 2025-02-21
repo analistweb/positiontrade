@@ -5,8 +5,19 @@ import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { formatDate, formatCurrency } from '@/lib/utils';
 import TransactionRow from './TransactionRow';
+import TransactionSkeleton from './TransactionSkeleton';
+import { toast } from "sonner";
 
-const TransactionList = ({ transactions }) => {
+const TransactionList = ({ transactions, isLoading, error }) => {
+  // Mostrar toast de erro se houver algum problema
+  React.useEffect(() => {
+    if (error) {
+      toast.error("Erro ao carregar transações", {
+        description: "Tente novamente mais tarde"
+      });
+    }
+  }, [error]);
+
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -20,9 +31,19 @@ const TransactionList = ({ transactions }) => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {transactions?.map((tx, index) => (
-            <TransactionRow key={index} transaction={tx} index={index} />
-          ))}
+          {isLoading ? (
+            <TransactionSkeleton />
+          ) : transactions?.length > 0 ? (
+            transactions.map((tx, index) => (
+              <TransactionRow key={index} transaction={tx} index={index} />
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                Nenhuma transação encontrada
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
     </div>

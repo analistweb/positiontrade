@@ -1,5 +1,6 @@
 
 import { render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
 import TransactionRow from '../../../components/portfolio/whale-transactions/TransactionRow';
 
 const mockTransaction = {
@@ -14,7 +15,7 @@ const mockTransaction = {
 };
 
 describe('TransactionRow', () => {
-  test('renderiza os detalhes da transação corretamente', () => {
+  it('renderiza os detalhes da transação corretamente', () => {
     render(<TransactionRow transaction={mockTransaction} index={0} />);
 
     expect(screen.getByText('Compra')).toBeInTheDocument();
@@ -23,7 +24,7 @@ describe('TransactionRow', () => {
     expect(screen.getByText('85/100')).toBeInTheDocument();
   });
 
-  test('aplica classes corretas baseado no smart money score', () => {
+  it('aplica classes corretas baseado no smart money score', () => {
     render(<TransactionRow transaction={mockTransaction} index={0} />);
     
     const scoreElement = screen.getByText('85/100');
