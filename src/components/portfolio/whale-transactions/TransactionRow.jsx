@@ -7,13 +7,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ExternalLink, Wallet, Building, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatDate, formatCurrency } from '@/lib/utils';
 
-const TransactionRow = ({ transaction: tx, index }) => {
+const TransactionRow = React.memo(({ transaction: tx, index, style }) => {
   return (
     <motion.tr
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: index * 0.1 }}
       className="hover:bg-muted/30 transition-colors"
+      style={style}
     >
       <TableCell className="text-sm text-muted-foreground">
         {formatDate(tx.timestamp)}
@@ -83,6 +84,8 @@ const TransactionRow = ({ transaction: tx, index }) => {
       </TableCell>
     </motion.tr>
   );
-};
+});
+
+TransactionRow.displayName = 'TransactionRow';
 
 export default TransactionRow;
