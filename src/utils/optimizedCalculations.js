@@ -1,3 +1,4 @@
+
 import { memoize } from 'lodash';
 
 // Implementa memoização para cálculos frequentes

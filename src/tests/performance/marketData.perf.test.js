@@ -1,3 +1,4 @@
+
 import { describe, bench } from 'vitest';
 import { fetchMarketData } from '../../services/marketService';
 
