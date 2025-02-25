@@ -1,7 +1,6 @@
 
-import axios from '../config/api';
+import { axiosInstance as axios, COINGECKO_API_URL, getHeaders } from '../config/api';
 import { toast } from "sonner";
-import { COINGECKO_API_URL, getHeaders } from '../config/api';
 
 const handleServiceError = (error, context) => {
   console.error(`Erro em ${context}:`, error);
