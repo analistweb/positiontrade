@@ -30,7 +30,6 @@ export const fetchPortfolioData = async () => {
       throw new Error('Dados não disponíveis');
     }
 
-    // Simular uma quantidade realista baseada no market cap
     return response.data.map(coin => ({
       id: coin.id,
       symbol: coin.symbol.toUpperCase(),
@@ -43,8 +42,8 @@ export const fetchPortfolioData = async () => {
       market_cap: coin.market_cap,
       total_volume: coin.total_volume,
       sparkline_in_7d: coin.sparkline_in_7d,
-      quantity: parseFloat((coin.market_cap * 0.00000001 / coin.current_price).toFixed(8)), // Quantidade proporcional ao market cap
-      total_value: parseFloat((coin.market_cap * 0.00000001).toFixed(2)) // Valor total em USD
+      quantity: coin.total_volume / coin.current_price, // Volume real de transações
+      total_value: coin.total_volume // Valor total real
     }));
   } catch (error) {
     return handleServiceError(error, 'Buscar dados do portfólio');
@@ -69,8 +68,8 @@ export const fetchWhaleTransactions = async () => {
 
     // Criar transações baseadas em dados reais de volume
     const createTransaction = (ticker, crypto) => ({
-      timestamp: new Date().toISOString(),
-      type: ticker.last_traded_at > Date.now() - 3600000 ? "Compra" : "Venda",
+      timestamp: new Date(ticker.last_traded_at).toISOString(),
+      type: ticker.last > ticker.bid ? "Compra" : "Venda",
       cryptoAmount: parseFloat((ticker.volume / ticker.last).toFixed(4)),
       cryptoSymbol: crypto,
       volume: ticker.volume,

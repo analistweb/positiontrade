@@ -11,13 +11,6 @@ const TOP_CRYPTOS = [
   'polkadot'
 ];
 
-const MOCK_RSI_DATA = {
-  bitcoin: 55,
-  ethereum: 48,
-  cardano: 52,
-  polkadot: 45
-};
-
 export const useRSIData = () => {
   return useQuery({
     queryKey: ['cryptosRSI'],
@@ -47,9 +40,7 @@ export const useRSIData = () => {
           
           if (!response.data?.prices) {
             console.error(`No price data available for ${crypto}`);
-            toast.error(`Erro ao carregar dados para ${crypto}. Usando dados simulados.`);
-            rsiData[crypto] = MOCK_RSI_DATA[crypto];
-            continue;
+            throw new Error(`Dados não disponíveis para ${crypto}`);
           }
 
           const rsi = calculateRSI(response.data.prices);
@@ -57,8 +48,8 @@ export const useRSIData = () => {
           console.log(`RSI calculated for ${crypto}:`, rsi);
         } catch (error) {
           console.error(`Error calculating RSI for ${crypto}:`, error);
-          toast.error(`Erro ao calcular RSI para ${crypto}. Usando dados simulados.`);
-          rsiData[crypto] = MOCK_RSI_DATA[crypto];
+          toast.error(`Erro ao calcular RSI para ${crypto}`);
+          throw error;
         }
       }
       
