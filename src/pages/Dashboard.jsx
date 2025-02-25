@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from "framer-motion";
-import { fetchBitcoinDominance } from '../services/marketService';
+import { fetchBitcoinDominance } from '../services/analysis/sentimentService';
 import MarketStats from '../components/dashboard/MarketStats';
 import CBBIIndicator from '../components/dashboard/CBBIIndicator';
 import MarketSentiment from '../components/dashboard/MarketSentiment';
