@@ -2,6 +2,14 @@ import axios from 'axios';
 import { COINGECKO_API_URL, getHeaders, handleApiError } from '../config/api';
 import { toast } from "sonner";
 
+let worker = null;
+
+try {
+  worker = new Worker('/marketAnalysis.worker.js');
+} catch (error) {
+  console.error('Error initializing Web Worker:', error);
+}
+
 export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
   try {
     console.log(`Fetching market data for ${coin} over ${days} days`);
@@ -20,6 +28,54 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
 
     if (!response.data) {
       throw new Error('Dados não disponíveis');
+    }
+
+    // Se o Web Worker está disponível, use-o para cálculos pesados
+    if (worker) {
+      return new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(new Error('Worker timeout'));
+        }, 10000);
+
+        worker.onmessage = function(e) {
+          clearTimeout(timeoutId);
+          const { type, data } = e.data;
+          
+          switch (type) {
+            case 'RSI_RESULT':
+              response.data.rsi = data;
+              break;
+            case 'PATTERNS_RESULT':
+              response.data.patterns = data;
+              break;
+            case 'ERROR':
+              console.error('Worker error:', data);
+              break;
+          }
+          
+          resolve(response.data);
+        };
+
+        worker.onerror = function(error) {
+          clearTimeout(timeoutId);
+          console.error('Worker error:', error);
+          resolve(response.data); // Continue sem os cálculos do worker
+        };
+
+        // Envia dados para o worker
+        worker.postMessage({
+          type: 'calculateRSI',
+          data: { prices: response.data.prices.map(p => p[1]) }
+        });
+
+        worker.postMessage({
+          type: 'calculatePatterns',
+          data: {
+            prices: response.data.prices.map(p => p[1]),
+            volumes: response.data.total_volumes.map(v => v[1])
+          }
+        });
+      });
     }
 
     console.log('Market data fetched successfully:', response.data);
