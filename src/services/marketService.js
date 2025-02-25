@@ -1,6 +1,7 @@
 
-import axios from 'axios';
-import { COINGECKO_API_URL, getHeaders } from '../config/api';
+import { axiosInstance, handleApiError } from '../config/api';
+import { retryWithBackoff, handleAPIResponse } from './errorHandlingService';
+import { toast } from "sonner";
 
 let worker = null;
 
@@ -13,22 +14,19 @@ try {
 export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
   try {
     console.log(`Fetching market data for ${coin} over ${days} days`);
-    const response = await axios.get(
-      `${COINGECKO_API_URL}/coins/${coin}/market_chart`,
-      {
+    
+    const response = await retryWithBackoff(
+      async () => axiosInstance.get(`/coins/${coin}/market_chart`, {
         params: {
           vs_currency: 'usd',
           days: days,
           interval: 'daily'
-        },
-        headers: getHeaders(),
-        timeout: 5000
-      }
+        }
+      }),
+      `buscar dados de mercado para ${coin}`
     );
 
-    if (!response.data) {
-      throw new Error('Dados não disponíveis');
-    }
+    const data = handleAPIResponse(response, 'dados de mercado');
 
     if (worker) {
       return new Promise((resolve, reject) => {
@@ -38,78 +36,73 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
 
         worker.onmessage = function(e) {
           clearTimeout(timeoutId);
-          const { type, data } = e.data;
+          const { type, data: workerData } = e.data;
           
           switch (type) {
             case 'RSI_RESULT':
-              response.data.rsi = data;
+              data.rsi = workerData;
               break;
             case 'PATTERNS_RESULT':
-              response.data.patterns = data;
+              data.patterns = workerData;
               break;
             case 'ERROR':
-              console.error('Worker error:', data);
+              console.error('Worker error:', workerData);
               break;
           }
           
-          resolve(response.data);
+          resolve(data);
         };
 
         worker.onerror = function(error) {
           clearTimeout(timeoutId);
           console.error('Worker error:', error);
-          resolve(response.data);
+          resolve(data);
         };
 
         worker.postMessage({
           type: 'calculateRSI',
-          data: { prices: response.data.prices.map(p => p[1]) }
+          data: { prices: data.prices.map(p => p[1]) }
         });
 
         worker.postMessage({
           type: 'calculatePatterns',
           data: {
-            prices: response.data.prices.map(p => p[1]),
-            volumes: response.data.total_volumes.map(v => v[1])
+            prices: data.prices.map(p => p[1]),
+            volumes: data.total_volumes.map(v => v[1])
           }
         });
       });
     }
 
-    console.log('Market data fetched successfully:', response.data);
-    return response.data;
+    return data;
   } catch (error) {
-    console.error('Error fetching market data:', error);
-    throw error;
+    const handledError = handleApiError(error, 'buscar dados de mercado');
+    toast.error(handledError.message);
+    throw handledError;
   }
 };
 
 export const fetchTopCoins = async () => {
   try {
     console.log('Fetching top coins data');
-    const response = await axios.get(
-      `${COINGECKO_API_URL}/coins/markets`,
-      {
+    
+    const response = await retryWithBackoff(
+      async () => axiosInstance.get('/coins/markets', {
         params: {
           vs_currency: 'usd',
           order: 'market_cap_desc',
           per_page: 10,
           sparkline: false,
           price_change_percentage: '24h'
-        },
-        headers: getHeaders(),
-        timeout: 5000
-      }
+        }
+      }),
+      'buscar top moedas'
     );
 
-    if (!response.data) {
-      throw new Error('Dados não disponíveis');
-    }
-
-    console.log('Top coins fetched successfully:', response.data);
-    return response.data;
+    return handleAPIResponse(response, 'top moedas');
   } catch (error) {
-    console.error('Error fetching top coins:', error);
-    throw error;
+    const handledError = handleApiError(error, 'buscar top moedas');
+    toast.error(handledError.message);
+    throw handledError;
   }
 };
