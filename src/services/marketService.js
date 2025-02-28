@@ -31,7 +31,8 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
     if (worker) {
       return new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
-          reject(new Error('Worker timeout'));
+          console.warn('Worker timeout, resolving with basic data');
+          resolve(data);
         }, 10000);
 
         worker.onmessage = function(e) {
@@ -56,7 +57,7 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
         worker.onerror = function(error) {
           clearTimeout(timeoutId);
           console.error('Worker error:', error);
-          resolve(data);
+          resolve(data); // Fallback to basic data
         };
 
         worker.postMessage({
@@ -76,9 +77,16 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
 
     return data;
   } catch (error) {
-    const handledError = handleApiError(error, 'buscar dados de mercado');
-    toast.error(handledError.message);
-    throw handledError;
+    console.error('Error fetching market data:', error);
+    toast.error(`Erro ao carregar dados: ${error.message}`);
+    
+    // Fallback to empty data structure
+    return {
+      prices: [],
+      market_caps: [],
+      total_volumes: [],
+      error: error.message
+    };
   }
 };
 
@@ -101,8 +109,15 @@ export const fetchTopCoins = async () => {
 
     return handleAPIResponse(response, 'top moedas');
   } catch (error) {
-    const handledError = handleApiError(error, 'buscar top moedas');
-    toast.error(handledError.message);
-    throw handledError;
+    console.error('Error fetching top coins:', error);
+    toast.error(`Erro ao carregar moedas: ${error.message}`);
+    
+    // Return fallback data
+    return [
+      { id: 'bitcoin', name: 'Bitcoin' },
+      { id: 'ethereum', name: 'Ethereum' },
+      { id: 'tether', name: 'Tether' },
+      { id: 'binancecoin', name: 'BNB' }
+    ];
   }
 };

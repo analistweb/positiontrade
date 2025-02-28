@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+
+import React, { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import RSIRecommendation from '@/components/market/RSIRecommendation';
+import RSIFallback from '@/components/market/RSIFallback';
 import { RSI } from 'technicalindicators';
 import { fetchMarketData, fetchTopCoins } from '../services/marketService';
 import VolumeChart from '../components/market/VolumeChart';
@@ -19,7 +23,12 @@ const AnalisesCompraVenda = () => {
   const [minVolume, setMinVolume] = useState(0);
   const [currentRSI, setCurrentRSI] = useState(50);
 
-  const { data: marketData, isLoading, error } = useQuery({
+  const { 
+    data: marketData, 
+    isLoading, 
+    error,
+    refetch: refetchMarketData
+  } = useQuery({
     queryKey: ['marketData', selectedCoin, selectedDays],
     queryFn: () => fetchMarketData(selectedCoin, selectedDays),
     refetchInterval: 300000,
@@ -29,23 +38,41 @@ const AnalisesCompraVenda = () => {
     }
   });
 
-  const { data: topCoins } = useQuery({
+  const { 
+    data: topCoins,
+    isLoading: isLoadingCoins,
+    error: coinsError,
+    refetch: refetchCoins
+  } = useQuery({
     queryKey: ['topCoins'],
     queryFn: fetchTopCoins,
-    refetchInterval: 300000
+    refetchInterval: 300000,
+    retry: 3
   });
 
   React.useEffect(() => {
-    if (marketData?.prices) {
+    if (marketData?.prices && marketData.prices.length > 0) {
       const prices = marketData.prices.map(price => price[1]);
-      const rsiValues = RSI.calculate({ values: prices, period: 14 });
-      setCurrentRSI(rsiValues[rsiValues.length - 1]);
+      try {
+        const rsiValues = RSI.calculate({ values: prices, period: 14 });
+        if (rsiValues && rsiValues.length > 0) {
+          setCurrentRSI(rsiValues[rsiValues.length - 1]);
+        }
+      } catch (err) {
+        console.error("Error calculating RSI:", err);
+      }
     }
   }, [marketData]);
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto p-4">
+  const handleRefresh = useCallback(() => {
+    refetchMarketData();
+    refetchCoins();
+    toast.success("Recarregando dados...");
+  }, [refetchMarketData, refetchCoins]);
+
+  const renderContent = () => {
+    if (isLoading) {
+      return (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -53,21 +80,74 @@ const AnalisesCompraVenda = () => {
         >
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </motion.div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (error) {
-    return (
-      <div className="container mx-auto p-4">
-        <Card className="bg-destructive/10">
+    if (error) {
+      return (
+        <Card className="bg-destructive/10 mb-6">
           <CardContent className="p-6">
-            <p className="text-destructive">Erro ao carregar dados: {error.message}</p>
+            <div className="text-center">
+              <p className="text-destructive mb-4">Erro ao carregar dados: {error.message}</p>
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2"
+                onClick={handleRefresh}
+              >
+                <RefreshCw className="h-4 w-4" />
+                Tentar Novamente
+              </Button>
+            </div>
           </CardContent>
         </Card>
-      </div>
+      );
+    }
+
+    const hasRsiData = marketData?.prices && marketData.prices.length > 14;
+
+    return (
+      <>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <motion.div 
+            className="lg:col-span-2"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Volume de Negociação</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <VolumeChart 
+                  marketData={marketData} 
+                  minVolume={minVolume} 
+                />
+              </CardContent>
+            </Card>
+          </motion.div>
+          
+          <motion.div 
+            className="space-y-4"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <EMAAnalysis 
+              marketData={marketData} 
+              coin={selectedCoin} 
+            />
+            {hasRsiData ? (
+              <RSIRecommendation rsiValue={currentRSI} />
+            ) : (
+              <RSIFallback onRetry={handleRefresh} />
+            )}
+            <MarketStats marketData={marketData} />
+          </motion.div>
+        </div>
+      </>
     );
-  }
+  };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -76,21 +156,39 @@ const AnalisesCompraVenda = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <h1 className="text-3xl font-bold mb-6">Análise de Compra e Venda</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Análise de Compra e Venda</h1>
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={handleRefresh}
+            title="Atualizar dados"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card className="p-4">
             <Label htmlFor="coin-select">Criptomoeda</Label>
-            <Select onValueChange={setSelectedCoin} defaultValue={selectedCoin}>
+            <Select 
+              onValueChange={setSelectedCoin} 
+              defaultValue={selectedCoin}
+              disabled={isLoadingCoins}
+            >
               <SelectTrigger id="coin-select" className="w-full">
                 <SelectValue placeholder="Selecione uma criptomoeda" />
               </SelectTrigger>
               <SelectContent>
-                {topCoins?.map(coin => (
-                  <SelectItem key={coin.id} value={coin.id}>
-                    {coin.name}
-                  </SelectItem>
-                ))}
+                {!topCoins || topCoins.length === 0 ? (
+                  <SelectItem value="bitcoin">Bitcoin</SelectItem>
+                ) : (
+                  topCoins.map(coin => (
+                    <SelectItem key={coin.id} value={coin.id}>
+                      {coin.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </Card>
@@ -105,6 +203,7 @@ const AnalisesCompraVenda = () => {
                 <SelectValue placeholder="Selecione um período" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="30">30 dias</SelectItem>
                 <SelectItem value="90">90 dias</SelectItem>
                 <SelectItem value="180">180 dias</SelectItem>
                 <SelectItem value="365">1 ano</SelectItem>
@@ -125,34 +224,7 @@ const AnalisesCompraVenda = () => {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <motion.div 
-            className="lg:col-span-2"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="h-full">
-              <CardHeader>
-                <CardTitle>Volume de Negociação</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <VolumeChart marketData={marketData} minVolume={minVolume} />
-              </CardContent>
-            </Card>
-          </motion.div>
-          
-          <motion.div 
-            className="space-y-4"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <EMAAnalysis marketData={marketData} coin={selectedCoin} />
-            <RSIRecommendation rsiValue={currentRSI} />
-            <MarketStats marketData={marketData} />
-          </motion.div>
-        </div>
+        {renderContent()}
       </motion.div>
     </div>
   );
