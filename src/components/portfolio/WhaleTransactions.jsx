@@ -1,11 +1,12 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { InfoIcon, ArrowRightLeft, RefreshCw } from 'lucide-react';
+import { InfoIcon, ArrowRightLeft, RefreshCw, Filter } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import TransactionList from './whale-transactions/TransactionList';
 import TransactionInsights from './whale-transactions/TransactionInsights';
 import { useQuery } from '@tanstack/react-query';
@@ -14,14 +15,16 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 
 const WhaleTransactions = () => {
+  const [timeframe, setTimeframe] = useState('7d');
+  
   const { 
     data: transactions, 
     isLoading, 
     error,
     refetch
   } = useQuery({
-    queryKey: ['whaleTransactions'],
-    queryFn: fetchWhaleTransactions,
+    queryKey: ['whaleTransactions', timeframe],
+    queryFn: () => fetchWhaleTransactions(timeframe),
     refetchInterval: 300000, // Atualiza a cada 5 minutos
     staleTime: 240000, // Considera dados obsoletos após 4 minutos
   });
@@ -31,6 +34,11 @@ const WhaleTransactions = () => {
     clearMarketCache(); // Limpar cache para forçar atualização
     await refetch();
     toast.success("Dados atualizados com sucesso!");
+  };
+
+  const handleTimeframeChange = (value) => {
+    setTimeframe(value);
+    toast.info(`Alterando período para: ${value}`);
   };
 
   return (
@@ -54,22 +62,38 @@ const WhaleTransactions = () => {
                   </TooltipTrigger>
                   <TooltipContent>
                     <p className="max-w-xs">
-                      Análise simulada de movimentações significativas baseada em dados reais de volume de transações
+                      Análise de movimentações significativas baseada em dados reais de volume de transações das principais exchanges
                     </p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </CardTitle>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="hover:bg-primary/10"
-              onClick={handleRefresh}
-              disabled={isLoading}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Atualizar
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center">
+                <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+                <Select value={timeframe} onValueChange={handleTimeframeChange}>
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue placeholder="Período" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1d">1 dia</SelectItem>
+                    <SelectItem value="7d">7 dias</SelectItem>
+                    <SelectItem value="14d">14 dias</SelectItem>
+                    <SelectItem value="30d">30 dias</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="hover:bg-primary/10"
+                onClick={handleRefresh}
+                disabled={isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                Atualizar
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>

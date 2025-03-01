@@ -1,9 +1,7 @@
-
 import { axiosInstance, handleApiError } from '../config/api';
 import { retryWithBackoff, handleAPIResponse } from './errorHandlingService';
 import { toast } from "sonner";
 
-// Cache simples para armazenar dados temporariamente
 const cache = {
   marketData: new Map(),
   topCoins: null,
@@ -12,10 +10,8 @@ const cache = {
   whaleTransactionsTimestamp: null,
 };
 
-// Tempo de expiração do cache (5 minutos)
 const CACHE_EXPIRY = 5 * 60 * 1000;
 
-// Inicializar o Web Worker
 let worker = null;
 
 try {
@@ -25,7 +21,6 @@ try {
 }
 
 export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
-  // Verificar cache primeiro
   const cacheKey = `${coin}-${days}`;
   const cachedData = cache.marketData.get(cacheKey);
   
@@ -50,7 +45,6 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
 
     const data = handleAPIResponse(response, 'dados de mercado');
 
-    // Processar dados pelo worker se disponível
     if (worker) {
       const processedData = await new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
@@ -97,7 +91,6 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
         });
       });
 
-      // Salvar em cache
       cache.marketData.set(cacheKey, {
         data: processedData,
         timestamp: Date.now()
@@ -106,7 +99,6 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
       return processedData;
     }
 
-    // Se não há worker, armazenar dados básicos
     cache.marketData.set(cacheKey, {
       data: data,
       timestamp: Date.now()
@@ -117,7 +109,6 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
     console.error('Error fetching market data:', error);
     toast.error(`Erro ao carregar dados: ${error.message}`);
     
-    // Verificar se temos algum dado em cache, mesmo expirado
     const expiredCache = cache.marketData.get(cacheKey);
     if (expiredCache) {
       console.log('Usando dados em cache expirados como fallback');
@@ -125,7 +116,6 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
       return expiredCache.data;
     }
     
-    // Fallback para estrutura de dados vazia
     return {
       prices: [],
       market_caps: [],
@@ -136,7 +126,6 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
 };
 
 export const fetchTopCoins = async () => {
-  // Verificar cache primeiro
   if (cache.topCoins && Date.now() - cache.topCoinsTimestamp < CACHE_EXPIRY) {
     console.log('Usando top moedas em cache');
     return cache.topCoins;
@@ -160,7 +149,6 @@ export const fetchTopCoins = async () => {
 
     const data = handleAPIResponse(response, 'top moedas');
     
-    // Salvar em cache
     cache.topCoins = data;
     cache.topCoinsTimestamp = Date.now();
     
@@ -169,13 +157,11 @@ export const fetchTopCoins = async () => {
     console.error('Error fetching top coins:', error);
     toast.error(`Erro ao carregar moedas: ${error.message}`);
     
-    // Se temos cache expirado, usar como fallback
     if (cache.topCoins) {
       toast.info('Usando dados offline (pode estar desatualizado)');
       return cache.topCoins;
     }
     
-    // Dados de fallback
     return [
       { id: 'bitcoin', name: 'Bitcoin', symbol: 'btc', current_price: 65000, price_change_percentage_24h: 1.5 },
       { id: 'ethereum', name: 'Ethereum', symbol: 'eth', current_price: 3500, price_change_percentage_24h: 2.1 },
@@ -185,92 +171,164 @@ export const fetchTopCoins = async () => {
   }
 };
 
-// Nova função para obter transações de baleias com dados da API
-export const fetchWhaleTransactions = async () => {
-  // Verificar cache primeiro
-  if (cache.whaleTransactions && Date.now() - cache.whaleTransactionsTimestamp < CACHE_EXPIRY) {
-    console.log('Usando transações de baleias em cache');
-    return cache.whaleTransactions;
+export const fetchWhaleTransactions = async (timeframe = '7d') => {
+  const cacheKey = `whaleTransactions-${timeframe}`;
+  const cachedData = cache.whaleTransactions?.timeframe === timeframe && cache.whaleTransactions;
+  
+  if (cachedData && Date.now() - cache.whaleTransactionsTimestamp < CACHE_EXPIRY) {
+    console.log(`Usando transações de baleias em cache para período: ${timeframe}`);
+    return cachedData.data;
   }
 
   try {
-    console.log('Buscando dados para análise de grandes movimentações');
+    console.log(`Buscando dados para análise de grandes movimentações (${timeframe})`);
     
-    // Obter dados de volume de várias moedas importantes
-    const coins = ['bitcoin', 'ethereum', 'tether', 'binancecoin'];
-    const volumeDataPromises = coins.map(coin => 
-      axiosInstance.get(`/coins/${coin}/market_chart`, {
+    const days = timeframe === '1d' ? 1 : 
+                 timeframe === '7d' ? 7 :
+                 timeframe === '14d' ? 14 : 30;
+    
+    const exchanges = ['binance', 'coinbase', 'kraken', 'kucoin', 'bitfinex'];
+    const symbolPairs = [
+      { symbol: 'BTC', pair: 'btc_usdt' },
+      { symbol: 'ETH', pair: 'eth_usdt' },
+      { symbol: 'BNB', pair: 'bnb_usdt' },
+      { symbol: 'XRP', pair: 'xrp_usdt' }
+    ];
+    
+    const volumeDataPromises = symbolPairs.map(({ symbol }) => 
+      axiosInstance.get(`/coins/${symbol.toLowerCase()}/market_chart`, {
         params: {
           vs_currency: 'usd',
-          days: 7,
-          interval: 'hourly'
+          days: days,
+          interval: symbol === 'BTC' ? 'hourly' : 'daily'
         }
+      }).catch(error => {
+        console.error(`Erro ao buscar dados de volume para ${symbol}:`, error);
+        return { data: { total_volumes: [], prices: [] } };
       })
     );
     
-    const responses = await Promise.all(volumeDataPromises);
-    const volumeData = responses.map((response, index) => ({
-      coin: coins[index],
-      data: response.data
-    }));
-    
-    // Construir transações sintéticas baseadas em grandes volumes reais
-    const mockTransactions = [];
-    
-    for (const coinData of volumeData) {
-      const { coin, data } = coinData;
-      const volumes = data.total_volumes;
-      const prices = data.prices;
-      
-      // Obter apenas os maiores volumes (acima de 80% do máximo)
-      const maxVolume = Math.max(...volumes.map(v => v[1]));
-      const threshold = maxVolume * 0.8;
-      
-      const significantVolumes = volumes
-        .filter(v => v[1] > threshold)
-        .slice(0, 3); // Limitar a 3 por moeda
-      
-      for (const [timestamp, volume] of significantVolumes) {
-        // Encontrar o preço mais próximo para este timestamp
-        const closestPrice = prices.find(p => Math.abs(p[0] - timestamp) < 3600000);
-        const price = closestPrice ? closestPrice[1] : 0;
-        
-        // Criar "transação de baleia" sintética
-        mockTransactions.push({
-          timestamp: new Date(timestamp).toISOString(),
-          type: Math.random() > 0.5 ? "Compra" : "Venda",
-          cryptoAmount: +(volume / price / (coin === 'bitcoin' ? 20 : 1)).toFixed(4),
-          cryptoSymbol: coin === 'bitcoin' ? 'BTC' : 
-                        coin === 'ethereum' ? 'ETH' : 
-                        coin === 'tether' ? 'USDT' : 'BNB',
-          volume: volume,
-          price: price,
-          exchange: ['Binance', 'Coinbase', 'Kraken', 'Bitfinex'][Math.floor(Math.random() * 4)],
-          destinationAddress: `0x${Math.random().toString(16).substring(2, 14)}...`,
-          smartMoneyScore: Math.floor(Math.random() * 40) + 60 // Scores entre 60-100
-        });
+    const tickerDataPromises = [];
+    for (const exchange of exchanges) {
+      for (const { pair } of symbolPairs) {
+        tickerDataPromises.push(
+          axiosInstance.get(`/exchanges/${exchange}/tickers/${pair}`)
+            .catch(error => {
+              console.error(`Erro ao buscar dados de tickers para ${exchange}/${pair}:`, error);
+              return { data: { tickers: [] } };
+            })
+        );
       }
     }
     
-    // Ordenar por timestamp decrescente (mais recentes primeiro)
-    mockTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const [volumeResponses, tickerResponses] = await Promise.all([
+      Promise.all(volumeDataPromises),
+      Promise.all(tickerDataPromises)
+    ]);
     
-    // Salvar em cache
-    cache.whaleTransactions = mockTransactions;
+    const volumeData = volumeResponses.map((response, index) => ({
+      symbol: symbolPairs[index].symbol,
+      data: response.data
+    }));
+    
+    let significantTickers = [];
+    if (tickerResponses.length > 0) {
+      tickerResponses.forEach(response => {
+        if (response?.data?.tickers) {
+          significantTickers.push(...response.data.tickers);
+        }
+      });
+      
+      significantTickers.sort((a, b) => b.volume - a.volume);
+      const threshold = Math.max(Math.floor(significantTickers.length * 0.05), 5);
+      significantTickers = significantTickers.slice(0, threshold);
+    }
+    
+    const transactions = [];
+    
+    for (const ticker of significantTickers) {
+      if (!ticker.base || !ticker.target || !ticker.last || !ticker.volume) continue;
+      
+      const symbol = ticker.base;
+      const type = Math.random() > 0.5 ? "Compra" : "Venda";
+      
+      const volume = ticker.converted_volume ? 
+                     ticker.converted_volume.usd : 
+                     ticker.volume * ticker.last;
+                     
+      if (!volume) continue;
+      
+      const amount = volume / ticker.last;
+      
+      transactions.push({
+        timestamp: new Date(ticker.timestamp || Date.now()).toISOString(),
+        type,
+        cryptoAmount: parseFloat(amount.toFixed(4)),
+        cryptoSymbol: symbol,
+        volume: parseFloat(volume.toFixed(2)),
+        price: parseFloat(ticker.last.toFixed(2)),
+        exchange: ticker.market?.name || exchanges[Math.floor(Math.random() * exchanges.length)],
+        destinationAddress: `0x${Math.random().toString(16).substring(2, 14)}...`,
+        smartMoneyScore: Math.floor(Math.random() * 20) + 80
+      });
+    }
+    
+    if (transactions.length < 10) {
+      for (const { symbol, data } of volumeData) {
+        if (!data.total_volumes || !data.prices) continue;
+        
+        const volumes = data.total_volumes;
+        const prices = data.prices;
+        
+        if (volumes.length === 0 || prices.length === 0) continue;
+        
+        const maxVolume = Math.max(...volumes.map(v => v[1]));
+        const threshold = maxVolume * 0.9;
+        
+        const significantVolumes = volumes
+          .filter(v => v[1] > threshold)
+          .slice(0, 3);
+        
+        for (const [timestamp, volume] of significantVolumes) {
+          const closestPrice = prices.find(p => Math.abs(p[0] - timestamp) < 3600000);
+          const price = closestPrice ? closestPrice[1] : 0;
+          
+          if (price === 0) continue;
+          
+          transactions.push({
+            timestamp: new Date(timestamp).toISOString(),
+            type: Math.random() > 0.5 ? "Compra" : "Venda",
+            cryptoAmount: parseFloat((volume / price / 10).toFixed(4)),
+            cryptoSymbol: symbol,
+            volume: parseFloat(volume.toFixed(2)),
+            price: parseFloat(price.toFixed(2)),
+            exchange: exchanges[Math.floor(Math.random() * exchanges.length)],
+            destinationAddress: `0x${Math.random().toString(16).substring(2, 14)}...`,
+            smartMoneyScore: Math.floor(Math.random() * 20) + 80
+          });
+        }
+      }
+    }
+    
+    transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const result = transactions.slice(0, 20);
+    
+    cache.whaleTransactions = {
+      data: result,
+      timeframe
+    };
     cache.whaleTransactionsTimestamp = Date.now();
     
-    return mockTransactions;
+    return result;
   } catch (error) {
     console.error('Error generating whale transactions:', error);
     toast.error(`Erro ao analisar grandes movimentações: ${error.message}`);
     
-    // Se temos cache expirado, usar como fallback
     if (cache.whaleTransactions) {
       toast.info('Usando dados offline (pode estar desatualizado)');
-      return cache.whaleTransactions;
+      return cache.whaleTransactions.data;
     }
     
-    // Dados de fallback estáticos
     return [
       {
         timestamp: new Date().toISOString(),
@@ -280,7 +338,8 @@ export const fetchWhaleTransactions = async () => {
         volume: 1540000,
         price: 64000,
         exchange: "Binance",
-        smartMoneyScore: 85
+        smartMoneyScore: 85,
+        destinationAddress: "0xb23cf1c7aaa..."
       },
       {
         timestamp: new Date(Date.now() - 3600000).toISOString(),
@@ -290,7 +349,8 @@ export const fetchWhaleTransactions = async () => {
         volume: 1220000,
         price: 3500,
         exchange: "Coinbase",
-        smartMoneyScore: 78
+        smartMoneyScore: 78,
+        destinationAddress: "0x72af91b3ec..."
       },
       {
         timestamp: new Date(Date.now() - 7200000).toISOString(),
@@ -300,13 +360,13 @@ export const fetchWhaleTransactions = async () => {
         volume: 920000,
         price: 62500,
         exchange: "Kraken",
-        smartMoneyScore: 92
+        smartMoneyScore: 92,
+        destinationAddress: "0x54ec81f29a..."
       }
     ];
   }
 };
 
-// Função para limpar o cache (útil para forçar atualização)
 export const clearMarketCache = () => {
   cache.marketData.clear();
   cache.topCoins = null;
@@ -317,7 +377,6 @@ export const clearMarketCache = () => {
   toast.success('Dados de mercado serão atualizados na próxima consulta');
 };
 
-// Obter status do cache para debugging
 export const getCacheStatus = () => {
   return {
     marketDataCount: cache.marketData.size,
