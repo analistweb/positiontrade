@@ -34,7 +34,7 @@ export const useRSIData = () => {
                 days: 14,
                 interval: 'daily'
               },
-              timeout: 5000
+              timeout: 10000 // Aumentar o timeout para 10 segundos
             }
           );
           
@@ -53,11 +53,15 @@ export const useRSIData = () => {
         }
       }
       
+      if (Object.keys(rsiData).length === 0) {
+        throw new Error("Não foi possível obter dados reais de RSI");
+      }
+      
       return rsiData;
     },
-    refetchInterval: 60000,
-    staleTime: 30000,
-    cacheTime: 60000 * 5,
+    refetchInterval: 300000, // 5 minutos
+    staleTime: 240000, // 4 minutos
+    cacheTime: 60000 * 5, // 5 minutos
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
   });

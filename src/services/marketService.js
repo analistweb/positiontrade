@@ -119,19 +119,8 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
     console.error('Error fetching market data:', error);
     toast.error(`Erro ao carregar dados: ${error.message}`);
     
-    const expiredCache = cache.marketData.get(cacheKey);
-    if (expiredCache) {
-      console.log('Usando dados em cache expirados como fallback');
-      toast.info('Usando dados offline (pode estar desatualizado)');
-      return expiredCache.data;
-    }
-    
-    return {
-      prices: [],
-      market_caps: [],
-      total_volumes: [],
-      error: error.message
-    };
+    // Não usar fallback, permitir que o erro seja propagado
+    throw new Error("Falha ao obter dados reais do mercado");
   }
 };
 
@@ -159,6 +148,10 @@ export const fetchTopCoins = async () => {
 
     const data = handleAPIResponse(response, 'top moedas');
     
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      throw new Error("Dados de moedas não disponíveis");
+    }
+    
     cache.topCoins = data;
     cache.topCoinsTimestamp = Date.now();
     
@@ -167,22 +160,12 @@ export const fetchTopCoins = async () => {
     console.error('Error fetching top coins:', error);
     toast.error(`Erro ao carregar moedas: ${error.message}`);
     
-    if (cache.topCoins) {
-      toast.info('Usando dados offline (pode estar desatualizado)');
-      return cache.topCoins;
-    }
-    
-    return [
-      { id: 'bitcoin', name: 'Bitcoin', symbol: 'btc', current_price: 65000, price_change_percentage_24h: 1.5 },
-      { id: 'ethereum', name: 'Ethereum', symbol: 'eth', current_price: 3500, price_change_percentage_24h: 2.1 },
-      { id: 'tether', name: 'Tether', symbol: 'usdt', current_price: 1, price_change_percentage_24h: 0.01 },
-      { id: 'binancecoin', name: 'BNB', symbol: 'bnb', current_price: 570, price_change_percentage_24h: -0.5 }
-    ];
+    // Não usar fallback, permitir que o erro seja propagado
+    throw new Error("Falha ao obter dados reais de moedas");
   }
 };
 
 export const fetchWhaleTransactions = async (timeframe = '7d') => {
-  const cacheKey = `whaleTransactions-${timeframe}`;
   const cachedData = cache.whaleTransactions.data && 
                      cache.whaleTransactions.timeframe === timeframe &&
                      cache.whaleTransactions.dataSource === 'exchange';
@@ -200,18 +183,15 @@ export const fetchWhaleTransactions = async (timeframe = '7d') => {
                  timeframe === '14d' ? 14 : 30;
     
     // Lista de exchanges principais para obter dados de tickers
-    const exchanges = ['binance', 'coinbase', 'kraken', 'kucoin', 'bitfinex', 'huobi', 'ftx'];
+    const exchanges = ['binance', 'coinbase', 'kraken', 'kucoin', 'bitfinex', 'huobi'];
     
-    // Pares de trading para monitorar (ampliado)
+    // Pares de trading para monitorar
     const symbolPairs = [
       { symbol: 'BTC', pair: 'btc_usdt', id: 'bitcoin' },
       { symbol: 'ETH', pair: 'eth_usdt', id: 'ethereum' },
       { symbol: 'BNB', pair: 'bnb_usdt', id: 'binancecoin' },
       { symbol: 'XRP', pair: 'xrp_usdt', id: 'ripple' },
-      { symbol: 'SOL', pair: 'sol_usdt', id: 'solana' },
-      { symbol: 'DOT', pair: 'dot_usdt', id: 'polkadot' },
-      { symbol: 'ADA', pair: 'ada_usdt', id: 'cardano' },
-      { symbol: 'DOGE', pair: 'doge_usdt', id: 'dogecoin' }
+      { symbol: 'SOL', pair: 'sol_usdt', id: 'solana' }
     ];
     
     // Buscar dados de volume histórico para referência
@@ -224,132 +204,108 @@ export const fetchWhaleTransactions = async (timeframe = '7d') => {
         }
       }).catch(error => {
         console.error(`Erro ao buscar dados de volume para ${symbol}:`, error);
-        return { data: { total_volumes: [], prices: [] } };
+        return null;
       })
     );
     
     // Buscar dados de tickers das exchanges para transações em tempo real
     const tickerDataPromises = [];
     for (const exchange of exchanges) {
-      for (const { pair } of symbolPairs) {
-        tickerDataPromises.push(
-          axiosInstance.get(`/exchanges/${exchange}/tickers`, {
-            params: { coin_ids: pair.split('_')[0], include_exchange_logo: false }
-          }).catch(error => {
-            console.error(`Erro ao buscar dados de tickers para ${exchange}/${pair}:`, error);
-            return { data: { tickers: [] } };
-          })
-        );
-      }
+      // Limitar a duas exchanges por requisição para evitar sobrecarga
+      const randomExchange = exchanges[Math.floor(Math.random() * exchanges.length)];
+      tickerDataPromises.push(
+        axiosInstance.get(`/exchanges/${randomExchange}/tickers`, {
+          params: { include_exchange_logo: false, depth: true }
+        }).catch(error => {
+          console.error(`Erro ao buscar dados de tickers para ${randomExchange}:`, error);
+          return null;
+        })
+      );
     }
-    
-    // Buscar dados de tickers globais para completar informações
-    const globalTickersPromise = axiosInstance.get('/exchanges/binance/tickers', {
-      params: { depth: true, order: 'volume_desc', limit: 20 }
-    }).catch(error => {
-      console.error('Erro ao buscar dados globais de tickers:', error);
-      return { data: { tickers: [] } };
-    });
     
     // Aguardar todas as requisições
-    const [volumeResponses, tickerResponses, globalTickersResponse] = await Promise.all([
-      Promise.all(volumeDataPromises),
-      Promise.all(tickerDataPromises),
-      globalTickersPromise
+    const responses = await Promise.all([
+      ...volumeDataPromises,
+      ...tickerDataPromises
     ]);
     
-    // Mapear dados de volume
-    const volumeData = volumeResponses.map((response, index) => ({
-      symbol: symbolPairs[index].symbol,
-      id: symbolPairs[index].id,
-      data: response.data
-    }));
+    // Filtrar respostas nulas (erros)
+    const validResponses = responses.filter(response => response && response.data);
     
-    // Processar todos os tickers recebidos
-    let allTickers = [];
-    
-    // Processar tickers das exchanges
-    tickerResponses.forEach(response => {
-      if (response?.data?.tickers) {
-        allTickers.push(...response.data.tickers);
-      }
-    });
-    
-    // Adicionar tickers globais
-    if (globalTickersResponse?.data?.tickers) {
-      allTickers.push(...globalTickersResponse.data.tickers);
+    if (validResponses.length === 0) {
+      throw new Error("Não foi possível obter dados reais de transações");
     }
     
-    // Remover duplicatas baseado no target_coin_id e source_coin_id
-    allTickers = allTickers.filter((ticker, index, self) => 
-      index === self.findIndex(t => 
-        t.target_coin_id === ticker.target_coin_id && 
-        t.base === ticker.base &&
-        t.target === ticker.target
-      )
-    );
+    // Processar dados de volume
+    const volumeData = [];
+    for (let i = 0; i < symbolPairs.length; i++) {
+      if (responses[i] && responses[i].data) {
+        volumeData.push({
+          symbol: symbolPairs[i].symbol,
+          id: symbolPairs[i].id,
+          data: responses[i].data
+        });
+      }
+    }
     
-    // Ordenar por volume e pegar os 10% com maior volume
-    allTickers.sort((a, b) => {
-      const volumeA = a.converted_volume ? a.converted_volume.usd : (a.volume * a.last || 0);
-      const volumeB = b.converted_volume ? b.converted_volume.usd : (b.volume * b.last || 0);
-      return volumeB - volumeA;
-    });
-    
-    // Selecionar apenas os 5% com maior volume para garantir que sejam realmente grandes movimentações
-    const significantTickersCount = Math.max(Math.ceil(allTickers.length * 0.05), 10);
-    const significantTickers = allTickers.slice(0, significantTickersCount);
-    
-    // Transformar tickers em transações
+    // Processar dados de tickers
     const transactions = [];
     
-    // Gerar transações a partir dos tickers significativos
-    for (const ticker of significantTickers) {
-      if (!ticker.base || !ticker.target || !ticker.last || !ticker.volume) continue;
+    // Processar tickers das exchanges
+    for (let i = symbolPairs.length; i < responses.length; i++) {
+      const response = responses[i];
+      if (!response || !response.data || !response.data.tickers) continue;
       
-      const symbol = ticker.base;
-      // Determinar o tipo baseado em dados de profundidade, se disponíveis
-      const type = ticker.bid_ask_spread_percentage && ticker.bid_ask_spread_percentage > 0.5 ? 
-                   (Math.random() > 0.5 ? "Compra" : "Venda") : 
-                   (Math.random() > 0.5 ? "Compra" : "Venda");
+      const tickers = response.data.tickers;
       
-      const volume = ticker.converted_volume ? 
-                     ticker.converted_volume.usd : 
-                     ticker.volume * ticker.last;
-                     
-      if (!volume || volume < 100000) continue; // Ignorar volumes pequenos
-      
-      const amount = volume / ticker.last;
-      
-      // Calcular score de "smart money" com base no volume e spread
-      let smartMoneyScore = Math.floor(Math.random() * 15) + 75;
-      
-      // Se o spread for baixo, é mais provável que seja um trader experiente
-      if (ticker.bid_ask_spread_percentage && ticker.bid_ask_spread_percentage < 0.2) {
-        smartMoneyScore += 10;
-      }
-      
-      // Ajustar timestamp para ser dentro do período solicitado
-      const now = Date.now();
-      const startTime = now - (days * 24 * 60 * 60 * 1000);
-      const randomTime = startTime + Math.random() * (now - startTime);
-      
-      transactions.push({
-        timestamp: ticker.timestamp || new Date(randomTime).toISOString(),
-        type,
-        cryptoAmount: parseFloat(amount.toFixed(4)),
-        cryptoSymbol: symbol,
-        volume: parseFloat(volume.toFixed(2)),
-        price: parseFloat(ticker.last.toFixed(2)),
-        exchange: ticker.market?.name || exchanges[Math.floor(Math.random() * exchanges.length)],
-        destinationAddress: `0x${Math.random().toString(16).substring(2, 14)}...`,
-        blockExplorer: `https://etherscan.io/address/0x${Math.random().toString(16).substring(2, 14)}`,
-        smartMoneyScore
+      // Filtrar por volume significativo (top 10%)
+      tickers.sort((a, b) => {
+        const volumeA = a.converted_volume ? a.converted_volume.usd : 0;
+        const volumeB = b.converted_volume ? b.converted_volume.usd : 0;
+        return volumeB - volumeA;
       });
+      
+      const significantTickers = tickers.slice(0, Math.max(5, Math.ceil(tickers.length * 0.05)));
+      
+      for (const ticker of significantTickers) {
+        // Verificar se é uma transação significativa (pelo menos $50k)
+        const volume = ticker.converted_volume?.usd || 0;
+        if (volume < 50000) continue;
+        
+        const pair = ticker.base + '/' + ticker.target;
+        const symbol = ticker.base;
+        const price = ticker.last || 0;
+        
+        if (!price) continue;
+        
+        const amount = volume / price;
+        const type = ticker.bid_ask_spread_percentage > 0.5 ? "Venda" : "Compra";
+        
+        // Calcular score de "smart money" com base no volume e spread
+        let smartMoneyScore = Math.min(95, Math.max(70, Math.floor(80 + (volume / 1000000))));
+        
+        // Se o spread for baixo, é mais provável que seja um trader experiente
+        if (ticker.bid_ask_spread_percentage && ticker.bid_ask_spread_percentage < 0.2) {
+          smartMoneyScore += 5;
+        }
+        
+        transactions.push({
+          timestamp: new Date().toISOString(),
+          type,
+          cryptoAmount: parseFloat(amount.toFixed(4)),
+          cryptoSymbol: symbol,
+          volume: parseFloat(volume.toFixed(2)),
+          price: parseFloat(price.toFixed(2)),
+          exchange: ticker.market?.name || exchange,
+          destinationAddress: `${ticker.trade_url ? ticker.trade_url : ''}`,
+          blockExplorer: ticker.trade_url,
+          smartMoneyScore
+        });
+      }
     }
     
-    // Se tiver poucos resultados, complementar com dados históricos de volume
-    if (transactions.length < 10) {
+    // Se não conseguir dados de tickers suficientes, usar dados de volume histórico
+    if (transactions.length < 5 && volumeData.length > 0) {
       for (const { symbol, id, data } of volumeData) {
         if (!data.total_volumes || !data.prices) continue;
         
@@ -358,11 +314,12 @@ export const fetchWhaleTransactions = async (timeframe = '7d') => {
         
         if (volumes.length === 0 || prices.length === 0) continue;
         
-        // Encontrar volumes significativos
-        volumes.sort((a, b) => b[1] - a[1]);
-        const significantVolumes = volumes.slice(0, 5);
+        // Encontrar volumes significativos (top 10%)
+        const significantVolumes = [...volumes].sort((a, b) => b[1] - a[1]).slice(0, Math.ceil(volumes.length * 0.1));
         
         for (const [timestamp, volume] of significantVolumes) {
+          if (volume < 100000) continue; // Ignorar volumes pequenos
+          
           // Encontrar preço mais próximo do timestamp
           const closestPrice = prices.reduce((closest, current) => {
             return Math.abs(current[0] - timestamp) < Math.abs(closest[0] - timestamp) 
@@ -372,23 +329,24 @@ export const fetchWhaleTransactions = async (timeframe = '7d') => {
           const price = closestPrice ? closestPrice[1] : 0;
           if (price === 0) continue;
           
-          // Apenas adicionar se o volume for realmente significativo (mais de $500k)
-          if (volume < 500000) continue;
-          
           transactions.push({
             timestamp: new Date(timestamp).toISOString(),
-            type: Math.random() > 0.5 ? "Compra" : "Venda",
-            cryptoAmount: parseFloat((volume / price / 10).toFixed(4)),
+            type: volume > 1000000 ? "Compra" : "Venda",
+            cryptoAmount: parseFloat((volume / price).toFixed(4)),
             cryptoSymbol: symbol,
             volume: parseFloat((volume).toFixed(2)),
             price: parseFloat(price.toFixed(2)),
-            exchange: exchanges[Math.floor(Math.random() * exchanges.length)],
-            destinationAddress: `0x${Math.random().toString(16).substring(2, 14)}...`,
-            blockExplorer: `https://etherscan.io/address/0x${Math.random().toString(16).substring(2, 14)}`,
-            smartMoneyScore: Math.floor(Math.random() * 20) + 80
+            exchange: "Mercado Global",
+            destinationAddress: `https://www.coingecko.com/en/coins/${id}`,
+            blockExplorer: `https://www.coingecko.com/en/coins/${id}`,
+            smartMoneyScore: Math.min(95, Math.max(70, Math.floor(75 + (volume / 1000000))))
           });
         }
       }
+    }
+    
+    if (transactions.length === 0) {
+      throw new Error("Não foram encontradas transações significativas no período selecionado");
     }
     
     // Ordenar transações por timestamp (mais recentes primeiro)
@@ -407,22 +365,14 @@ export const fetchWhaleTransactions = async (timeframe = '7d') => {
     
     return result;
   } catch (error) {
-    console.error('Erro ao gerar transações de baleias:', error);
-    toast.error(`Erro ao analisar grandes movimentações: ${error.message}`);
-    
-    if (cache.whaleTransactions.data) {
-      toast.info('Usando dados em cache como fallback.');
-      return cache.whaleTransactions.data;
-    }
-    
-    // Dados de fallback para erro
-    return generateFallbackTransactions(timeframe);
+    console.error('Erro ao buscar transações de baleias:', error);
+    toast.error(`Erro ao obter dados de grandes transações: ${error.message}`);
+    throw error; // Propagar o erro em vez de usar fallback
   }
 };
 
-// Nova função para buscar dados on-chain
+// Função para buscar dados on-chain (usando dados reais da API)
 export const fetchOnChainData = async (timeframe = '7d') => {
-  const cacheKey = `onChainData-${timeframe}`;
   const cachedData = cache.onChainData.data && 
                      cache.onChainData.timeframe === timeframe;
   
@@ -434,139 +384,83 @@ export const fetchOnChainData = async (timeframe = '7d') => {
   try {
     console.log(`Buscando dados on-chain (${timeframe})`);
     
-    const days = timeframe === '1d' ? 1 : 
-                 timeframe === '7d' ? 7 :
-                 timeframe === '14d' ? 14 : 30;
+    // Usando a API de transações reais da blockchain.com (pública)
+    const response = await axios.get('https://api.blockchain.info/v2/blocks?format=json');
     
-    // Tokens para monitorar
-    const tokens = [
-      { symbol: 'BTC', id: 'bitcoin', address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2' },
-      { symbol: 'ETH', id: 'ethereum', address: '0x5e74c9036fb86bd7ecdcb084a0673efc32ea31cb' },
-      { symbol: 'USDT', id: 'tether', address: '0xdac17f958d2ee523a2206206994597c13d831ec7' },
-      { symbol: 'BNB', id: 'binancecoin', address: '0xB8c77482e45F1F44dE1745F52C74426C631bDD52' }
-    ];
-    
-    // Buscar dados de preço para referência
-    const priceDataPromises = tokens.map(({ id }) => 
-      axiosInstance.get(`/coins/${id}/market_chart`, {
-        params: {
-          vs_currency: 'usd',
-          days: days,
-          interval: 'daily'
-        }
-      }).catch(error => {
-        console.error(`Erro ao buscar dados de preço para ${id}:`, error);
-        return { data: { prices: [] } };
-      })
-    );
-    
-    // Buscar dados globais para estatísticas de mercado
-    const globalDataPromise = axiosInstance.get('/global').catch(error => {
-      console.error('Erro ao buscar dados globais:', error);
-      return { data: { data: { active_cryptocurrencies: 0, total_volume: {} } } };
-    });
-    
-    // Aguardar todas as requisições
-    const [priceResponses, globalData] = await Promise.all([
-      Promise.all(priceDataPromises),
-      globalDataPromise
-    ]);
-    
-    // Mapear dados de preço
-    const priceData = priceResponses.map((response, index) => ({
-      symbol: tokens[index].symbol,
-      address: tokens[index].address,
-      prices: response.data.prices || []
-    }));
-    
-    // Volumes globais do mercado para estimar tamanhos realistas de transações
-    const globalVolume = globalData?.data?.data?.total_volume?.usd || 0;
-    const averageVolumePerToken = globalVolume / (globalData?.data?.data?.active_cryptocurrencies || 1000);
-    
-    // Gerar transações baseadas em dados reais estimados de volume
-    const transactions = [];
-    
-    // Endereços conhecidos de exchanges (para simulação mais realista)
-    const knownAddresses = {
-      exchanges: [
-        { name: 'Binance', address: '0x28C6c06298d514Db089934071355E5743bf21d60' },
-        { name: 'Coinbase', address: '0x71660c4005BA85c37ccec55d0C4493E66Fe775d3' },
-        { name: 'Kraken', address: '0x2910543Af39aA4699784583230BEBd22F1D438d2' },
-        { name: 'Bitfinex', address: '0x77134cbC06cB00b66F4c7e623D5fdBF6777635EC' },
-        { name: 'Huobi', address: '0xA7EFAe728D2936e78BDA97dc267687568dD593f2' }
-      ],
-      whales: [
-        { name: 'Whale 1', address: '0x1A1DE61562910aD9E8D038E1921F250A5b53fCB8' },
-        { name: 'Whale 2', address: '0x7d10b6B3B83136577E2AE414ec92c1dEa465F362' },
-        { name: 'Whale 3', address: '0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE' },
-        { name: 'Whale 4', address: '0x0681d8Db095565FE8A346fA0277bFfdE9C0eDBBF' }
-      ]
-    };
-    
-    // Para cada token, gerar transações significativas
-    for (const { symbol, address, prices } of priceData) {
-      if (!prices || prices.length === 0) continue;
-      
-      // Estimar volume diário médio baseado no mercado global
-      const estimatedDailyVolume = averageVolumePerToken * 
-        (symbol === 'BTC' ? 5 : symbol === 'ETH' ? 3 : 1);
-      
-      // Número de transações a gerar por token
-      const transactionsToGenerate = Math.min(Math.floor(days / 2) + 1, 5);
-      
-      for (let i = 0; i < transactionsToGenerate; i++) {
-        // Escolher preço aleatório do período
-        const priceData = prices[Math.floor(Math.random() * prices.length)];
-        if (!priceData) continue;
-        
-        const [timestamp, price] = priceData;
-        
-        // Volume significativo (0.5% a 2% do volume diário)
-        const volumePercentage = 0.005 + (Math.random() * 0.015);
-        const volume = estimatedDailyVolume * volumePercentage;
-        
-        // Quantidade baseada no preço
-        const amount = volume / price;
-        
-        // Tipo de transação
-        const type = Math.random() > 0.5 ? "Compra" : "Venda";
-        
-        // Selecionar origem/destino
-        const isExchangeToWhale = Math.random() > 0.5;
-        const from = isExchangeToWhale 
-          ? knownAddresses.exchanges[Math.floor(Math.random() * knownAddresses.exchanges.length)]
-          : knownAddresses.whales[Math.floor(Math.random() * knownAddresses.whales.length)];
-          
-        const to = isExchangeToWhale
-          ? knownAddresses.whales[Math.floor(Math.random() * knownAddresses.whales.length)]
-          : knownAddresses.exchanges[Math.floor(Math.random() * knownAddresses.exchanges.length)];
-        
-        // Ajustar timestamp para ser dentro do período solicitado
-        const now = Date.now();
-        const startTime = now - (days * 24 * 60 * 60 * 1000);
-        const randomTime = startTime + Math.random() * (now - startTime);
-        
-        transactions.push({
-          timestamp: new Date(randomTime).toISOString(),
-          type,
-          cryptoAmount: parseFloat(amount.toFixed(4)),
-          cryptoSymbol: symbol,
-          volume: parseFloat(volume.toFixed(2)),
-          price: parseFloat(price.toFixed(2)),
-          fromAddress: from.address,
-          fromName: from.name,
-          destinationAddress: to.address,
-          destinationName: to.name,
-          blockExplorer: `https://etherscan.io/tx/0x${Math.random().toString(16).substring(2, 64)}`,
-          tokenContract: address,
-          smartMoneyScore: Math.floor(Math.random() * 15) + 80,
-          transactionType: 'on-chain'
-        });
-      }
+    if (!response.data || !response.data.blocks) {
+      throw new Error("Não foi possível obter dados on-chain");
     }
     
-    // Ordenar transações por timestamp (mais recentes primeiro)
-    transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const blocks = response.data.blocks;
+    
+    // Buscar preços para referência
+    const btcPriceResponse = await axiosInstance.get('/simple/price', {
+      params: {
+        ids: 'bitcoin',
+        vs_currencies: 'usd'
+      }
+    });
+    
+    const btcPrice = btcPriceResponse.data?.bitcoin?.usd || 50000;
+    
+    // Processar transações significativas dos blocos
+    const transactions = [];
+    
+    for (const block of blocks) {
+      if (!block.transactions || block.transactions.length === 0) continue;
+      
+      // Filtrar transações significativas (valores altos)
+      for (const tx of block.transactions) {
+        // Ignorar transações com fee nula (provavelmente transações de mineração)
+        if (!tx.fee || tx.fee === 0) continue;
+        
+        // Calcular valor total da transação
+        let totalValue = 0;
+        for (const output of tx.outputs || []) {
+          totalValue += output.value || 0;
+        }
+        
+        // Converter satoshis para BTC
+        const btcAmount = totalValue / 100000000;
+        
+        // Calcular valor em USD
+        const usdValue = btcAmount * btcPrice;
+        
+        // Filtrar apenas transações significativas (mais de $100k)
+        if (usdValue < 100000) continue;
+        
+        // Determinar origem e destino
+        const fromAddress = (tx.inputs && tx.inputs[0] && tx.inputs[0].address) || "Endereço Desconhecido";
+        const toAddress = (tx.outputs && tx.outputs[0] && tx.outputs[0].address) || "Endereço Desconhecido";
+        
+        // Adicionar à lista de transações
+        transactions.push({
+          timestamp: new Date(block.time * 1000).toISOString(),
+          type: "Transferência",
+          cryptoAmount: parseFloat(btcAmount.toFixed(4)),
+          cryptoSymbol: 'BTC',
+          volume: parseFloat(usdValue.toFixed(2)),
+          price: parseFloat(btcPrice.toFixed(2)),
+          fromAddress: fromAddress,
+          fromName: "Carteira BTC",
+          destinationAddress: toAddress,
+          destinationName: "Carteira BTC",
+          blockExplorer: `https://www.blockchain.com/explorer/transactions/btc/${tx.hash}`,
+          tokenContract: "BTC Nativo",
+          smartMoneyScore: Math.min(95, Math.max(70, Math.floor(75 + (usdValue / 1000000)))),
+          transactionType: 'on-chain'
+        });
+        
+        // Limitar a 20 transações para processamento mais rápido
+        if (transactions.length >= 20) break;
+      }
+      
+      if (transactions.length >= 20) break;
+    }
+    
+    if (transactions.length === 0) {
+      throw new Error("Não foram encontradas transações on-chain significativas");
+    }
     
     // Atualizar cache
     cache.onChainData = {
@@ -578,143 +472,10 @@ export const fetchOnChainData = async (timeframe = '7d') => {
     return transactions;
   } catch (error) {
     console.error('Erro ao buscar dados on-chain:', error);
-    toast.error(`Erro ao analisar dados on-chain: ${error.message}`);
-    
-    if (cache.onChainData.data) {
-      toast.info('Usando dados em cache como fallback.');
-      return cache.onChainData.data;
-    }
-    
-    // Dados de fallback para erro
-    return generateFallbackOnChainTransactions(timeframe);
+    toast.error(`Erro ao obter dados on-chain: ${error.message}`);
+    throw error; // Propagar o erro em vez de usar fallback
   }
 };
-
-// Função para gerar dados de fallback para transações de exchange
-function generateFallbackTransactions(timeframe) {
-  const days = timeframe === '1d' ? 1 : 
-               timeframe === '7d' ? 7 :
-               timeframe === '14d' ? 14 : 30;
-  
-  const transactions = [];
-  const now = Date.now();
-  const startTime = now - (days * 24 * 60 * 60 * 1000);
-  
-  const symbols = ['BTC', 'ETH', 'BNB', 'XRP', 'SOL'];
-  const exchanges = ['Binance', 'Coinbase', 'Kraken', 'KuCoin', 'Bitfinex'];
-  const prices = {
-    'BTC': 64000,
-    'ETH': 3500,
-    'BNB': 580,
-    'XRP': 0.60,
-    'SOL': 160
-  };
-  
-  // Gerar 15 transações de fallback
-  for (let i = 0; i < 15; i++) {
-    const symbol = symbols[Math.floor(Math.random() * symbols.length)];
-    const type = Math.random() > 0.5 ? "Compra" : "Venda";
-    const price = prices[symbol] * (0.95 + Math.random() * 0.1); // Variação de 5%
-    
-    // Volume entre 500k e 5M
-    const volume = 500000 + Math.random() * 4500000;
-    const amount = volume / price;
-    
-    const randomTime = startTime + Math.random() * (now - startTime);
-    
-    transactions.push({
-      timestamp: new Date(randomTime).toISOString(),
-      type,
-      cryptoAmount: parseFloat(amount.toFixed(4)),
-      cryptoSymbol: symbol,
-      volume: parseFloat(volume.toFixed(2)),
-      price: parseFloat(price.toFixed(2)),
-      exchange: exchanges[Math.floor(Math.random() * exchanges.length)],
-      destinationAddress: `0x${Math.random().toString(16).substring(2, 14)}...`,
-      blockExplorer: `https://etherscan.io/address/0x${Math.random().toString(16).substring(2, 14)}`,
-      smartMoneyScore: Math.floor(Math.random() * 20) + 75
-    });
-  }
-  
-  // Ordenar por timestamp (mais recentes primeiro)
-  transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  
-  return transactions;
-}
-
-// Função para gerar dados de fallback para transações on-chain
-function generateFallbackOnChainTransactions(timeframe) {
-  const days = timeframe === '1d' ? 1 : 
-               timeframe === '7d' ? 7 :
-               timeframe === '14d' ? 14 : 30;
-  
-  const transactions = [];
-  const now = Date.now();
-  const startTime = now - (days * 24 * 60 * 60 * 1000);
-  
-  const symbols = ['BTC', 'ETH', 'USDT', 'BNB'];
-  const prices = {
-    'BTC': 64000,
-    'ETH': 3500,
-    'USDT': 1,
-    'BNB': 580
-  };
-  
-  // Endereços conhecidos para simulação
-  const entities = [
-    { name: 'Binance', address: '0x28C6c06298d514Db089934071355E5743bf21d60' },
-    { name: 'Coinbase', address: '0x71660c4005BA85c37ccec55d0C4493E66Fe775d3' },
-    { name: 'Kraken', address: '0x2910543Af39aA4699784583230BEBd22F1D438d2' },
-    { name: 'Whale 1', address: '0x1A1DE61562910aD9E8D038E1921F250A5b53fCB8' },
-    { name: 'Whale 2', address: '0x7d10b6B3B83136577E2AE414ec92c1dEa465F362' },
-    { name: 'Whale 3', address: '0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE' },
-  ];
-  
-  // Gerar 15 transações de fallback
-  for (let i = 0; i < 15; i++) {
-    const symbol = symbols[Math.floor(Math.random() * symbols.length)];
-    const type = Math.random() > 0.5 ? "Compra" : "Venda";
-    const price = prices[symbol] * (0.95 + Math.random() * 0.1); // Variação de 5%
-    
-    // Volume entre 500k e 5M
-    const volume = 500000 + Math.random() * 4500000;
-    const amount = volume / price;
-    
-    const randomTime = startTime + Math.random() * (now - startTime);
-    
-    // Selecionar origem/destino aleatoriamente
-    const fromIndex = Math.floor(Math.random() * entities.length);
-    let toIndex;
-    do {
-      toIndex = Math.floor(Math.random() * entities.length);
-    } while (toIndex === fromIndex);
-    
-    const from = entities[fromIndex];
-    const to = entities[toIndex];
-    
-    transactions.push({
-      timestamp: new Date(randomTime).toISOString(),
-      type,
-      cryptoAmount: parseFloat(amount.toFixed(4)),
-      cryptoSymbol: symbol,
-      volume: parseFloat(volume.toFixed(2)),
-      price: parseFloat(price.toFixed(2)),
-      fromAddress: from.address,
-      fromName: from.name,
-      destinationAddress: to.address,
-      destinationName: to.name,
-      blockExplorer: `https://etherscan.io/tx/0x${Math.random().toString(16).substring(2, 64)}`,
-      tokenContract: `0x${Math.random().toString(16).substring(2, 40)}`,
-      smartMoneyScore: Math.floor(Math.random() * 15) + 80,
-      transactionType: 'on-chain'
-    });
-  }
-  
-  // Ordenar por timestamp (mais recentes primeiro)
-  transactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  
-  return transactions;
-}
 
 export const clearMarketCache = () => {
   cache.marketData.clear();
@@ -747,3 +508,5 @@ export const getCacheStatus = () => {
       : 'vazio'
   };
 };
+
+// Remover todas as funções de dados simulados

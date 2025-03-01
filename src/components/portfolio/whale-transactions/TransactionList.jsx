@@ -5,7 +5,8 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import TransactionRow from './TransactionRow';
 import TransactionSkeleton from './TransactionSkeleton';
 import { toast } from "sonner";
-import { ExternalLink } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 const TransactionList = ({ transactions, isLoading, error, dataSource = 'exchange' }) => {
   const parentRef = React.useRef(null);
@@ -22,7 +23,7 @@ const TransactionList = ({ transactions, isLoading, error, dataSource = 'exchang
   React.useEffect(() => {
     if (error) {
       toast.error("Erro ao carregar transações", {
-        description: "Tente novamente mais tarde"
+        description: "Não foi possível obter dados reais. Tente novamente mais tarde."
       });
     }
   }, [error]);
@@ -51,6 +52,20 @@ const TransactionList = ({ transactions, isLoading, error, dataSource = 'exchang
             <TransactionSkeleton />
           </TableBody>
         </Table>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mb-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Erro ao obter dados reais</AlertTitle>
+          <AlertDescription>
+            Não foi possível conectar à API. Verifique sua conexão ou tente novamente mais tarde.
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
