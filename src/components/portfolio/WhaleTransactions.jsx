@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { InfoIcon, ArrowRightLeft, RefreshCw, Filter } from 'lucide-react';
+import { InfoIcon, ArrowRightLeft, RefreshCw, Filter, AlertTriangle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,13 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import TransactionList from './whale-transactions/TransactionList';
 import TransactionInsights from './whale-transactions/TransactionInsights';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from '@tanstack/react-query';
-import { fetchWhaleTransactions, clearMarketCache } from '@/services/marketService';
+import { fetchWhaleTransactions, clearMarketCache, fetchOnChainData } from '@/services/marketService';
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 
 const WhaleTransactions = () => {
   const [timeframe, setTimeframe] = useState('7d');
+  const [dataSource, setDataSource] = useState('exchange'); // 'exchange' ou 'onchain'
   
   const { 
     data: transactions, 
@@ -23,8 +25,10 @@ const WhaleTransactions = () => {
     error,
     refetch
   } = useQuery({
-    queryKey: ['whaleTransactions', timeframe],
-    queryFn: () => fetchWhaleTransactions(timeframe),
+    queryKey: ['whaleTransactions', timeframe, dataSource],
+    queryFn: () => dataSource === 'exchange' 
+      ? fetchWhaleTransactions(timeframe)
+      : fetchOnChainData(timeframe),
     refetchInterval: 300000, // Atualiza a cada 5 minutos
     staleTime: 240000, // Considera dados obsoletos após 4 minutos
   });
@@ -40,6 +44,24 @@ const WhaleTransactions = () => {
     setTimeframe(value);
     toast.info(`Alterando período para: ${value}`);
   };
+
+  const handleDataSourceChange = (value) => {
+    setDataSource(value);
+    toast.info(`Alterando fonte de dados para: ${value === 'exchange' ? 'Exchanges' : 'On-chain'}`);
+  };
+
+  // Adicionar informação de proxy quando houver erro de conexão
+  useEffect(() => {
+    if (error && error.message?.includes('Network Error')) {
+      toast.error(
+        "Erro de conexão ao obter dados. Usando cache local.", 
+        { 
+          description: "As APIs públicas podem ter limites de requisição.",
+          duration: 5000
+        }
+      );
+    }
+  }, [error]);
 
   return (
     <motion.div
@@ -62,7 +84,7 @@ const WhaleTransactions = () => {
                   </TooltipTrigger>
                   <TooltipContent>
                     <p className="max-w-xs">
-                      Análise de movimentações significativas baseada em dados reais de volume de transações das principais exchanges
+                      Análise de movimentações significativas baseada em dados reais de volume de transações das principais exchanges e dados on-chain
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -83,6 +105,17 @@ const WhaleTransactions = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex items-center ml-2">
+                <Select value={dataSource} onValueChange={handleDataSourceChange}>
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue placeholder="Fonte de dados" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="exchange">Exchanges</SelectItem>
+                    <SelectItem value="onchain">On-chain</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -97,6 +130,15 @@ const WhaleTransactions = () => {
           </div>
         </CardHeader>
         <CardContent>
+          {dataSource === 'onchain' && (
+            <Alert className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Os dados on-chain são obtidos de fontes públicas e podem não representar todas as transações em tempo real.
+              </AlertDescription>
+            </Alert>
+          )}
+        
           <Tabs defaultValue="transactions" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="transactions">Transações</TabsTrigger>
@@ -108,11 +150,15 @@ const WhaleTransactions = () => {
                 transactions={transactions} 
                 isLoading={isLoading}
                 error={error}
+                dataSource={dataSource}
               />
             </TabsContent>
 
             <TabsContent value="insights">
-              <TransactionInsights transactions={transactions} />
+              <TransactionInsights 
+                transactions={transactions} 
+                dataSource={dataSource}
+              />
             </TabsContent>
           </Tabs>
         </CardContent>

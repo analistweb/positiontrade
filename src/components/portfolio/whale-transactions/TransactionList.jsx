@@ -5,8 +5,9 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import TransactionRow from './TransactionRow';
 import TransactionSkeleton from './TransactionSkeleton';
 import { toast } from "sonner";
+import { ExternalLink } from 'lucide-react';
 
-const TransactionList = ({ transactions, isLoading, error }) => {
+const TransactionList = ({ transactions, isLoading, error, dataSource = 'exchange' }) => {
   const parentRef = React.useRef(null);
   
   // Configuração do virtualizador
@@ -35,7 +36,14 @@ const TransactionList = ({ transactions, isLoading, error }) => {
               <TableHead>Horário</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Detalhes</TableHead>
-              <TableHead>Destino</TableHead>
+              {dataSource === 'onchain' ? (
+                <>
+                  <TableHead>De</TableHead>
+                  <TableHead>Para</TableHead>
+                </>
+              ) : (
+                <TableHead>Destino</TableHead>
+              )}
               <TableHead>Smart Money Score</TableHead>
             </TableRow>
           </TableHeader>
@@ -56,13 +64,20 @@ const TransactionList = ({ transactions, isLoading, error }) => {
               <TableHead>Horário</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Detalhes</TableHead>
-              <TableHead>Destino</TableHead>
+              {dataSource === 'onchain' ? (
+                <>
+                  <TableHead>De</TableHead>
+                  <TableHead>Para</TableHead>
+                </>
+              ) : (
+                <TableHead>Destino</TableHead>
+              )}
               <TableHead>Smart Money Score</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow>
-              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={dataSource === 'onchain' ? 6 : 5} className="text-center py-8 text-muted-foreground">
                 Nenhuma transação encontrada
               </TableCell>
             </TableRow>
@@ -80,16 +95,24 @@ const TransactionList = ({ transactions, isLoading, error }) => {
             <TableHead>Horário</TableHead>
             <TableHead>Tipo</TableHead>
             <TableHead>Detalhes</TableHead>
-            <TableHead>Destino</TableHead>
+            {dataSource === 'onchain' ? (
+              <>
+                <TableHead>De</TableHead>
+                <TableHead>Para</TableHead>
+              </>
+            ) : (
+              <TableHead>Destino</TableHead>
+            )}
             <TableHead>Smart Money Score</TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody ref={parentRef} className="relative" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+        <TableBody ref={parentRef} className="relative min-h-[400px]" style={{ height: `${Math.max(rowVirtualizer.getTotalSize(), 400)}px` }}>
           {rowVirtualizer.getVirtualItems().map((virtualRow) => (
             <TransactionRow
               key={virtualRow.key}
               transaction={transactions[virtualRow.index]}
               index={virtualRow.index}
+              dataSource={dataSource}
               style={{
                 position: 'absolute',
                 top: 0,
