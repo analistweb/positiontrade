@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchPortfolioData, fetchWhaleTransactions } from '../services/cryptoService';
+import { fetchPortfolioData } from '../services/cryptoService';
+import { fetchWhaleTransactions, clearMarketCache } from '../services/marketService';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import PortfolioOverview from '../components/portfolio/PortfolioOverview';
@@ -22,7 +23,9 @@ const PosicaoCarteira = () => {
   } = useQuery({
     queryKey: ['portfolio'],
     queryFn: fetchPortfolioData,
-    refetchInterval: 30000,
+    refetchInterval: 300000, // Atualiza a cada 5 minutos
+    staleTime: 240000, // Considera dados obsoletos após 4 minutos
+    retry: 3,
     onError: (error) => {
       toast({
         title: "Erro ao carregar portfólio",
@@ -33,14 +36,13 @@ const PosicaoCarteira = () => {
   });
 
   const { 
-    data: whaleData, 
-    isLoading: whaleLoading, 
-    error: whaleError,
     refetch: refetchWhale 
   } = useQuery({
     queryKey: ['whaleTransactions'],
     queryFn: fetchWhaleTransactions,
-    refetchInterval: 30000,
+    refetchInterval: 300000, // Atualiza a cada 5 minutos
+    staleTime: 240000, // Considera dados obsoletos após 4 minutos
+    retry: 3,
     onError: (error) => {
       toast({
         title: "Erro ao carregar transações",
@@ -57,7 +59,10 @@ const PosicaoCarteira = () => {
     });
     
     try {
+      // Limpar cache para forçar atualização
+      clearMarketCache();
       await Promise.all([refetchPortfolio(), refetchWhale()]);
+      
       toast({
         title: "Dados atualizados!",
         description: "As informações foram atualizadas com sucesso."
@@ -71,7 +76,7 @@ const PosicaoCarteira = () => {
     }
   };
 
-  if (portfolioLoading || whaleLoading) {
+  if (portfolioLoading) {
     return (
       <div className="container mx-auto p-4 space-y-6">
         <div className="flex justify-between items-center mb-6">
@@ -89,13 +94,13 @@ const PosicaoCarteira = () => {
     );
   }
 
-  if (portfolioError || whaleError) {
+  if (portfolioError) {
     return (
       <div className="container mx-auto p-4">
         <Alert variant="destructive">
           <AlertTitle>Erro ao carregar dados</AlertTitle>
           <AlertDescription>
-            {portfolioError?.message || whaleError?.message}
+            {portfolioError?.message}
             <br />
             <Button 
               variant="outline" 
@@ -143,7 +148,7 @@ const PosicaoCarteira = () => {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
         >
-          <WhaleTransactions transactions={whaleData} />
+          <WhaleTransactions />
         </motion.div>
       </div>
     </motion.div>

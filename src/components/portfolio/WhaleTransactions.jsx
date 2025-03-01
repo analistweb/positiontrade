@@ -1,22 +1,37 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { InfoIcon, ArrowRightLeft } from 'lucide-react';
+import { InfoIcon, ArrowRightLeft, RefreshCw } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import TransactionList from './whale-transactions/TransactionList';
 import TransactionInsights from './whale-transactions/TransactionInsights';
 import { useQuery } from '@tanstack/react-query';
-import { fetchWhaleTransactions } from '@/services/cryptoService';
+import { fetchWhaleTransactions, clearMarketCache } from '@/services/marketService';
 import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 const WhaleTransactions = () => {
-  const { data: transactions, isLoading, error } = useQuery({
+  const { 
+    data: transactions, 
+    isLoading, 
+    error,
+    refetch
+  } = useQuery({
     queryKey: ['whaleTransactions'],
     queryFn: fetchWhaleTransactions,
-    refetchInterval: 30000 // Atualiza a cada 30 segundos
+    refetchInterval: 300000, // Atualiza a cada 5 minutos
+    staleTime: 240000, // Considera dados obsoletos após 4 minutos
   });
+
+  const handleRefresh = async () => {
+    toast.info("Atualizando dados de grandes movimentações...");
+    clearMarketCache(); // Limpar cache para forçar atualização
+    await refetch();
+    toast.success("Dados atualizados com sucesso!");
+  };
 
   return (
     <motion.div
@@ -28,22 +43,34 @@ const WhaleTransactions = () => {
       <Toaster />
       <Card className="shadow-lg border-primary/20">
         <CardHeader className="bg-gradient-to-r from-blue-50/5 to-purple-50/5">
-          <CardTitle className="flex items-center gap-2 text-xl text-primary">
-            <ArrowRightLeft className="h-6 w-6" />
-            Movimentações de Grandes Carteiras
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <InfoIcon className="h-4 w-4 text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="max-w-xs">
-                    Análise de movimentações significativas baseada em dados de grandes players do mercado
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="flex items-center gap-2 text-xl text-primary">
+              <ArrowRightLeft className="h-6 w-6" />
+              Movimentações de Grandes Carteiras
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <InfoIcon className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">
+                      Análise simulada de movimentações significativas baseada em dados reais de volume de transações
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="hover:bg-primary/10"
+              onClick={handleRefresh}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="transactions" className="w-full">
