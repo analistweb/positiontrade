@@ -1,8 +1,10 @@
 
 import axios from 'axios';
 import { toast } from "sonner";
+import { logError } from '../utils/logger';
 
 export const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3';
+export const BLOCKCHAIN_API_URL = 'https://api.blockchain.info';
 
 // Cache implementation
 const cache = new Map();
@@ -13,49 +15,73 @@ export const getHeaders = () => ({
   'Content-Type': 'application/json'
 });
 
-// Create axios instance with defaults
+// Create axios instance with defaults for CoinGecko
 export const axiosInstance = axios.create({
   baseURL: COINGECKO_API_URL,
-  timeout: 15000, // Increased timeout to 15 seconds
+  timeout: 20000, // Increased timeout to 20 seconds
+  headers: getHeaders()
+});
+
+// Create axios instance for blockchain.com API
+export const blockchainInstance = axios.create({
+  baseURL: BLOCKCHAIN_API_URL,
+  timeout: 20000,
   headers: getHeaders()
 });
 
 // Response interceptor for caching
 axiosInstance.interceptors.response.use(
   (response) => {
-    // Cache successful responses
-    const cacheKey = `${response.config.url}?${JSON.stringify(response.config.params)}`;
-    cache.set(cacheKey, {
-      data: response.data,
-      timestamp: Date.now()
-    });
+    try {
+      // Cache successful responses
+      const cacheKey = `${response.config.url}?${JSON.stringify(response.config.params)}`;
+      cache.set(cacheKey, {
+        data: response.data,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('Error caching response:', error);
+    }
     return response;
   },
   async (error) => {
+    // Log error for debugging
+    logError(error, { 
+      context: 'API request', 
+      url: error?.config?.url,
+      params: error?.config?.params 
+    });
+
     if (error.response?.status === 429) {
-      toast.error("Limite de requisições atingido. Usando dados em cache...");
+      toast.error("Limite de requisições atingido. Tentando novamente em breve...");
       
       // Try to get cached data
       const cacheKey = `${error.config.url}?${JSON.stringify(error.config.params)}`;
       const cachedData = cache.get(cacheKey);
       
       if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
+        console.log('Using cached data due to rate limiting');
         return Promise.resolve({ data: cachedData.data });
       }
     }
 
     if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
-      toast.error("Erro de conexão. Tentando recuperar dados do cache...");
+      toast.error("Erro de conexão. Verifique sua internet.", {
+        description: "Tentando recuperar dados do cache..."
+      });
       
       // Try to get cached data for network errors
-      const cacheKey = `${error.config.url}?${JSON.stringify(error.config.params)}`;
-      const cachedData = cache.get(cacheKey);
-      
-      if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
-        return Promise.resolve({ data: cachedData.data });
+      try {
+        const cacheKey = `${error.config.url}?${JSON.stringify(error.config.params)}`;
+        const cachedData = cache.get(cacheKey);
+        
+        if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
+          console.log('Using cached data due to network error');
+          return Promise.resolve({ data: cachedData.data });
+        }
+      } catch (err) {
+        console.error('Error retrieving cache:', err);
       }
-      
-      toast.error("Não foi possível recuperar dados do cache.");
     }
 
     // If we couldn't handle the error, throw it
@@ -66,22 +92,64 @@ axiosInstance.interceptors.response.use(
 // Request interceptor for cache
 axiosInstance.interceptors.request.use(
   async (config) => {
-    // Check cache before making request
-    const cacheKey = `${config.url}?${JSON.stringify(config.params)}`;
-    const cachedData = cache.get(cacheKey);
-    
-    if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
-      // Return cached data and prevent request
-      return Promise.reject({
-        config,
-        response: { data: cachedData.data },
-        __CACHED: true
-      });
+    try {
+      // Check cache before making request
+      const cacheKey = `${config.url}?${JSON.stringify(config.params)}`;
+      const cachedData = cache.get(cacheKey);
+      
+      if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
+        // Return cached data and prevent request
+        return Promise.reject({
+          config,
+          response: { data: cachedData.data },
+          __CACHED: true
+        });
+      }
+    } catch (error) {
+      console.error('Error checking cache:', error);
     }
     
     return config;
   },
   (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Apply the same cache handling to blockchain instance
+blockchainInstance.interceptors.response.use(
+  (response) => {
+    try {
+      const cacheKey = `blockchain-${response.config.url}?${JSON.stringify(response.config.params)}`;
+      cache.set(cacheKey, {
+        data: response.data,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('Error caching blockchain response:', error);
+    }
+    return response;
+  },
+  async (error) => {
+    logError(error, { 
+      context: 'Blockchain API request', 
+      url: error?.config?.url,
+      params: error?.config?.params 
+    });
+    
+    if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
+      try {
+        const cacheKey = `blockchain-${error.config.url}?${JSON.stringify(error.config.params)}`;
+        const cachedData = cache.get(cacheKey);
+        
+        if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
+          return Promise.resolve({ data: cachedData.data });
+        }
+      } catch (err) {
+        console.error('Error retrieving blockchain cache:', err);
+      }
+    }
+    
     return Promise.reject(error);
   }
 );

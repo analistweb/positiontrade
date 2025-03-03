@@ -5,10 +5,11 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import TransactionRow from './TransactionRow';
 import TransactionSkeleton from './TransactionSkeleton';
 import { toast } from "sonner";
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
-const TransactionList = ({ transactions, isLoading, error, dataSource = 'exchange' }) => {
+const TransactionList = ({ transactions, isLoading, error, dataSource = 'exchange', onRefresh }) => {
   const parentRef = React.useRef(null);
   
   // Configuração do virtualizador
@@ -23,7 +24,7 @@ const TransactionList = ({ transactions, isLoading, error, dataSource = 'exchang
   React.useEffect(() => {
     if (error) {
       toast.error("Erro ao carregar transações", {
-        description: "Não foi possível obter dados reais. Tente novamente mais tarde."
+        description: "Verifique sua conexão e tente novamente."
       });
     }
   }, [error]);
@@ -61,9 +62,17 @@ const TransactionList = ({ transactions, isLoading, error, dataSource = 'exchang
       <div className="mb-4">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Erro ao obter dados reais</AlertTitle>
+          <AlertTitle>Erro ao obter dados reais de transações</AlertTitle>
           <AlertDescription>
-            Não foi possível conectar à API. Verifique sua conexão ou tente novamente mais tarde.
+            <p>Não foi possível conectar às APIs de criptomoedas. Erro: {error.message}</p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={onRefresh}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Tentar novamente
+            </Button>
           </AlertDescription>
         </Alert>
       </div>
