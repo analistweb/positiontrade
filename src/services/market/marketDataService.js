@@ -1,7 +1,7 @@
 
-import { axiosInstance } from '../config/api';
+import { axiosInstance } from '../../config/api';
 import { toast } from "sonner";
-import { retryWithBackoff, handleAPIResponse } from '../services/errorHandlingService';
+import { retryWithBackoff, handleAPIResponse } from '../../services/errorHandlingService';
 import { getMarketDataCache, setMarketDataCache, getTopCoinsCache, setTopCoinsCache } from '../cache/cacheService';
 
 let worker = null;
