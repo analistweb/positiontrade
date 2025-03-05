@@ -1,7 +1,8 @@
+
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link, Navigate } from "react-router-dom";
 import { navItems } from "./nav-items";
 import { motion } from "framer-motion";
 import { HelpCircle } from "lucide-react";
@@ -103,6 +104,8 @@ const App = () => (
                 {navItems.map(({ to, page }) => (
                   <Route key={to} path={to} element={page} />
                 ))}
+                {/* Rota para redirecionar qualquer caminho não encontrado para a página inicial */}
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </div>
           </main>

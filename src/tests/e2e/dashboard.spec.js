@@ -29,4 +29,10 @@ describe('Dashboard Page', () => {
   it('deve exibir o botão de ajuda', () => {
     cy.get('button[aria-label="Ajuda"]').should('be.visible')
   })
+
+  it('deve redirecionar para a página inicial ao acessar rota inexistente', () => {
+    cy.visit('/rota-inexistente')
+    cy.url().should('not.include', '/rota-inexistente')
+    cy.url().should('include', '/')
+  })
 })
