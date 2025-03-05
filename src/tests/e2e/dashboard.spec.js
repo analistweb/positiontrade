@@ -1,3 +1,4 @@
+
 describe('Dashboard Page', () => {
   beforeEach(() => {
     cy.visit('/')
@@ -14,14 +15,15 @@ describe('Dashboard Page', () => {
     cy.get('nav').within(() => {
       cy.contains('Painel').should('be.visible')
       cy.contains('Análise de Compra/Venda').should('be.visible')
-      cy.contains('Posição da Carteira').should('be.visible')
+      cy.contains('Formação de Topo').should('be.visible')
+      cy.contains('Análise Técnica').should('be.visible')
     })
   })
 
   it('deve permitir navegação entre páginas', () => {
-    cy.contains('Posição da Carteira').click()
-    cy.url().should('include', '/portfolio')
-    cy.contains('Seu Portfólio').should('be.visible')
+    cy.contains('Análise de Compra/Venda').click()
+    cy.url().should('include', '/analise-compra-venda')
+    cy.contains('Análise de Compra/Venda').should('be.visible')
   })
 
   it('deve exibir o botão de ajuda', () => {

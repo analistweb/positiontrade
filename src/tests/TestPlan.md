@@ -1,3 +1,4 @@
+
 # Plano de Testes - Análise de Criptomoedas
 
 ## Informações Gerais
@@ -20,19 +21,13 @@
 - [ ] Verificar alertas de oportunidades
 - [ ] Testar filtros de volume
 
-### 1.3 Carteira e Movimentações
-- [ ] Testar exibição do portfólio
-- [ ] Validar cálculos de valor total
-- [ ] Verificar rastreamento de grandes transações
-- [ ] Testar atualização em tempo real
-
-### 1.4 Formação de Topo
+### 1.3 Formação de Topo
 - [ ] Testar análise técnica
 - [ ] Validar indicadores de formação de topo
 - [ ] Verificar alertas de reversão
 - [ ] Testar períodos diferentes
 
-### 1.5 Risco & Oportunidade
+### 1.4 Análise Técnica
 - [ ] Testar análise de sentimento
 - [ ] Validar indicadores fundamentalistas
 - [ ] Verificar alertas de risco

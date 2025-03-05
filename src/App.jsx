@@ -46,16 +46,7 @@ const HelpDialog = () => (
               baseadas em indicadores técnicos.
             </li>
             <li>
-              <strong>Posição da Carteira:</strong> Acompanhe suas criptomoedas e analise o desempenho do seu portfólio.
-            </li>
-            <li>
-              <strong>Grupos de Entidades:</strong> Monitore as movimentações de grandes investidores e exchanges.
-            </li>
-            <li>
               <strong>Formação de Topo:</strong> Identifique possíveis pontos máximos de preço para tomar decisões informadas.
-            </li>
-            <li>
-              <strong>Risco & Oportunidade:</strong> Avalie o momento do mercado e identifique oportunidades de investimento.
             </li>
             <li>
               <strong>Análise Técnica:</strong> Ferramentas avançadas para análise de preços e tendências.
