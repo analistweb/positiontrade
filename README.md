@@ -1,3 +1,4 @@
+
 # Painel de Análise de Criptomoedas
 
 ## Sobre a Aplicação
@@ -16,12 +17,7 @@ Bem-vindo ao Painel de Análise de Criptomoedas! Esta é uma ferramenta amigáve
    - Gráficos intuitivos que mostram para onde o mercado está indo
    - Alertas sobre momentos importantes para comprar ou vender
 
-3. **Gestão de Investimentos**
-   - Acompanhe seus investimentos em um só lugar
-   - Veja o desempenho da sua carteira
-   - Receba sugestões sobre os melhores momentos para investir
-
-4. **Informações Educativas**
+3. **Informações Educativas**
    - Explicações claras sobre termos técnicos
    - Dicas para iniciantes no mercado
    - Atualizações sobre eventos importantes
@@ -36,18 +32,14 @@ Bem-vindo ao Painel de Análise de Criptomoedas! Esta é uma ferramenta amigáve
 
 - **Painel Principal**: Visão geral do mercado e suas criptomoedas
 - **Análise de Compra/Venda**: Indicadores sobre os melhores momentos para negociar
-- **Posição da Carteira**: Acompanhamento dos seus investimentos
-- **Grupos de Entidades**: Análise do comportamento de grandes investidores
 - **Formação de Topo**: Identificação de possíveis pontos máximos do mercado
-- **Risco & Oportunidade**: Avaliação de riscos e oportunidades do mercado
-- **Liquidações do Mercado**: Acompanhamento de movimentações importantes
+- **Análise Técnica**: Avaliação de riscos e oportunidades do mercado
 
 ## Como começar?
 
 1. Explore o Painel Principal para ter uma visão geral do mercado
 2. Use as diferentes seções para análises específicas
-3. Acompanhe seus investimentos na seção de Posição da Carteira
-4. Configure alertas para não perder momentos importantes do mercado
+3. Configure alertas para não perder momentos importantes do mercado
 
 ## Tecnologias Utilizadas
 
