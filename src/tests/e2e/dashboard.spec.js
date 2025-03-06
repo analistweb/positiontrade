@@ -41,4 +41,10 @@ describe('Dashboard Page', () => {
     cy.url().should('not.include', '/posicao-carteira')
     cy.url().should('include', '/')
   })
+
+  it('não deve exibir links relacionados a carteira ou movimentação', () => {
+    cy.contains('Carteira').should('not.exist')
+    cy.contains('Movimentação').should('not.exist')
+    cy.contains('Posição').should('not.exist')
+  })
 })

@@ -37,7 +37,7 @@ export const retryWithBackoff = async (operation, context = '') => {
         delay = delay * 2; // Backoff exponencial
       } else if (error?.response?.status === 404) {
         throw new APIError('Recurso não encontrado', 404, 'NOT_FOUND');
-      } else if (error?.code === 'ECONNABORTED' || error?.code === 'ERR_NETWORK') {
+      } else if (error?.code === 'ECONNABORTED' || error?.code === 'ERR_NETWORK' || error?.message?.includes('Network Error')) {
         updateConnectionStatus(false);
         
         if (attempt === MAX_RETRIES) {
@@ -64,7 +64,7 @@ export const handleAPIResponse = (response, context) => {
   return response.data;
 };
 
-// Nova função auxiliar para detectar erros de rede
+// Função auxiliar para detectar erros de rede
 export const isNetworkError = (error) => {
   return (
     error?.code === 'ECONNABORTED' || 
