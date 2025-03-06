@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, AlertTriangle, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import RSIRecommendation from '@/components/market/RSIRecommendation';
@@ -70,6 +70,34 @@ const AnalisesCompraVenda = () => {
     toast.success("Recarregando dados...");
   }, [refetchMarketData, refetchCoins]);
 
+  const renderDataSourceIndicator = () => {
+    if (marketData?.isFallbackData) {
+      return (
+        <div className="flex items-center text-yellow-500 gap-2 text-sm">
+          <WifiOff size={16} />
+          <span>
+            Usando dados locais • Última tentativa: {marketData?.lastUpdated || 'N/A'}
+            <Button 
+              variant="link" 
+              size="sm" 
+              className="p-0 ml-2 h-auto text-primary" 
+              onClick={handleRefresh}
+            >
+              Tentar novamente
+            </Button>
+          </span>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="flex items-center text-green-500 gap-2 text-sm">
+        <Wifi size={16} />
+        <span>Dados em tempo real • Atualizado: {marketData?.lastUpdated || 'N/A'}</span>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -83,12 +111,15 @@ const AnalisesCompraVenda = () => {
       );
     }
 
-    if (error) {
+    if (error && !marketData) {
       return (
         <Card className="bg-destructive/10 mb-6">
           <CardContent className="p-6">
             <div className="text-center">
-              <p className="text-destructive mb-4">Erro ao carregar dados: {error.message}</p>
+              <p className="text-destructive mb-4 flex items-center justify-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                Erro ao carregar dados: {error.message}
+              </p>
               <Button 
                 variant="outline" 
                 className="flex items-center gap-2"
@@ -116,7 +147,14 @@ const AnalisesCompraVenda = () => {
           >
             <Card className="h-full">
               <CardHeader>
-                <CardTitle>Volume de Negociação</CardTitle>
+                <CardTitle className="flex justify-between items-center">
+                  <div>Volume de Negociação</div>
+                  {marketData?.isFallbackData && (
+                    <span className="text-xs font-normal bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-2 py-1 rounded">
+                      Dados simulados
+                    </span>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <VolumeChart 
@@ -156,7 +194,7 @@ const AnalisesCompraVenda = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-2">
           <h1 className="text-3xl font-bold">Análise de Compra e Venda</h1>
           <Button 
             variant="outline" 
@@ -166,6 +204,11 @@ const AnalisesCompraVenda = () => {
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
+        </div>
+        
+        {/* Indicador de fonte de dados */}
+        <div className="mb-4">
+          {renderDataSourceIndicator()}
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -185,7 +228,7 @@ const AnalisesCompraVenda = () => {
                 ) : (
                   topCoins.map(coin => (
                     <SelectItem key={coin.id} value={coin.id}>
-                      {coin.name}
+                      {coin.name} {coin.isFallbackData && '(Dados locais)'}
                     </SelectItem>
                   ))
                 )}
