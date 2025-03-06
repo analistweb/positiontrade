@@ -2,13 +2,16 @@
 import axios from 'axios';
 import { toast } from "sonner";
 import { logError } from '../utils/logger';
+import { updateConnectionStatus } from '../utils/connectionStatus';
 
 export const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3';
 export const BLOCKCHAIN_API_URL = 'https://api.blockchain.info';
 
+// Aumentar tempo de cache para reduzir solicitações
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutos
+
 // Cache implementation
 const cache = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export const getHeaders = () => ({
   'Accept': 'application/json',
@@ -18,16 +21,26 @@ export const getHeaders = () => ({
 // Create axios instance with defaults for CoinGecko
 export const axiosInstance = axios.create({
   baseURL: COINGECKO_API_URL,
-  timeout: 20000, // Increased timeout to 20 seconds
+  timeout: 8000, // 8 segundos
   headers: getHeaders()
 });
 
 // Create axios instance for blockchain.com API
 export const blockchainInstance = axios.create({
   baseURL: BLOCKCHAIN_API_URL,
-  timeout: 20000,
+  timeout: 8000,
   headers: getHeaders()
 });
+
+// Função para verificar se há dados em cache válidos
+const getValidCache = (cacheKey) => {
+  const cachedData = cache.get(cacheKey);
+  if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
+    console.log('Usando dados em cache:', cacheKey);
+    return cachedData.data;
+  }
+  return null;
+};
 
 // Response interceptor for caching
 axiosInstance.interceptors.response.use(
@@ -39,6 +52,9 @@ axiosInstance.interceptors.response.use(
         data: response.data,
         timestamp: Date.now()
       });
+      
+      // Se conseguimos obter uma resposta, atualizamos o estado da conexão
+      updateConnectionStatus(true);
     } catch (error) {
       console.error('Error caching response:', error);
     }
@@ -52,36 +68,63 @@ axiosInstance.interceptors.response.use(
       params: error?.config?.params 
     });
 
+    // Obtém chave de cache para tentar recuperar dados
+    const cacheKey = error.config ? `${error.config.url}?${JSON.stringify(error.config.params)}` : null;
+    const cachedData = cacheKey ? cache.get(cacheKey) : null;
+
     if (error.response?.status === 429) {
-      toast.error("Limite de requisições atingido. Tentando novamente em breve...");
+      toast.error("Limite de requisições atingido", {
+        description: "Usando dados em cache temporariamente"
+      });
       
       // Try to get cached data
-      const cacheKey = `${error.config.url}?${JSON.stringify(error.config.params)}`;
-      const cachedData = cache.get(cacheKey);
-      
       if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
         console.log('Using cached data due to rate limiting');
-        return Promise.resolve({ data: cachedData.data });
+        return Promise.resolve({ data: cachedData.data, headers: error.config.headers, cached: true });
       }
     }
 
-    if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
-      toast.error("Erro de conexão. Verifique sua internet.", {
-        description: "Tentando recuperar dados do cache..."
-      });
+    if (error.code === 'ECONNABORTED' || error.message === 'Network Error' || error.code === 'ERR_NETWORK') {
+      // Atualiza o status de conexão para offline
+      updateConnectionStatus(false);
+      
+      if (!cacheKey) {
+        toast.error("Erro de conexão", {
+          description: "Verifique sua internet e tente novamente"
+        });
+        return Promise.reject(error);
+      }
       
       // Try to get cached data for network errors
       try {
-        const cacheKey = `${error.config.url}?${JSON.stringify(error.config.params)}`;
-        const cachedData = cache.get(cacheKey);
-        
         if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
           console.log('Using cached data due to network error');
-          return Promise.resolve({ data: cachedData.data });
+          return Promise.resolve({ 
+            data: cachedData.data, 
+            headers: error.config.headers, 
+            cached: true,
+            cacheAge: Date.now() - cachedData.timestamp 
+          });
+        } else if (cachedData) {
+          // Usa dados expirados em caso de emergência, mas avisa o usuário
+          console.log('Using expired cached data due to network error');
+          toast.warning("Usando dados antigos", {
+            description: "Os dados podem estar desatualizados devido a problemas de conexão"
+          });
+          return Promise.resolve({ 
+            data: cachedData.data, 
+            headers: error.config.headers, 
+            cached: true,
+            cacheAge: Date.now() - cachedData.timestamp 
+          });
         }
       } catch (err) {
         console.error('Error retrieving cache:', err);
       }
+      
+      toast.error("Sem conexão", {
+        description: "Tentando usar dados locais de contingência"
+      });
     }
 
     // If we couldn't handle the error, throw it
@@ -95,13 +138,13 @@ axiosInstance.interceptors.request.use(
     try {
       // Check cache before making request
       const cacheKey = `${config.url}?${JSON.stringify(config.params)}`;
-      const cachedData = cache.get(cacheKey);
+      const cachedData = getValidCache(cacheKey);
       
-      if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
+      if (cachedData) {
         // Return cached data and prevent request
         return Promise.reject({
           config,
-          response: { data: cachedData.data },
+          response: { data: cachedData },
           __CACHED: true
         });
       }
@@ -125,6 +168,9 @@ blockchainInstance.interceptors.response.use(
         data: response.data,
         timestamp: Date.now()
       });
+      
+      // Se conseguimos obter uma resposta, atualizamos o estado da conexão
+      updateConnectionStatus(true);
     } catch (error) {
       console.error('Error caching blockchain response:', error);
     }
@@ -137,13 +183,19 @@ blockchainInstance.interceptors.response.use(
       params: error?.config?.params 
     });
     
-    if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
+    if (error.code === 'ECONNABORTED' || error.message === 'Network Error' || error.code === 'ERR_NETWORK') {
+      updateConnectionStatus(false);
+      
       try {
         const cacheKey = `blockchain-${error.config.url}?${JSON.stringify(error.config.params)}`;
         const cachedData = cache.get(cacheKey);
         
         if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
-          return Promise.resolve({ data: cachedData.data });
+          console.log('Using cached blockchain data due to network error');
+          return Promise.resolve({ 
+            data: cachedData.data, 
+            cached: true 
+          });
         }
       } catch (err) {
         console.error('Error retrieving blockchain cache:', err);
@@ -159,7 +211,24 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.__CACHED) {
-      return Promise.resolve(error.response);
+      return Promise.resolve({
+        ...error.response,
+        cached: true
+      });
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Similar handling for blockchain instance
+blockchainInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.__CACHED) {
+      return Promise.resolve({
+        ...error.response,
+        cached: true
+      });
     }
     return Promise.reject(error);
   }

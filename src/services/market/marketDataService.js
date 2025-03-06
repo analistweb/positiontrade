@@ -1,8 +1,9 @@
 
 import { axiosInstance } from '../../config/api';
 import { toast } from "sonner";
-import { retryWithBackoff, handleAPIResponse } from '../../services/errorHandlingService';
+import { retryWithBackoff, handleAPIResponse, APIError } from '../../services/errorHandlingService';
 import { getMarketDataCache, setMarketDataCache, getTopCoinsCache, setTopCoinsCache } from '../cache/cacheService';
+import { updateConnectionStatus } from '../../utils/connectionStatus';
 
 let worker = null;
 
@@ -42,7 +43,7 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
     
     // Implementa timeout mais curto para melhor experiência do usuário
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos de timeout
+    const timeoutId = setTimeout(() => controller.abort(), 7000); // 7 segundos de timeout
     
     const response = await retryWithBackoff(
       async () => axiosInstance.get(`/coins/${coin}/market_chart`, {
@@ -58,18 +59,23 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
     
     clearTimeout(timeoutId);
     
+    // Verifica se a resposta é do cache
+    const isFromCache = response.cached === true;
+    
     const data = handleAPIResponse(response, 'market data');
     
     // Adiciona timestamp de última atualização
     data.lastUpdated = new Date().toLocaleTimeString();
     data.isFallbackData = false;
+    data.isFromCache = isFromCache;
 
     if (worker) {
+      // Aumente o timeout do worker para evitar problemas em dispositivos lentos
       const processedData = await new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
           console.warn('Worker timeout, resolving with basic data');
           resolve(data);
-        }, 8000); // Reduzindo para 8 segundos para melhor UX
+        }, 10000); // 10 segundos
 
         worker.onmessage = function(e) {
           clearTimeout(timeoutId);
@@ -96,18 +102,28 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
           resolve(data); // Fallback to basic data
         };
 
-        worker.postMessage({
-          type: 'calculateRSI',
-          data: { prices: data.prices.map(p => p[1]) }
-        });
-
-        worker.postMessage({
-          type: 'calculatePatterns',
-          data: {
-            prices: data.prices.map(p => p[1]),
-            volumes: data.total_volumes.map(v => v[1])
+        // Só envia a mensagem para o worker se tivermos dados
+        if (data && data.prices && data.prices.length > 0) {
+          try {
+            worker.postMessage({
+              type: 'calculateRSI',
+              data: { prices: data.prices.map(p => p[1]) }
+            });
+  
+            worker.postMessage({
+              type: 'calculatePatterns',
+              data: {
+                prices: data.prices.map(p => p[1]),
+                volumes: data.total_volumes.map(v => v[1])
+              }
+            });
+          } catch (e) {
+            console.error('Erro ao enviar mensagem para o worker:', e);
+            resolve(data);
           }
-        });
+        } else {
+          resolve(data);
+        }
       });
 
       setMarketDataCache(cacheKey, processedData);
@@ -118,9 +134,16 @@ export const fetchMarketData = async (coin = 'bitcoin', days = 30) => {
     return data;
   } catch (error) {
     console.error('Error fetching market data:', error);
-    toast.error(`Erro ao carregar dados: ${error.message}`, {
-      description: "Usando dados locais temporariamente"
-    });
+    
+    // Só mostra toast de erro se não estiver usando dados em cache
+    if (!error.cached) {
+      toast.error(`Erro ao carregar dados: ${error.message || 'Falha de conexão'}`, {
+        description: "Usando dados locais temporariamente"
+      });
+      
+      // Atualiza o status da conexão
+      updateConnectionStatus(false);
+    }
     
     // Retornar dados de fallback em vez de falhar
     const fallbackData = {
@@ -147,7 +170,7 @@ export const fetchTopCoins = async () => {
     
     // Implementa timeout mais curto para melhor experiência do usuário
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos de timeout
+    const timeoutId = setTimeout(() => controller.abort(), 7000); // 7 segundos de timeout
     
     const response = await retryWithBackoff(
       async () => axiosInstance.get('/coins/markets', {
@@ -165,16 +188,20 @@ export const fetchTopCoins = async () => {
     
     clearTimeout(timeoutId);
     
+    // Verifica se a resposta é do cache
+    const isFromCache = response.cached === true;
+    
     const data = handleAPIResponse(response, 'top coins');
     
     if (!data || !Array.isArray(data) || data.length === 0) {
-      throw new Error("Dados de moedas não disponíveis");
+      throw new APIError("Dados de moedas não disponíveis", 400, 'INVALID_DATA');
     }
     
     // Adicionar indicação de dados reais
     const dataWithSource = data.map(coin => ({
       ...coin,
       isFallbackData: false,
+      isFromCache: isFromCache,
       lastUpdated: new Date().toLocaleTimeString()
     }));
     
@@ -182,9 +209,16 @@ export const fetchTopCoins = async () => {
     return dataWithSource;
   } catch (error) {
     console.error('Error fetching top coins:', error);
-    toast.error(`Erro ao carregar moedas: ${error.message}`, {
-      description: "Usando dados locais temporariamente"
-    });
+    
+    // Só mostra toast de erro se não estiver usando dados em cache
+    if (!error.cached) {
+      toast.error(`Erro ao carregar moedas: ${error.message || 'Falha de conexão'}`, {
+        description: "Usando dados locais temporariamente"
+      });
+      
+      // Atualiza o status da conexão
+      updateConnectionStatus(false);
+    }
     
     // Retornar dados de fallback em vez de falhar
     const dataWithTimestamp = fallbackTopCoins.map(coin => ({

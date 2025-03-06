@@ -1,7 +1,8 @@
 
 import { toast } from "sonner";
+import { updateConnectionStatus } from '../utils/connectionStatus';
 
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 2; // Diminuído para 2 para falhar mais rápido
 const INITIAL_RETRY_DELAY = 1000; // 1 segundo
 
 export class APIError extends Error {
@@ -22,6 +23,13 @@ export const retryWithBackoff = async (operation, context = '') => {
       return await operation();
     } catch (error) {
       lastError = error;
+      
+      // Se já estamos usando dados em cache, não precisa repetir
+      if (error.cached) {
+        console.log(`Usando dados em cache para ${context}`);
+        return error;
+      }
+      
       console.error(`Tentativa ${attempt} falhou para: ${context}`, error);
 
       if (error?.response?.status === 429) {
@@ -29,8 +37,12 @@ export const retryWithBackoff = async (operation, context = '') => {
         delay = delay * 2; // Backoff exponencial
       } else if (error?.response?.status === 404) {
         throw new APIError('Recurso não encontrado', 404, 'NOT_FOUND');
-      } else if (error?.code === 'ECONNABORTED') {
-        toast.error("Tempo limite excedido. Tentando novamente...");
+      } else if (error?.code === 'ECONNABORTED' || error?.code === 'ERR_NETWORK') {
+        updateConnectionStatus(false);
+        
+        if (attempt === MAX_RETRIES) {
+          toast.error("Problemas de conexão. Usando dados locais.");
+        }
       }
 
       if (attempt < MAX_RETRIES) {
@@ -39,8 +51,10 @@ export const retryWithBackoff = async (operation, context = '') => {
     }
   }
 
-  toast.error(`Falha após ${MAX_RETRIES} tentativas: ${lastError.message}`);
-  throw lastError;
+  // Atualiza o status de conexão para offline após tentativas falharem
+  updateConnectionStatus(false);
+  
+  throw lastError || new Error(`Falha após ${MAX_RETRIES} tentativas`);
 };
 
 export const handleAPIResponse = (response, context) => {
@@ -48,4 +62,14 @@ export const handleAPIResponse = (response, context) => {
     throw new APIError(`Dados inválidos recebidos: ${context}`, 400, 'INVALID_DATA');
   }
   return response.data;
+};
+
+// Nova função auxiliar para detectar erros de rede
+export const isNetworkError = (error) => {
+  return (
+    error?.code === 'ECONNABORTED' || 
+    error?.code === 'ERR_NETWORK' || 
+    error?.message === 'Network Error' ||
+    error?.message?.includes('timeout')
+  );
 };

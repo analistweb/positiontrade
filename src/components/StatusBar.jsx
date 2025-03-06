@@ -1,14 +1,16 @@
 
-import React, { useEffect } from 'react';
-import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Wifi, WifiOff, RefreshCw, Server } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getConnectionStatus, checkConnection, useConnectionStatus } from '../utils/connectionStatus';
 import { toast } from 'sonner';
 
 const StatusBar = () => {
   const { isOnline, lastAttemptTime } = useConnectionStatus();
+  const [isVisible, setIsVisible] = useState(true);
+  const [reconnecting, setReconnecting] = useState(false);
   
-  // Verifica a conexão periodicamente
+  // Verifica a conexão periodicamente e quando o usuário volta para a página
   useEffect(() => {
     const checkTimer = setInterval(() => {
       checkConnection().then(online => {
@@ -20,8 +22,33 @@ const StatusBar = () => {
       });
     }, 30000); // Verifica a cada 30 segundos
     
-    return () => clearInterval(checkTimer);
+    // Verificar quando o usuário volta para a página
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkConnection();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      clearInterval(checkTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
+  
+  // Permite fechar a barra após 5 segundos quando estiver online
+  useEffect(() => {
+    if (isOnline) {
+      const hideTimer = setTimeout(() => {
+        setIsVisible(false);
+      }, 5000);
+      
+      return () => clearTimeout(hideTimer);
+    } else {
+      setIsVisible(true);
+    }
+  }, [isOnline]);
   
   // Formata o horário da última tentativa
   const formatLastAttempt = () => {
@@ -30,7 +57,9 @@ const StatusBar = () => {
   
   // Força verificação manual
   const handleManualCheck = () => {
+    setReconnecting(true);
     checkConnection().then(online => {
+      setReconnecting(false);
       if (online) {
         toast.success('Conectado com sucesso', {
           description: 'Os dados agora serão atualizados automaticamente'
@@ -43,6 +72,8 @@ const StatusBar = () => {
     });
   };
   
+  if (!isVisible && isOnline) return null;
+  
   return (
     <AnimatePresence>
       <motion.div
@@ -53,7 +84,7 @@ const StatusBar = () => {
           ${isOnline ? 'bg-green-500/90' : 'bg-yellow-500/90'} text-white text-sm flex items-center gap-2`}
       >
         {isOnline ? (
-          <Wifi size={16} className="text-white" />
+          <Server size={16} className="text-white" />
         ) : (
           <WifiOff size={16} className="text-white" />
         )}
@@ -65,10 +96,11 @@ const StatusBar = () => {
         </span>
         <button 
           onClick={handleManualCheck}
-          className="ml-2 p-1 rounded-full hover:bg-white/20 transition-colors"
+          disabled={reconnecting}
+          className={`ml-2 p-1 rounded-full hover:bg-white/20 transition-colors ${reconnecting ? 'opacity-50' : ''}`}
           title="Verificar conexão agora"
         >
-          <RefreshCw size={14} />
+          <RefreshCw size={14} className={reconnecting ? 'animate-spin' : ''} />
         </button>
       </motion.div>
     </AnimatePresence>
