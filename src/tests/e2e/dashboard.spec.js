@@ -35,4 +35,10 @@ describe('Dashboard Page', () => {
     cy.url().should('not.include', '/rota-inexistente')
     cy.url().should('include', '/')
   })
+
+  it('deve redirecionar para a página inicial ao tentar acessar posicao-carteira', () => {
+    cy.visit('/posicao-carteira')
+    cy.url().should('not.include', '/posicao-carteira')
+    cy.url().should('include', '/')
+  })
 })

@@ -104,7 +104,7 @@ const App = () => (
                 {navItems.map(({ to, page }) => (
                   <Route key={to} path={to} element={page} />
                 ))}
-                {/* Rota para redirecionar qualquer caminho não encontrado para a página inicial */}
+                {/* Rota para redirecionar qualquer caminho não encontrado para a página inicial, incluindo posicao-carteira */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </div>
