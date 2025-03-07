@@ -1,3 +1,4 @@
+
 import { RSI } from 'technicalindicators';
 
 export const calculateRSI = (prices) => {

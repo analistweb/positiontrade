@@ -1,6 +1,7 @@
 
 import { axiosInstance as axios, COINGECKO_API_URL, getHeaders } from '../config/api';
 import { toast } from "sonner";
+import { retryWithBackoff } from './errorHandlingService';
 
 // Dados de fallback para quando a API falhar
 const fallbackTopFormationData = {
@@ -27,15 +28,18 @@ export const fetchTopFormationData = async () => {
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos de timeout
     
     // Buscar dados históricos mais detalhados
-    const response = await axios.get(`${COINGECKO_API_URL}/coins/bitcoin/market_chart`, {
-      params: {
-        vs_currency: 'usd',
-        days: 90,
-        interval: 'daily'
-      },
-      headers: getHeaders(),
-      signal: controller.signal
-    });
+    const response = await retryWithBackoff(async () => {
+      const res = await axios.get(`${COINGECKO_API_URL}/coins/bitcoin/market_chart`, {
+        params: {
+          vs_currency: 'usd',
+          days: 90,
+          interval: 'daily'
+        },
+        headers: getHeaders(),
+        signal: controller.signal
+      });
+      return res;
+    }, 'Buscar dados de formação de topo');
     
     clearTimeout(timeoutId);
 

@@ -117,4 +117,3 @@ const TechnicalIndicators = ({ analise }) => {
 };
 
 export default TechnicalIndicators;
-
