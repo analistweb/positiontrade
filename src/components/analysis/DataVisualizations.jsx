@@ -6,11 +6,8 @@ import VolumeChart from '../market/VolumeChart';
 import MarketStats from '../market/MarketStats';
 import EMAAnalysis from '../market/EMAAnalysis';
 import RSIRecommendation from '../market/RSIRecommendation';
-import RSIFallback from '../market/RSIFallback';
 
 const DataVisualizations = ({ marketData, minVolume, currentRSI, selectedCoin, handleRefresh }) => {
-  const hasRsiData = marketData?.prices && marketData.prices.length > 14;
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <motion.div 
@@ -49,11 +46,7 @@ const DataVisualizations = ({ marketData, minVolume, currentRSI, selectedCoin, h
           marketData={marketData} 
           coin={selectedCoin} 
         />
-        {hasRsiData ? (
-          <RSIRecommendation rsiValue={currentRSI} />
-        ) : (
-          <RSIFallback onRetry={handleRefresh} />
-        )}
+        <RSIRecommendation />
         <MarketStats marketData={marketData} />
       </motion.div>
     </div>

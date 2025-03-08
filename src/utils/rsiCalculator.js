@@ -3,21 +3,21 @@ import { RSI } from 'technicalindicators';
 
 export const calculateRSI = (prices) => {
   if (!prices || !Array.isArray(prices) || prices.length < 14) {
-    console.log('Invalid price data for RSI calculation:', prices);
+    console.log('Invalid price data for RSI calculation. Need at least 14 data points:', prices);
     return null;
   }
   
   try {
-    // Extrai apenas os valores de preço do array [timestamp, price]
+    // Extract price values from [timestamp, price] format
     const values = prices.map(price => price[1]);
     
-    // Calcula o RSI usando a biblioteca technicalindicators
+    // Calculate RSI using the technicalindicators library
     const rsiValues = RSI.calculate({
       values: values,
       period: 14
     });
     
-    // Retorna o valor mais recente do RSI
+    // Return the most recent RSI value
     return rsiValues[rsiValues.length - 1];
   } catch (error) {
     console.error('Error calculating RSI:', error);

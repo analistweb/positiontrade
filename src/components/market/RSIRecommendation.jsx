@@ -2,7 +2,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, Bitcoin, Coins } from "lucide-react";
-import { CryptoList } from './CryptoList';
 import { RSICard } from './RSICard';
 import { LoadingRSI } from './LoadingRSI';
 import { ErrorRSI } from './ErrorRSI';
@@ -12,7 +11,7 @@ import { COINGECKO_API_URL, getHeaders } from '@/config/api';
 import { toast } from "sonner";
 import { calculateRSI } from '@/utils/rsiCalculator';
 
-// Lista de criptomoedas focadas
+// Lista de criptomoedas focadas - apenas Bitcoin, Ethereum, Cardano, XRP, e Solana
 const FOCUSED_CRYPTOS = [
   { id: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', priority: 1 },
   { id: 'ethereum', name: 'Ethereum', symbol: 'ETH', priority: 2 },
@@ -81,7 +80,12 @@ const RSIRecommendation = () => {
         throw error;
       }
     },
-    refetchInterval: 300000 // 5 minutes
+    refetchInterval: 300000, // 5 minutes
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    onError: (error) => {
+      console.error('Error in RSI query:', error);
+    }
   });
 
   if (isLoading) return <LoadingRSI />;
