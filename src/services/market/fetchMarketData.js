@@ -1,5 +1,4 @@
-
-import { axiosInstance } from '../../config/api';
+import { axiosInstance, getHeaders } from '../../config/api';
 import { toast } from "sonner";
 import { retryWithBackoff, handleAPIResponse, APIError } from '../errorHandlingService';
 import { getMarketDataCache, setMarketDataCache } from '../cache/cacheService';
