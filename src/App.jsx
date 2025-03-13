@@ -63,6 +63,9 @@ const HelpDialog = () => (
             <li>
               <strong>Análise Técnica:</strong> Ferramentas avançadas para análise de preços e tendências.
             </li>
+            <li>
+              <strong>Grupos de Entidades:</strong> Análise do comportamento de grandes entidades no mercado.
+            </li>
           </ul>
           <div className="bg-yellow-100 dark:bg-yellow-900/20 p-3 rounded mt-4">
             <p className="text-sm text-yellow-800 dark:text-yellow-200">
@@ -129,7 +132,6 @@ const App = () => {
                   {navItems.map(({ to, page }) => (
                     <Route key={to} path={to} element={page} />
                   ))}
-                  {/* Rota para redirecionar qualquer caminho não encontrado para a página inicial, incluindo posicao-carteira */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </div>

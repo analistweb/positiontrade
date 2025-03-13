@@ -5,10 +5,18 @@ import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { axiosInstance as axios, COINGECKO_API_URL, getHeaders } from '../config/api';
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
+
+// Constantes de API
+const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3';
+
+// Função para obter headers padrão
+const getHeaders = () => ({
+  'Accept': 'application/json',
+  'Content-Type': 'application/json'
+});
 
 const EntityGroups = () => {
   const { data, isLoading, error } = useQuery({
