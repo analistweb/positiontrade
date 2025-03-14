@@ -19,12 +19,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+// Create a new QueryClient instance with default options
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 2,
       retryDelay: attempt => Math.min(attempt > 1 ? 2000 : 1000, 30000),
-      staleTime: 5 * 60 * 1000, // 5 minutos
+      staleTime: 5 * 60 * 1000, // 5 minutes
     },
   },
 });
@@ -90,13 +91,16 @@ const App = () => {
     return cleanup;
   }, []);
 
+  // Adiciona console.log para debug
+  console.log("App rendering, navItems:", navItems);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <BrowserRouter>
           <div className="flex min-h-screen bg-background">
-            <nav className="w-64 glass-morphism flex-shrink-0">
+            <nav className="w-64 bg-muted/30 flex-shrink-0">
               <div className="flex flex-col h-full p-6 space-y-6">
                 <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
                   Análise de Criptomoedas
