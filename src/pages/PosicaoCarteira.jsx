@@ -10,10 +10,11 @@ import WhaleTransactions from '../components/portfolio/WhaleTransactions';
 import { motion } from "framer-motion";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { logError } from '../utils/logger';
+import { useToast } from "@/components/ui/use-toast";
 
 const PosicaoCarteira = () => {
+  const { toast } = useToast();
+
   const { 
     data: portfolioData, 
     isLoading: portfolioLoading, 
@@ -24,36 +25,36 @@ const PosicaoCarteira = () => {
     queryFn: fetchPortfolioData,
     refetchInterval: 300000, // Atualiza a cada 5 minutos
     staleTime: 240000, // Considera dados obsoletos após 4 minutos
-    retry: 5,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 60000), // Exponential backoff with max 1 minute
+    retry: 3,
     onError: (error) => {
-      logError(error, { context: 'Portfolio Data Fetch' });
-      toast.error("Erro ao carregar portfólio", {
-        description: "Verifique sua conexão e tente novamente",
+      toast({
+        title: "Erro ao carregar portfólio",
+        description: error.message,
+        variant: "destructive"
       });
     }
   });
 
   const { 
-    refetch: refetchWhale,
-    error: whaleError 
+    refetch: refetchWhale 
   } = useQuery({
     queryKey: ['whaleTransactions'],
     queryFn: fetchWhaleTransactions,
     refetchInterval: 300000, // Atualiza a cada 5 minutos
     staleTime: 240000, // Considera dados obsoletos após 4 minutos
-    retry: 5,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 60000),
+    retry: 3,
     onError: (error) => {
-      logError(error, { context: 'Whale Transactions Fetch' });
-      toast.error("Erro ao carregar transações", {
-        description: "Verifique sua conexão e tente novamente",
+      toast({
+        title: "Erro ao carregar transações",
+        description: error.message,
+        variant: "destructive"
       });
     }
   });
 
   const handleRefresh = async () => {
-    toast.info("Atualizando dados...", {
+    toast({
+      title: "Atualizando dados...",
       description: "Aguarde enquanto buscamos as informações mais recentes."
     });
     
@@ -62,14 +63,15 @@ const PosicaoCarteira = () => {
       clearMarketCache();
       await Promise.all([refetchPortfolio(), refetchWhale()]);
       
-      toast.success("Dados atualizados!", {
+      toast({
+        title: "Dados atualizados!",
         description: "As informações foram atualizadas com sucesso."
       });
     } catch (error) {
-      logError(error, { context: 'Manual Refresh' });
-      toast.error("Erro ao atualizar", {
-        description: "Não foi possível atualizar os dados. Verifique sua conexão e tente novamente.",
-        duration: 5000
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar os dados. Tente novamente.",
+        variant: "destructive"
       });
     }
   };
@@ -98,9 +100,7 @@ const PosicaoCarteira = () => {
         <Alert variant="destructive">
           <AlertTitle>Erro ao carregar dados</AlertTitle>
           <AlertDescription>
-            Não foi possível carregar os dados do seu portfólio.
-            <br />
-            Erro: {portfolioError?.message || "Erro de conexão"}
+            {portfolioError?.message}
             <br />
             <Button 
               variant="outline" 
@@ -151,18 +151,6 @@ const PosicaoCarteira = () => {
           <WhaleTransactions />
         </motion.div>
       </div>
-      
-      {whaleError && (
-        <div className="mt-4">
-          <Alert variant="warning">
-            <AlertTitle>Nota sobre os dados de transações</AlertTitle>
-            <AlertDescription>
-              As APIs públicas de criptomoedas podem ter limites de requisição que afetam a disponibilidade dos dados.
-              Se encontrar problemas, tente novamente mais tarde.
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
     </motion.div>
   );
 };
