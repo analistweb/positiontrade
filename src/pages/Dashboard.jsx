@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from "framer-motion";
@@ -9,14 +8,11 @@ import MarketSentiment from '../components/dashboard/MarketSentiment';
 import MarketHeatmap from '../components/dashboard/MarketHeatmap';
 import { toast } from "sonner";
 import { Activity, Globe, Brain, Flame } from "lucide-react";
-import { retryWithBackoff } from '../services/errorHandlingService';
 
 const Dashboard = () => {
   const { data: bitcoinDominance, isLoading: dominanceLoading, error: dominanceError } = useQuery({
     queryKey: ['bitcoinDominance'],
-    queryFn: async () => {
-      return await retryWithBackoff(() => fetchBitcoinDominance(), 'fetch bitcoin dominance');
-    },
+    queryFn: fetchBitcoinDominance,
     refetchInterval: 30000,
     onError: (error) => {
       toast.error(`Erro ao atualizar dominância: ${error.message}`);

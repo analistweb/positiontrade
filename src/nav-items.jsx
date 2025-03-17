@@ -1,54 +1,44 @@
-
-import { BarChart3, AreaChart, LineChart, Activity, Layers, Compass, TrendingUp } from "lucide-react";
-import Dashboard from "./pages/Dashboard";
-import AnaliseTecnica from "./pages/AnaliseTecnica";
-import BuySellAnalysis from "./pages/BuySellAnalysis";
-import TopFormation from "./pages/TopFormation";
-import RiskOpportunity from "./pages/RiskOpportunity";
-import Index from "./pages/Index";
-import EntityGroups from "./pages/EntityGroups";
+import { HomeIcon, TrendingUpIcon, WalletIcon, ActivityIcon, BarChartIcon } from "lucide-react";
+import Dashboard from "./pages/Dashboard.jsx";
+import AnalisesCompraVenda from "./pages/AnalisesCompraVenda.jsx";
+import PosicaoCarteira from "./pages/PosicaoCarteira.jsx";
+import FormacaoTopo from "./pages/FormacaoTopo.jsx";
+import AnaliseTecnica from "./pages/AnaliseTecnica.jsx";
 
 export const navItems = [
   {
-    title: "Dashboard",
+    title: "Painel",
     to: "/",
-    icon: <BarChart3 className="h-5 w-5" />,
+    icon: <HomeIcon className="h-4 w-4" />,
     page: <Dashboard />,
-    description: "Visão geral do mercado de criptomoedas com indicadores relevantes."
+    description: "Visão geral do mercado com principais indicadores, tendências e notícias em tempo real"
   },
   {
     title: "Análise de Compra/Venda",
     to: "/analise-compra-venda",
-    icon: <Activity className="h-5 w-5" />,
-    page: <BuySellAnalysis />,
-    description: "Análise de oportunidades de compra e venda baseada em indicadores técnicos."
+    icon: <TrendingUpIcon className="h-4 w-4" />,
+    page: <AnalisesCompraVenda />,
+    description: "Analise o melhor momento para comprar ou vender baseado em indicadores técnicos e volume de negociação"
+  },
+  {
+    title: "Carteira e Movimentações",
+    to: "/posicao-carteira",
+    icon: <WalletIcon className="h-4 w-4" />,
+    page: <PosicaoCarteira />,
+    description: "Acompanhe suas criptomoedas e analise movimentações de grandes investidores"
   },
   {
     title: "Formação de Topo",
     to: "/formacao-topo",
-    icon: <AreaChart className="h-5 w-5" />,
-    page: <TopFormation />,
-    description: "Identificação de padrões de formação de topo de preços."
+    icon: <ActivityIcon className="h-4 w-4" />,
+    page: <FormacaoTopo />,
+    description: "Identifique possíveis pontos máximos de preço para tomar decisões mais informadas"
   },
   {
     title: "Análise Técnica",
     to: "/analise-tecnica",
-    icon: <LineChart className="h-5 w-5" />,
+    icon: <BarChartIcon className="h-4 w-4" />,
     page: <AnaliseTecnica />,
-    description: "Ferramentas avançadas para análise técnica de criptomoedas."
-  },
-  {
-    title: "Risco vs Oportunidade",
-    to: "/risco-oportunidade",
-    icon: <TrendingUp className="h-5 w-5" />,
-    page: <RiskOpportunity />,
-    description: "Avaliação do equilíbrio entre risco e oportunidade de investimento."
-  },
-  {
-    title: "Grupos de Entidades",
-    to: "/entity-groups",
-    icon: <Layers className="h-5 w-5" />,
-    page: <EntityGroups />,
-    description: "Análise do comportamento de grandes entidades no mercado."
+    description: "Utilize ferramentas avançadas para análise de preços, tendências e indicadores técnicos"
   },
 ];

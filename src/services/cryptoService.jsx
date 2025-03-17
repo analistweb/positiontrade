@@ -1,47 +1,112 @@
 
 import { axiosInstance as axios, COINGECKO_API_URL, getHeaders } from '../config/api';
 import { toast } from "sonner";
-import { retryWithBackoff } from './errorHandlingService';
-
-// Dados de fallback para quando a API falhar
-const fallbackTopFormationData = {
-  prices: Array.from({ length: 90 }, (_, i) => [Date.now() - (89 - i) * 86400000, 30000 + Math.random() * 10000]),
-  market_caps: Array.from({ length: 90 }, (_, i) => [Date.now() - (89 - i) * 86400000, 580000000000 + Math.random() * 20000000000]),
-  total_volumes: Array.from({ length: 90 }, (_, i) => [Date.now() - (89 - i) * 86400000, 20000000000 + Math.random() * 5000000000]),
-  isFallbackData: true
-};
 
 const handleServiceError = (error, context) => {
   console.error(`Erro em ${context}:`, error);
   const message = error.response?.data?.error || error.message || 'Erro desconhecido';
-  toast.error(`${context}: ${message}`, {
-    description: "Usando dados locais enquanto tentamos reconectar"
-  });
-  // Em vez de lançar o erro, retornamos dados de fallback
-  return { ...fallbackTopFormationData, error: message };
+  toast.error(`${context}: ${message}`);
+  throw new Error(message);
+};
+
+export const fetchPortfolioData = async () => {
+  try {
+    // Buscar top 10 criptomoedas com dados detalhados
+    const response = await axios.get(`${COINGECKO_API_URL}/coins/markets`, {
+      params: {
+        vs_currency: 'usd',
+        order: 'market_cap_desc',
+        per_page: 10,
+        page: 1,
+        sparkline: true,
+        price_change_percentage: '24h,7d,30d', // Adicionando mais períodos de variação
+        locale: 'pt'
+      },
+      headers: getHeaders()
+    });
+
+    if (!response.data) {
+      throw new Error('Dados não disponíveis');
+    }
+
+    return response.data.map(coin => ({
+      id: coin.id,
+      symbol: coin.symbol.toUpperCase(),
+      name: coin.name,
+      image: coin.image,
+      current_price: coin.current_price,
+      price_change_percentage_24h: coin.price_change_percentage_24h,
+      price_change_percentage_7d: coin.price_change_percentage_7d_in_currency,
+      price_change_percentage_30d: coin.price_change_percentage_30d_in_currency,
+      market_cap: coin.market_cap,
+      total_volume: coin.total_volume,
+      sparkline_in_7d: coin.sparkline_in_7d,
+      quantity: coin.total_volume / coin.current_price, // Volume real de transações
+      total_value: coin.total_volume // Valor total real
+    }));
+  } catch (error) {
+    return handleServiceError(error, 'Buscar dados do portfólio');
+  }
+};
+
+export const fetchWhaleTransactions = async () => {
+  try {
+    // Buscar dados de volume de exchanges para Bitcoin
+    const [btcData, ethData] = await Promise.all([
+      axios.get(`${COINGECKO_API_URL}/exchanges/binance/tickers/btc_usdt`, {
+        headers: getHeaders()
+      }),
+      axios.get(`${COINGECKO_API_URL}/exchanges/binance/tickers/eth_usdt`, {
+        headers: getHeaders()
+      })
+    ]);
+
+    if (!btcData.data || !ethData.data) {
+      throw new Error('Dados de transações não disponíveis');
+    }
+
+    // Criar transações baseadas em dados reais de volume
+    const createTransaction = (ticker, crypto) => ({
+      timestamp: new Date(ticker.last_traded_at).toISOString(),
+      type: ticker.last > ticker.bid ? "Compra" : "Venda",
+      cryptoAmount: parseFloat((ticker.volume / ticker.last).toFixed(4)),
+      cryptoSymbol: crypto,
+      volume: ticker.volume,
+      price: ticker.last,
+      exchange: ticker.market.name,
+      smartMoneyScore: calculateSmartMoneyScore(ticker)
+    });
+
+    // Calcular score baseado em dados reais
+    const calculateSmartMoneyScore = (ticker) => {
+      const volumeScore = Math.min(100, (ticker.volume / 1000000) * 10);
+      const bidAskScore = Math.min(100, ((ticker.bid - ticker.ask) / ticker.last) * 1000);
+      return Math.floor((volumeScore + bidAskScore) / 2);
+    };
+
+    // Combinar transações de BTC e ETH
+    const whaleTransactions = [
+      ...btcData.data.tickers.slice(0, 5).map(t => createTransaction(t, "BTC")),
+      ...ethData.data.tickers.slice(0, 5).map(t => createTransaction(t, "ETH"))
+    ].sort((a, b) => b.volume - a.volume);
+
+    return whaleTransactions;
+  } catch (error) {
+    return handleServiceError(error, 'Buscar transações de grandes players');
+  }
 };
 
 export const fetchTopFormationData = async () => {
   try {
-    // Implementa timeout mais curto para não deixar o usuário esperando muito tempo
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos de timeout
-    
     // Buscar dados históricos mais detalhados
-    const response = await retryWithBackoff(async () => {
-      const res = await axios.get(`${COINGECKO_API_URL}/coins/bitcoin/market_chart`, {
-        params: {
-          vs_currency: 'usd',
-          days: 90,
-          interval: 'daily'
-        },
-        headers: getHeaders(),
-        signal: controller.signal
-      });
-      return res;
-    }, 'Buscar dados de formação de topo');
-    
-    clearTimeout(timeoutId);
+    const response = await axios.get(`${COINGECKO_API_URL}/coins/bitcoin/market_chart`, {
+      params: {
+        vs_currency: 'usd',
+        days: 90, // Aumentado para 90 dias para melhor análise
+        interval: 'daily'
+      },
+      headers: getHeaders()
+    });
 
     if (!response.data) {
       throw new Error('Dados de formação de topo não disponíveis');
@@ -62,9 +127,6 @@ export const fetchTopFormationData = async () => {
     const ma20 = calculateMA(prices, 20);
     const ma50 = calculateMA(prices, 50);
 
-    // Timestamp para mostrar quando os dados foram atualizados pela última vez
-    const lastUpdated = new Date().toLocaleTimeString();
-
     return {
       prices: response.data.prices,
       market_caps: response.data.market_caps,
@@ -79,9 +141,7 @@ export const fetchTopFormationData = async () => {
         average_volume: index >= 7 
           ? volumes.slice(index - 7, index).reduce((sum, v) => sum + v[1], 0) / 7 
           : volume[1]
-      })),
-      lastUpdated,
-      isFallbackData: false
+      }))
     };
   } catch (error) {
     return handleServiceError(error, 'Buscar dados de formação de topo');
