@@ -5,11 +5,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { fetchTopFormationData } from '../services/cryptoService';
 import { toast } from "sonner";
 import { RSI, BollingerBands } from 'technicalindicators';
-import { Loader2, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
 import { motion } from "framer-motion";
 import PriceAnalysisChart from '../components/market/PriceAnalysisChart';
 import TechnicalIndicators from '../components/market/TechnicalIndicators';
 import EntityAnalysis from '../components/market/EntityAnalysis';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorDisplay } from '../components/common/ErrorDisplay';
+import { DataSourceBadge } from '../components/common/DataSourceBadge';
 
 const analisarPadroesTopo = (precos) => {
   if (!precos || precos.length < 14) {
@@ -57,17 +60,7 @@ const FormacaoTopo = () => {
   if (isLoading) {
     return (
       <div className="container mx-auto p-4">
-        <Card>
-          <CardContent className="flex items-center justify-center min-h-[400px]">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            >
-              <Loader2 className="h-8 w-8 text-primary" />
-            </motion.div>
-            <span className="ml-2 text-muted-foreground">Carregando análise...</span>
-          </CardContent>
-        </Card>
+        <LoadingSpinner message="Carregando análise de formação de topo..." />
       </div>
     );
   }
@@ -75,24 +68,11 @@ const FormacaoTopo = () => {
   if (error || !data?.prices?.length) {
     return (
       <div className="container mx-auto p-4">
-        <Card className="border-destructive/50">
-          <CardContent className="p-6">
-            <div className="text-center space-y-4">
-              <p className="text-destructive text-lg">
-                Não foi possível carregar os dados no momento.
-              </p>
-              <p className="text-muted-foreground">
-                Por favor, verifique sua conexão e tente novamente em alguns instantes.
-              </p>
-              <button
-                onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-              >
-                Tentar Novamente
-              </button>
-            </div>
-          </CardContent>
-        </Card>
+        <ErrorDisplay
+          title="Erro ao carregar dados de formação de topo"
+          message="Não foi possível carregar os dados no momento. Por favor, verifique sua conexão e tente novamente em alguns instantes."
+          onRetry={() => window.location.reload()}
+        />
       </div>
     );
   }
@@ -118,7 +98,10 @@ const FormacaoTopo = () => {
         transition={{ duration: 0.5 }}
       >
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Formação de Topo</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-bold">Formação de Topo</h1>
+            <DataSourceBadge isRealData={true} size="md" />
+          </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Clock className="h-4 w-4" />
             <span>Última atualização: {lastUpdateTime}</span>

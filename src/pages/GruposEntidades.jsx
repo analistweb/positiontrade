@@ -6,8 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { COINGECKO_API_URL, getHeaders } from '@/config/api';
 import { toast } from "sonner";
-import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorDisplay } from '../components/common/ErrorDisplay';
+import { DataSourceBadge } from '../components/common/DataSourceBadge';
 
 const GruposEntidades = () => {
   const { data, isLoading, error } = useQuery({
@@ -73,13 +74,8 @@ const GruposEntidades = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-4 flex items-center justify-center min-h-[400px]">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-        >
-          <Loader2 className="h-8 w-8 text-primary" />
-        </motion.div>
+      <div className="container mx-auto p-4">
+        <LoadingSpinner message="Carregando dados de grupos de entidades..." />
       </div>
     );
   }
@@ -87,20 +83,20 @@ const GruposEntidades = () => {
   if (error) {
     return (
       <div className="container mx-auto p-4">
-        <Card className="bg-destructive/10">
-          <CardContent className="p-6">
-            <p className="text-destructive text-center">
-              Erro ao carregar os dados: {error.message}
-            </p>
-          </CardContent>
-        </Card>
+        <ErrorDisplay
+          title="Erro ao carregar grupos de entidades"
+          message={error.message}
+        />
       </div>
     );
   }
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">Grupos de Entidades</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Grupos de Entidades</h1>
+        <DataSourceBadge isRealData={true} size="md" />
+      </div>
 
       <Card className="mb-6">
         <CardHeader>

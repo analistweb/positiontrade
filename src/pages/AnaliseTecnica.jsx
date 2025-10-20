@@ -7,6 +7,9 @@ import { toast } from "sonner";
 import axios from 'axios';
 import { COINGECKO_API_URL, getHeaders } from '@/config/api';
 import { motion } from "framer-motion";
+import { LoadingCard } from '../components/common/LoadingSpinner';
+import { ErrorDisplay } from '../components/common/ErrorDisplay';
+import { DataSourceBadge } from '../components/common/DataSourceBadge';
 import {
   Tooltip as UITooltip,
   TooltipContent,
@@ -61,15 +64,7 @@ const AnaliseTecnica = () => {
   if (isLoading) {
     return (
       <div className="container mx-auto p-4" role="status" aria-label="Carregando dados do Bitcoin">
-        <Card className="w-full">
-          <CardContent className="h-[300px] flex items-center justify-center">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full"
-            />
-          </CardContent>
-        </Card>
+        <LoadingCard title="Carregando análise técnica..." />
       </div>
     );
   }
@@ -77,13 +72,10 @@ const AnaliseTecnica = () => {
   if (error || !btcData || !btcData.prices) {
     return (
       <div className="container mx-auto p-4" role="alert">
-        <Card className="w-full">
-          <CardContent className="p-6">
-            <p className="text-destructive text-center">
-              Erro ao carregar dados. Por favor, tente novamente mais tarde.
-            </p>
-          </CardContent>
-        </Card>
+        <ErrorDisplay
+          title="Erro ao carregar análise técnica"
+          message="Não foi possível carregar os dados. Por favor, tente novamente mais tarde."
+        />
       </div>
     );
   }
@@ -95,7 +87,10 @@ const AnaliseTecnica = () => {
   return (
     <TooltipProvider>
       <div className="container mx-auto p-4 space-y-6">
-        <h1 className="text-3xl font-bold mb-6" role="heading" aria-level="1">Análise Técnica Bitcoin</h1>
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold mb-6" role="heading" aria-level="1">Análise Técnica Bitcoin</h1>
+          <DataSourceBadge isRealData={true} size="md" />
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>

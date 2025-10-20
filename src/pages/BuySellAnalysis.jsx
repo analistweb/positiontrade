@@ -5,8 +5,9 @@ import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { COINGECKO_API_URL, getHeaders } from '@/config/api';
 import { toast } from "sonner";
-import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { ErrorDisplay } from '../components/common/ErrorDisplay';
+import { DataSourceBadge } from '../components/common/DataSourceBadge';
 
 const BuySellAnalysis = () => {
   const { data, isLoading, error } = useQuery({
@@ -74,12 +75,7 @@ const BuySellAnalysis = () => {
   if (isLoading) {
     return (
       <div className="flex flex-col min-h-screen p-4 items-center justify-center">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-        >
-          <Loader2 className="h-8 w-8 text-primary" />
-        </motion.div>
+        <LoadingSpinner message="Carregando análise de volume..." />
       </div>
     );
   }
@@ -87,13 +83,10 @@ const BuySellAnalysis = () => {
   if (error) {
     return (
       <div className="flex flex-col min-h-screen p-4">
-        <Card className="bg-destructive/10">
-          <CardContent className="p-6">
-            <p className="text-destructive text-center">
-              Erro ao carregar dados: {error.message}
-            </p>
-          </CardContent>
-        </Card>
+        <ErrorDisplay
+          title="Erro ao carregar análise"
+          message={error.message}
+        />
       </div>
     );
   }
@@ -104,7 +97,10 @@ const BuySellAnalysis = () => {
 
   return (
     <div className="flex flex-col min-h-screen p-4 space-y-6">
-      <h1 className="text-3xl font-bold">Análise de Compra/Venda</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Análise de Compra/Venda</h1>
+        <DataSourceBadge isRealData={true} size="md" />
+      </div>
       <div className="flex flex-col lg:flex-row gap-6">
         <Card className="flex-1">
           <CardHeader>

@@ -16,6 +16,8 @@ import { fetchMarketData, fetchTopCoins } from '../services/marketService';
 import VolumeChart from '../components/market/VolumeChart';
 import MarketStats from '../components/market/MarketStats';
 import EMAAnalysis from '../components/market/EMAAnalysis';
+import { ErrorDisplay } from '../components/common/ErrorDisplay';
+import { DataSourceBadge } from '../components/common/DataSourceBadge';
 
 const AnalisesCompraVenda = () => {
   const [selectedCoin, setSelectedCoin] = useState('bitcoin');
@@ -85,21 +87,11 @@ const AnalisesCompraVenda = () => {
 
     if (error) {
       return (
-        <Card className="bg-destructive/10 mb-6">
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-destructive mb-4">Erro ao carregar dados: {error.message}</p>
-              <Button 
-                variant="outline" 
-                className="flex items-center gap-2"
-                onClick={handleRefresh}
-              >
-                <RefreshCw className="h-4 w-4" />
-                Tentar Novamente
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <ErrorDisplay
+          title="Erro ao carregar dados"
+          message={error.message}
+          onRetry={handleRefresh}
+        />
       );
     }
 
@@ -157,7 +149,10 @@ const AnalisesCompraVenda = () => {
         transition={{ duration: 0.5 }}
       >
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Análise de Compra e Venda</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-bold">Análise de Compra e Venda</h1>
+            <DataSourceBadge isRealData={true} size="md" />
+          </div>
           <Button 
             variant="outline" 
             size="icon"
