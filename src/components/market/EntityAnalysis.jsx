@@ -48,7 +48,7 @@ const EntityAnalysis = ({ data }) => {
                       <ul className="list-disc list-inside mt-2">
                         <li>Alto volume: Possível mudança de tendência</li>
                         <li>Volume crescente: Aumento de interesse institucional</li>
-                        <li>Volume > $20B: Atividade significativa</li>
+                        <li>Volume &gt; $20B: Atividade significativa</li>
                       </ul>
                     </TooltipContent>
                   </Tooltip>
@@ -72,7 +72,7 @@ const EntityAnalysis = ({ data }) => {
                       <ul className="list-disc list-inside mt-2">
                         <li>Positiva: Movimento de alta no período</li>
                         <li>Negativa: Movimento de baixa no período</li>
-                        <li>Alta volatilidade: Variação > 5%</li>
+                        <li>Alta volatilidade: Variação &gt; 5%</li>
                       </ul>
                     </TooltipContent>
                   </Tooltip>

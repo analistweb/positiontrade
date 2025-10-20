@@ -113,3 +113,29 @@ export const getCacheStatus = () => {
     isValid: (Date.now() - value.timestamp) < CACHE_DURATION
   }));
 };
+
+export const handleApiError = (error, action = 'processar requisição') => {
+  let message = `Falha ao ${action}.`;
+
+  if (error?.response) {
+    const status = error.response.status;
+    if (status === 429) {
+      message += ' Limite de requisições atingido. Tente novamente em instantes.';
+    } else if (status >= 500) {
+      message += ' Erro no servidor do provedor de dados.';
+    }
+
+    const apiMsg = error.response.data?.error || error.response.data?.message;
+    if (apiMsg) {
+      message += ` ${apiMsg}`;
+    }
+  } else if (error?.request) {
+    message += ' Sem resposta do servidor. Verifique sua conexão.';
+  } else if (error?.message) {
+    message += ` ${error.message}`;
+  }
+
+  const wrapped = new Error(message);
+  wrapped.cause = error;
+  return wrapped;
+};
