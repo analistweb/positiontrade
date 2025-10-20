@@ -1,5 +1,6 @@
 import { HomeIcon, TrendingUpIcon, WalletIcon, ActivityIcon, BarChartIcon } from "lucide-react";
 import Dashboard from "./pages/Dashboard.jsx";
+import Index from "./pages/Index.jsx";
 import AnalisesCompraVenda from "./pages/AnalisesCompraVenda.jsx";
 import PosicaoCarteira from "./pages/PosicaoCarteira.jsx";
 import FormacaoTopo from "./pages/FormacaoTopo.jsx";
@@ -10,7 +11,7 @@ export const navItems = [
     title: "Painel",
     to: "/",
     icon: <HomeIcon className="h-4 w-4" />,
-    page: <Dashboard />,
+    page: <Index />,
     description: "Visão geral do mercado com principais indicadores, tendências e notícias em tempo real"
   },
   {
