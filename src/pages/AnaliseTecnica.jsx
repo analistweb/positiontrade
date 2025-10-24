@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { toast } from "sonner";
-import axios from 'axios';
-import { COINGECKO_API_URL, getHeaders } from '@/config/api';
+import { axiosInstance } from '@/config/api';
+import { retryWithBackoff } from '@/services/errorHandlingService';
 import { motion } from "framer-motion";
 import { LoadingCard } from '../components/common/LoadingSpinner';
 import { ErrorDisplay } from '../components/common/ErrorDisplay';
@@ -18,21 +18,17 @@ import {
 } from "@/components/ui/tooltip";
 
 const AnaliseTecnica = () => {
-  const { data: btcData, isLoading, error } = useQuery({
+  const { data: btcData, isLoading, error, refetch } = useQuery({
     queryKey: ['btcTechnicalAnalysis'],
     queryFn: async () => {
-      try {
-        const response = await axios.get(
-          `${COINGECKO_API_URL}/coins/bitcoin/market_chart`,
-          {
-            params: {
-              vs_currency: 'usd',
-              days: 365,
-              interval: 'daily'
-            },
-            headers: getHeaders()
+      return await retryWithBackoff(async () => {
+        const response = await axiosInstance.get('/coins/bitcoin/market_chart', {
+          params: {
+            vs_currency: 'usd',
+            days: 90, // Reduced from 365 to avoid API limits
+            interval: 'daily'
           }
-        );
+        });
 
         if (!response.data || !response.data.prices) {
           console.error('Invalid response data:', response.data);
@@ -40,11 +36,16 @@ const AnaliseTecnica = () => {
         }
 
         const prices = response.data.prices.map(price => ({
-          date: new Date(price[0]).toLocaleDateString(),
+          date: new Date(price[0]).toLocaleDateString('pt-BR', { 
+            day: '2-digit', 
+            month: '2-digit' 
+          }),
           price: price[1]
         }));
 
-        const mma200 = prices.slice(-200).reduce((sum, p) => sum + p.price, 0) / 200;
+        // Calculate 200 MMA (or use available data if less than 200 days)
+        const mmaLength = Math.min(200, prices.length);
+        const mma200 = prices.slice(-mmaLength).reduce((sum, p) => sum + p.price, 0) / mmaLength;
         const mayerMultiple = prices[prices.length - 1].price / mma200;
 
         return {
@@ -52,13 +53,11 @@ const AnaliseTecnica = () => {
           mma200,
           mayerMultiple
         };
-      } catch (error) {
-        console.error('Erro ao carregar dados do Bitcoin:', error);
-        toast.error("Erro ao carregar dados do Bitcoin");
-        throw error;
-      }
+      }, 'Análise Técnica Bitcoin');
     },
-    refetchInterval: 300000
+    refetchInterval: 300000,
+    retry: 2,
+    staleTime: 60000 // Consider data fresh for 1 minute
   });
 
   if (isLoading) {
@@ -74,7 +73,8 @@ const AnaliseTecnica = () => {
       <div className="container mx-auto p-4" role="alert">
         <ErrorDisplay
           title="Erro ao carregar análise técnica"
-          message="Não foi possível carregar os dados. Por favor, tente novamente mais tarde."
+          message="Não foi possível conectar com o provedor de dados. Verifique sua conexão ou tente novamente em alguns minutos."
+          onRetry={() => refetch()}
         />
       </div>
     );
