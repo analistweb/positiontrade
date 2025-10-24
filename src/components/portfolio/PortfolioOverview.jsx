@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
+import CryptoImage from '../common/CryptoImage';
 
 const PortfolioOverview = ({ portfolioData }) => {
   const totalValue = portfolioData?.reduce((acc, coin) => 
@@ -62,10 +63,11 @@ const PortfolioOverview = ({ portfolioData }) => {
                   <TableRow key={coin.id} className="hover:bg-muted/50 transition-colors">
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
-                        <img 
+                        <CryptoImage 
                           src={coin.image} 
                           alt={coin.name}
-                          className="w-6 h-6 rounded-full"
+                          symbol={coin.symbol}
+                          className="w-6 h-6"
                         />
                         <span>{coin.name}</span>
                         <span className="text-muted-foreground">({coin.symbol.toUpperCase()})</span>

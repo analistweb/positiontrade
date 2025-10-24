@@ -19,6 +19,7 @@ import {
 import { axiosInstance } from '@/config/api';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { DataSourceBadge } from '../components/common/DataSourceBadge';
+import CryptoImage from '../components/common/CryptoImage';
 import { toast } from "sonner";
 
 const Index = () => {
@@ -192,7 +193,12 @@ const Index = () => {
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <img src={coin.image} alt={coin.name} className="w-8 h-8" />
+                          <CryptoImage 
+                            src={coin.image} 
+                            alt={coin.name}
+                            symbol={coin.symbol}
+                            className="w-8 h-8"
+                          />
                           <div>
                             <h3 className="font-semibold text-white">{coin.name}</h3>
                             <p className="text-xs text-gray-400 uppercase">{coin.symbol}</p>
