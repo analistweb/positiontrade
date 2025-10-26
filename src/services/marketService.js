@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { axiosInstance, handleApiError } from '../config/api';
 import { retryWithBackoff, handleAPIResponse } from './errorHandlingService';
 import { toast } from "sonner";

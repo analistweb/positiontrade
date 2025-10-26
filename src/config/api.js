@@ -20,50 +20,7 @@ export const axiosInstance = axios.create({
   headers: getHeaders()
 });
 
-// Response interceptor for caching
-axiosInstance.interceptors.response.use(
-  (response) => {
-    // Cache successful responses
-    const cacheKey = `${response.config.url}?${JSON.stringify(response.config.params)}`;
-    cache.set(cacheKey, {
-      data: response.data,
-      timestamp: Date.now()
-    });
-    return response;
-  },
-  async (error) => {
-    if (error.response?.status === 429) {
-      toast.error("Limite de requisições atingido. Usando dados em cache...");
-      
-      // Try to get cached data
-      const cacheKey = `${error.config.url}?${JSON.stringify(error.config.params)}`;
-      const cachedData = cache.get(cacheKey);
-      
-      if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
-        return Promise.resolve({ data: cachedData.data });
-      }
-    }
-
-    if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
-      toast.error("Erro de conexão. Tentando recuperar dados do cache...");
-      
-      // Try to get cached data for network errors
-      const cacheKey = `${error.config.url}?${JSON.stringify(error.config.params)}`;
-      const cachedData = cache.get(cacheKey);
-      
-      if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
-        return Promise.resolve({ data: cachedData.data });
-      }
-      
-      toast.error("Não foi possível recuperar dados do cache.");
-    }
-
-    // If we couldn't handle the error, throw it
-    return Promise.reject(error);
-  }
-);
-
-// Request interceptor for cache
+// Request interceptor for cache checking
 axiosInstance.interceptors.request.use(
   async (config) => {
     // Check cache before making request
@@ -71,12 +28,9 @@ axiosInstance.interceptors.request.use(
     const cachedData = cache.get(cacheKey);
     
     if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION) {
-      // Return cached data and prevent request
-      return Promise.reject({
-        config,
-        response: { data: cachedData.data },
-        __CACHED: true
-      });
+      // Mark as using cache
+      config.__useCache = true;
+      config.__cacheData = cachedData.data;
     }
     
     return config;
@@ -86,13 +40,44 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// Handle cached responses in response interceptor
+// Response interceptor for caching and error handling
 axiosInstance.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.__CACHED) {
-      return Promise.resolve(error.response);
+  (response) => {
+    // If using cached data, return it
+    if (response.config.__useCache) {
+      return { ...response, data: response.config.__cacheData };
     }
+    
+    // Cache successful responses
+    const cacheKey = `${response.config.url}?${JSON.stringify(response.config.params)}`;
+    cache.set(cacheKey, {
+      data: response.data,
+      timestamp: Date.now()
+    });
+    return response;
+  },
+  async (error) => {
+    const cacheKey = `${error.config?.url}?${JSON.stringify(error.config?.params)}`;
+    const cachedData = cache.get(cacheKey);
+    
+    // Handle rate limiting
+    if (error.response?.status === 429) {
+      if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION * 2) {
+        toast.error("Limite de requisições atingido. Usando dados em cache...");
+        return Promise.resolve({ data: cachedData.data, fromCache: true });
+      }
+      toast.error("Limite de requisições atingido. Aguarde alguns instantes.");
+    }
+
+    // Handle network errors
+    if (error.code === 'ECONNABORTED' || error.message === 'Network Error') {
+      if (cachedData && (Date.now() - cachedData.timestamp) < CACHE_DURATION * 2) {
+        toast.error("Erro de conexão. Usando dados em cache...");
+        return Promise.resolve({ data: cachedData.data, fromCache: true });
+      }
+      toast.error("Erro de conexão. Verifique sua internet.");
+    }
+
     return Promise.reject(error);
   }
 );

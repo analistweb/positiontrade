@@ -2,7 +2,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchPortfolioData } from '../services/cryptoService';
-import { fetchWhaleTransactions, clearMarketCache } from '../services/marketService';
+import { clearMarketCache } from '../services/marketService';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import PortfolioOverview from '../components/portfolio/PortfolioOverview';
@@ -10,11 +10,9 @@ import WhaleTransactions from '../components/portfolio/WhaleTransactions';
 import { motion } from "framer-motion";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 const PosicaoCarteira = () => {
-  const { toast } = useToast();
-
   const { 
     data: portfolioData, 
     isLoading: portfolioLoading, 
@@ -23,56 +21,23 @@ const PosicaoCarteira = () => {
   } = useQuery({
     queryKey: ['portfolio'],
     queryFn: fetchPortfolioData,
-    refetchInterval: 300000, // Atualiza a cada 5 minutos
-    staleTime: 240000, // Considera dados obsoletos após 4 minutos
-    retry: 3,
+    refetchInterval: 300000,
+    staleTime: 240000,
+    retry: 2,
     onError: (error) => {
-      toast({
-        title: "Erro ao carregar portfólio",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  });
-
-  const { 
-    refetch: refetchWhale 
-  } = useQuery({
-    queryKey: ['whaleTransactions'],
-    queryFn: fetchWhaleTransactions,
-    refetchInterval: 300000, // Atualiza a cada 5 minutos
-    staleTime: 240000, // Considera dados obsoletos após 4 minutos
-    retry: 3,
-    onError: (error) => {
-      toast({
-        title: "Erro ao carregar transações",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error("Erro ao carregar portfólio: " + error.message);
     }
   });
 
   const handleRefresh = async () => {
-    toast({
-      title: "Atualizando dados...",
-      description: "Aguarde enquanto buscamos as informações mais recentes."
-    });
+    toast.info("Atualizando dados...");
     
     try {
-      // Limpar cache para forçar atualização
       clearMarketCache();
-      await Promise.all([refetchPortfolio(), refetchWhale()]);
-      
-      toast({
-        title: "Dados atualizados!",
-        description: "As informações foram atualizadas com sucesso."
-      });
+      await refetchPortfolio();
+      toast.success("Dados atualizados com sucesso!");
     } catch (error) {
-      toast({
-        title: "Erro ao atualizar",
-        description: "Não foi possível atualizar os dados. Tente novamente.",
-        variant: "destructive"
-      });
+      toast.error("Erro ao atualizar dados. Tente novamente.");
     }
   };
 
