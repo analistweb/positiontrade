@@ -10,7 +10,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const TechnicalIndicators = ({ analise }) => {
+const TechnicalIndicators = ({ analise, precoAtual }) => {
+  // Detectar formação de topo real baseado em condições técnicas
+  const isRSIOverBought = analise.rsi > 70;
+  const isPriceNearUpperBand = precoAtual >= (analise.bandaSuperior * 0.98);
+  const isTopFormationDetected = isRSIOverBought && isPriceNearUpperBand;
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -85,30 +90,43 @@ const TechnicalIndicators = ({ analise }) => {
               </div>
             </div>
 
-            <div className="p-4 bg-destructive/20 rounded-lg">
-              <div className="flex items-center justify-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-                <p className="text-center font-medium text-destructive">
-                  Confirmação de formação de topo detectada
-                </p>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <Info className="h-4 w-4 text-destructive" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-sm p-4">
-                      <p>Uma formação de topo é identificada quando:</p>
-                      <ul className="list-disc list-inside mt-2">
-                        <li>RSI mostra condições de sobrecompra</li>
-                        <li>Preço atinge ou ultrapassa a Banda Superior</li>
-                        <li>Volume de vendas aumenta significativamente</li>
-                      </ul>
-                      <p className="mt-2 text-destructive">Considere reduzir exposição ao risco</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+            {isTopFormationDetected && (
+              <div className="p-4 bg-destructive/20 rounded-lg">
+                <div className="flex items-center justify-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                  <p className="text-center font-medium text-destructive">
+                    Confirmação de formação de topo detectada
+                  </p>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Info className="h-4 w-4 text-destructive" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-sm p-4">
+                        <p>Uma formação de topo é identificada quando:</p>
+                        <ul className="list-disc list-inside mt-2">
+                          <li>RSI {'>'} 70 (sobrecompra) ✓</li>
+                          <li>Preço próximo/acima da Banda Superior ✓</li>
+                          <li>Risco elevado de reversão de tendência</li>
+                        </ul>
+                        <p className="mt-2 text-destructive font-semibold">Considere reduzir exposição ao risco</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               </div>
-            </div>
+            )}
+
+            {!isTopFormationDetected && (
+              <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                <div className="flex items-center justify-center gap-2">
+                  <Info className="h-5 w-5 text-muted-foreground" />
+                  <p className="text-center text-sm text-muted-foreground">
+                    Nenhuma formação de topo detectada no momento
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -88,6 +88,7 @@ const FormacaoTopo = () => {
 
   const precos = data.prices.map(([_, price]) => price);
   const analise = analisarPadroesTopo(precos);
+  const precoAtual = precos[precos.length - 1];
   const lastUpdateTime = new Date(dataUpdatedAt).toLocaleTimeString();
 
   return (
@@ -112,7 +113,7 @@ const FormacaoTopo = () => {
       <PriceAnalysisChart data={data} formatCurrency={formatCurrency} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <TechnicalIndicators analise={analise} />
+        <TechnicalIndicators analise={analise} precoAtual={precoAtual} />
         <EntityAnalysis data={data} />
       </div>
     </div>
