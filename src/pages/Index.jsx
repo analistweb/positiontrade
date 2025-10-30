@@ -237,26 +237,27 @@ const Index = () => {
                 <CardTitle className="text-2xl font-semibold neon-glow">Acesso Rápido</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex flex-col md:flex-row gap-4">
                   {quickLinks.map((link, index) => (
                     <motion.div
                       key={link.to}
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.1 }}
+                      className="flex-1"
                     >
-                      <Link to={link.to}>
+                      <Link to={link.to} className="block h-full">
                         <Card className="glass-morphism border-0 card-hover cursor-pointer h-full">
-                          <CardContent className="p-6">
-                            <div className="flex items-start gap-4">
-                              <div className="p-3 rounded-xl bg-primary/10">
+                          <CardContent className="p-6 flex flex-col h-full">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="p-3 rounded-xl bg-primary/10 flex-shrink-0">
                                 <link.icon className="w-6 h-6 text-primary" />
                               </div>
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-white mb-1">{link.title}</h3>
-                                <p className="text-sm text-gray-400">{link.description}</p>
-                              </div>
-                              <ArrowRight className="w-5 h-5 text-gray-400 mt-1" />
+                              <h3 className="font-semibold text-white text-base">{link.title}</h3>
+                            </div>
+                            <p className="text-sm text-gray-400 flex-grow">{link.description}</p>
+                            <div className="flex justify-end mt-4">
+                              <ArrowRight className="w-5 h-5 text-gray-400" />
                             </div>
                           </CardContent>
                         </Card>
