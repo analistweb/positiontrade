@@ -14,7 +14,8 @@ import {
   ArrowRight,
   DollarSign,
   Globe,
-  AlertCircle
+  AlertCircle,
+  Zap
 } from "lucide-react";
 import { axiosInstance } from '@/config/api';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
@@ -82,6 +83,7 @@ const Index = () => {
 
   const quickLinks = [
     { title: "Análise de Compra/Venda", to: "/analise-compra-venda", icon: TrendingUp, description: "Indicadores técnicos e volume" },
+    { title: "Estratégia ETHUSDT", to: "/estrategia-eth", icon: Zap, description: "Trading com Didi + DMI (15min)" },
     { title: "Carteira e Movimentações", to: "/posicao-carteira", icon: Wallet, description: "Acompanhe grandes investidores" },
     { title: "Análise Técnica", to: "/analise-tecnica", icon: BarChart3, description: "Ferramentas avançadas de análise" }
   ];
@@ -237,14 +239,13 @@ const Index = () => {
                 <CardTitle className="text-2xl font-semibold neon-glow">Acesso Rápido</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col md:flex-row gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {quickLinks.map((link, index) => (
                     <motion.div
                       key={link.to}
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.1 }}
-                      className="flex-1"
                     >
                       <Link to={link.to} className="block h-full">
                         <Card className="glass-morphism border-0 card-hover cursor-pointer h-full">
