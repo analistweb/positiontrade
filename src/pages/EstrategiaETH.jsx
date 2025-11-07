@@ -14,6 +14,7 @@ import { calculateDidiIndex, calculateDMI, calculateEMA, calculateATR } from '@/
 const EstrategiaETH = () => {
   const [lastSignal, setLastSignal] = useState(null);
   const [operationHistory, setOperationHistory] = useState([]);
+  const [successfulSignals, setSuccessfulSignals] = useState([]);
 
   const { data: marketData, isLoading, error, refetch } = useQuery({
     queryKey: ['ethusdt-15m'],
@@ -24,8 +25,45 @@ const EstrategiaETH = () => {
   useEffect(() => {
     if (marketData) {
       analyzeStrategy(marketData);
+      checkSuccessfulSignals(marketData);
     }
   }, [marketData]);
+
+  const checkSuccessfulSignals = (data) => {
+    if (!data || data.length === 0 || operationHistory.length === 0) return;
+
+    const currentPrice = data[data.length - 1].close;
+    
+    operationHistory.forEach((signal) => {
+      // Verifica se o sinal ainda não foi marcado como sucesso
+      const alreadySuccessful = successfulSignals.some(s => s.timestamp === signal.timestamp);
+      if (alreadySuccessful) return;
+
+      // Verifica se atingiu o take profit
+      let hitTarget = false;
+      if (signal.type === 'COMPRA' && currentPrice >= signal.takeProfit) {
+        hitTarget = true;
+      } else if (signal.type === 'VENDA' && currentPrice <= signal.takeProfit) {
+        hitTarget = true;
+      }
+
+      if (hitTarget) {
+        const profitPercent = signal.type === 'COMPRA' 
+          ? ((signal.takeProfit - signal.entryPrice) / signal.entryPrice * 100).toFixed(2)
+          : ((signal.entryPrice - signal.takeProfit) / signal.entryPrice * 100).toFixed(2);
+
+        const successSignal = {
+          ...signal,
+          closedAt: new Date().toLocaleString('pt-BR'),
+          profit: profitPercent,
+          status: 'SUCESSO'
+        };
+
+        setSuccessfulSignals(prev => [successSignal, ...prev].slice(0, 20));
+        toast.success(`Sinal de ${signal.type} atingiu o alvo! +${profitPercent}%`);
+      }
+    });
+  };
 
   const analyzeStrategy = (data) => {
     if (!data || data.length < 100) return;
@@ -236,10 +274,64 @@ const EstrategiaETH = () => {
         </motion.div>
       )}
 
+      {/* Sinais Bem-Sucedidos */}
+      <Card className="border-green-500/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="text-green-500 w-5 h-5" />
+            Sinais de Sucesso (Take Profit Atingido)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {successfulSignals.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Nenhum sinal atingiu o alvo ainda</p>
+          ) : (
+            <div className="space-y-3">
+              {successfulSignals.map((op, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className="p-4 rounded-lg border border-green-500/30 bg-green-500/10"
+                >
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="text-green-500 w-5 h-5" />
+                        <span className="font-semibold">{op.type}</span>
+                        <Badge variant="default" className="bg-green-500">+{op.profit}%</Badge>
+                      </div>
+                      <Badge variant="outline" className="text-green-500 border-green-500">✓ SUCESSO</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Entrada: </span>
+                        <span className="font-medium">${op.entryPrice.toFixed(2)}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Alvo: </span>
+                        <span className="font-medium text-green-500">${op.takeProfit.toFixed(2)}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Aberto: {op.timestamp}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Fechado: {op.closedAt}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Histórico de Operações */}
       <Card>
         <CardHeader>
-          <CardTitle>Histórico de Sinais</CardTitle>
+          <CardTitle>Histórico de Todos os Sinais</CardTitle>
         </CardHeader>
         <CardContent>
           {operationHistory.length === 0 ? (
