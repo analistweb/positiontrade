@@ -15,6 +15,7 @@ const EstrategiaETH = () => {
   const [lastSignal, setLastSignal] = useState(null);
   const [operationHistory, setOperationHistory] = useState([]);
   const [successfulSignals, setSuccessfulSignals] = useState([]);
+  const [conditionsStatus, setConditionsStatus] = useState(null);
 
   const { data: marketData, isLoading, error, refetch } = useQuery({
     queryKey: ['ethusdt-15m'],
@@ -134,7 +135,35 @@ const EstrategiaETH = () => {
     const avgVolume = volumes.slice(-20).reduce((a, b) => a + b, 0) / 20;
     const volumeOk = triggerCandle.volume >= avgVolume;
 
-    // 8. Gerar sinal
+    // 8. Salvar status das condições para debug
+    setConditionsStatus({
+      buy: {
+        breakout: buyBreakout,
+        didi: didiConfirmBuy,
+        dmi: dmiConfirmBuy,
+        trend: trendUp,
+        volatility: volatilityOk,
+        volume: volumeOk
+      },
+      sell: {
+        breakout: sellBreakout,
+        didi: didiConfirmSell,
+        dmi: dmiConfirmSell,
+        trend: trendDown,
+        volatility: volatilityOk,
+        volume: volumeOk
+      },
+      currentPrice,
+      ema50Value: ema50Confirm,
+      adx: currentDMI.adx,
+      atrValue: atr[atr.length - 1],
+      avgVolume,
+      currentVolume: triggerCandle.volume,
+      referenceHigh: referenceCandle.high,
+      referenceLow: referenceCandle.low
+    });
+
+    // 9. Gerar sinal
     let signal = null;
 
     if (buyBreakout && didiConfirmBuy && dmiConfirmBuy && trendUp && volatilityOk && volumeOk) {
@@ -272,6 +301,139 @@ const EstrategiaETH = () => {
             </CardContent>
           </Card>
         </motion.div>
+      )}
+
+      {/* Painel de Debug das Condições */}
+      {conditionsStatus && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              Status das Condições em Tempo Real
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Condições de Compra */}
+            <div>
+              <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <ArrowUpCircle className="text-green-500 w-5 h-5" />
+                Condições para COMPRA
+              </h3>
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between p-2 rounded border">
+                  <span className="text-sm">Rompimento de Alta</span>
+                  <Badge variant={conditionsStatus.buy.breakout ? "default" : "outline"}>
+                    {conditionsStatus.buy.breakout ? "✅ OK" : "❌ Não"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded border">
+                  <span className="text-sm">Didi Index (Agulhada Alta)</span>
+                  <Badge variant={conditionsStatus.buy.didi ? "default" : "outline"}>
+                    {conditionsStatus.buy.didi ? "✅ OK" : "❌ Não"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded border">
+                  <span className="text-sm">DMI (+DI &gt; -DI, ADX &gt; 25)</span>
+                  <Badge variant={conditionsStatus.buy.dmi ? "default" : "outline"}>
+                    {conditionsStatus.buy.dmi ? "✅ OK" : "❌ Não"} (ADX: {conditionsStatus.adx.toFixed(1)})
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded border">
+                  <span className="text-sm">Tendência (Preço &gt; EMA50)</span>
+                  <Badge variant={conditionsStatus.buy.trend ? "default" : "outline"}>
+                    {conditionsStatus.buy.trend ? "✅ OK" : "❌ Não"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded border">
+                  <span className="text-sm">Volatilidade Adequada</span>
+                  <Badge variant={conditionsStatus.buy.volatility ? "default" : "outline"}>
+                    {conditionsStatus.buy.volatility ? "✅ OK" : "❌ Baixa"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded border">
+                  <span className="text-sm">Volume Adequado</span>
+                  <Badge variant={conditionsStatus.buy.volume ? "default" : "outline"}>
+                    {conditionsStatus.buy.volume ? "✅ OK" : "❌ Baixo"}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Condições de Venda */}
+            <div>
+              <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <ArrowDownCircle className="text-red-500 w-5 h-5" />
+                Condições para VENDA
+              </h3>
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between p-2 rounded border">
+                  <span className="text-sm">Rompimento de Baixa</span>
+                  <Badge variant={conditionsStatus.sell.breakout ? "default" : "outline"}>
+                    {conditionsStatus.sell.breakout ? "✅ OK" : "❌ Não"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded border">
+                  <span className="text-sm">Didi Index (Agulhada Baixa)</span>
+                  <Badge variant={conditionsStatus.sell.didi ? "default" : "outline"}>
+                    {conditionsStatus.sell.didi ? "✅ OK" : "❌ Não"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded border">
+                  <span className="text-sm">DMI (-DI &gt; +DI, ADX &gt; 25)</span>
+                  <Badge variant={conditionsStatus.sell.dmi ? "default" : "outline"}>
+                    {conditionsStatus.sell.dmi ? "✅ OK" : "❌ Não"} (ADX: {conditionsStatus.adx.toFixed(1)})
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded border">
+                  <span className="text-sm">Tendência (Preço &lt; EMA50)</span>
+                  <Badge variant={conditionsStatus.sell.trend ? "default" : "outline"}>
+                    {conditionsStatus.sell.trend ? "✅ OK" : "❌ Não"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded border">
+                  <span className="text-sm">Volatilidade Adequada</span>
+                  <Badge variant={conditionsStatus.sell.volatility ? "default" : "outline"}>
+                    {conditionsStatus.sell.volatility ? "✅ OK" : "❌ Baixa"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded border">
+                  <span className="text-sm">Volume Adequado</span>
+                  <Badge variant={conditionsStatus.sell.volume ? "default" : "outline"}>
+                    {conditionsStatus.sell.volume ? "✅ OK" : "❌ Baixo"}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Valores Atuais */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pt-4 border-t">
+              <div>
+                <p className="text-xs text-muted-foreground">Preço Atual</p>
+                <p className="text-lg font-bold">${conditionsStatus.currentPrice.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">EMA50</p>
+                <p className="text-lg font-bold">${conditionsStatus.ema50Value.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">ATR</p>
+                <p className="text-lg font-bold">{conditionsStatus.atrValue.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Volume Atual</p>
+                <p className="text-sm font-medium">{conditionsStatus.currentVolume.toFixed(0)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Volume Médio</p>
+                <p className="text-sm font-medium">{conditionsStatus.avgVolume.toFixed(0)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Ref. Alta/Baixa</p>
+                <p className="text-sm font-medium">${conditionsStatus.referenceHigh.toFixed(2)} / ${conditionsStatus.referenceLow.toFixed(2)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Sinais Bem-Sucedidos */}
