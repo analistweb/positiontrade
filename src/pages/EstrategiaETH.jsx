@@ -5,11 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
-import { ArrowUpCircle, ArrowDownCircle, TrendingUp, TrendingDown, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, AlertTriangle, RefreshCw, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { fetchETHUSDTData } from '@/services/binanceService';
 import { calculateDidiIndex, calculateDMI, calculateEMA, calculateATR } from '@/utils/technicalIndicators';
+import StrategyMetrics from '@/components/strategy/StrategyMetrics';
+import TechnicalGauges from '@/components/strategy/TechnicalGauges';
+import CandlestickChart from '@/components/strategy/CandlestickChart';
+import SignalTimeline from '@/components/strategy/SignalTimeline';
 
 const EstrategiaETH = () => {
   const [lastSignal, setLastSignal] = useState(null);
@@ -229,19 +233,45 @@ const EstrategiaETH = () => {
 
   return (
     <div className="container mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 pb-20">
+      {/* Header com gradiente e animação */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4"
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-background border border-primary/20 p-6 sm:p-8"
       >
-        <div className="w-full sm:w-auto">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-1 sm:mb-2">Estratégia ETHUSDT</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">Didi Index + DMI + Rompimento (15min)</p>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -mr-32 -mt-32" />
+        <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+          <div className="w-full sm:w-auto">
+            <div className="flex items-center gap-3 mb-2">
+              <Sparkles className="w-8 h-8 text-primary" />
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Estratégia ETHUSDT</h1>
+            </div>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Análise automática com Didi Index + DMI + Rompimento (Timeframe: 15min)
+            </p>
+          </div>
+          <Button 
+            onClick={handleRefresh} 
+            variant="outline" 
+            className="self-end sm:self-auto hover:bg-primary/10 hover:border-primary"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Atualizar
+          </Button>
         </div>
-        <Button onClick={handleRefresh} variant="outline" size="icon" className="self-end sm:self-auto">
-          <RefreshCw className="h-4 w-4" />
-        </Button>
       </motion.div>
+
+      {/* Métricas de Performance */}
+      <StrategyMetrics 
+        signals={operationHistory} 
+        successfulSignals={successfulSignals} 
+      />
+
+      {/* Indicadores Técnicos Visuais */}
+      <TechnicalGauges conditionsStatus={conditionsStatus} />
+
+      {/* Gráfico de Candlestick */}
+      <CandlestickChart marketData={marketData} lastSignal={lastSignal} />
 
       {/* Sinal Atual */}
       {lastSignal && (
@@ -303,234 +333,125 @@ const EstrategiaETH = () => {
         </motion.div>
       )}
 
-      {/* Painel de Debug das Condições */}
+      {/* Timeline de Sinais */}
+      <SignalTimeline 
+        signals={operationHistory} 
+        successfulSignals={successfulSignals} 
+      />
+
+      {/* Painel de Condições (colapsável) */}
       {conditionsStatus && (
-        <Card>
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-              Status das Condições em Tempo Real
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 pt-0">
-            {/* Condições de Compra */}
-            <div>
-              <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
-                <ArrowUpCircle className="text-green-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                Condições para COMPRA
-              </h3>
-              <div className="grid gap-1.5 sm:gap-2">
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Rompimento de Alta</span>
-                  <Badge variant={conditionsStatus.buy.breakout ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.buy.breakout ? "✅ OK" : "❌ Não"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Didi Index (Agulhada Alta)</span>
-                  <Badge variant={conditionsStatus.buy.didi ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.buy.didi ? "✅ OK" : "❌ Não"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">DMI (+DI &gt; -DI, ADX &gt; 25)</span>
-                  <Badge variant={conditionsStatus.buy.dmi ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.buy.dmi ? "✅ OK" : "❌ Não"} (ADX: {conditionsStatus.adx.toFixed(1)})
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Tendência (Preço &gt; EMA50)</span>
-                  <Badge variant={conditionsStatus.buy.trend ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.buy.trend ? "✅ OK" : "❌ Não"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Volatilidade Adequada</span>
-                  <Badge variant={conditionsStatus.buy.volatility ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.buy.volatility ? "✅ OK" : "❌ Baixa"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Volume Adequado</span>
-                  <Badge variant={conditionsStatus.buy.volume ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.buy.volume ? "✅ OK" : "❌ Baixo"}
-                  </Badge>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card className="border-border/50">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                Status Detalhado das Condições
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 pt-0">
+              {/* Condições de Compra */}
+              <div>
+                <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
+                  <ArrowUpCircle className="text-green-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  Condições para COMPRA
+                </h3>
+                <div className="grid gap-1.5 sm:gap-2">
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Rompimento de Alta</span>
+                    <Badge variant={conditionsStatus.buy.breakout ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.buy.breakout ? "✅ OK" : "❌ Não"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Didi Index (Agulhada Alta)</span>
+                    <Badge variant={conditionsStatus.buy.didi ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.buy.didi ? "✅ OK" : "❌ Não"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">DMI (+DI &gt; -DI, ADX &gt; 25)</span>
+                    <Badge variant={conditionsStatus.buy.dmi ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.buy.dmi ? "✅ OK" : "❌ Não"} (ADX: {conditionsStatus.adx.toFixed(1)})
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Tendência (Preço &gt; EMA50)</span>
+                    <Badge variant={conditionsStatus.buy.trend ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.buy.trend ? "✅ OK" : "❌ Não"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Volatilidade Adequada</span>
+                    <Badge variant={conditionsStatus.buy.volatility ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.buy.volatility ? "✅ OK" : "❌ Baixa"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Volume Adequado</span>
+                    <Badge variant={conditionsStatus.buy.volume ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.buy.volume ? "✅ OK" : "❌ Baixo"}
+                    </Badge>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Condições de Venda */}
-            <div>
-              <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
-                <ArrowDownCircle className="text-red-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                Condições para VENDA
-              </h3>
-              <div className="grid gap-1.5 sm:gap-2">
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Rompimento de Baixa</span>
-                  <Badge variant={conditionsStatus.sell.breakout ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.sell.breakout ? "✅ OK" : "❌ Não"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Didi Index (Agulhada Baixa)</span>
-                  <Badge variant={conditionsStatus.sell.didi ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.sell.didi ? "✅ OK" : "❌ Não"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">DMI (-DI &gt; +DI, ADX &gt; 25)</span>
-                  <Badge variant={conditionsStatus.sell.dmi ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.sell.dmi ? "✅ OK" : "❌ Não"} (ADX: {conditionsStatus.adx.toFixed(1)})
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Tendência (Preço &lt; EMA50)</span>
-                  <Badge variant={conditionsStatus.sell.trend ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.sell.trend ? "✅ OK" : "❌ Não"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Volatilidade Adequada</span>
-                  <Badge variant={conditionsStatus.sell.volatility ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.sell.volatility ? "✅ OK" : "❌ Baixa"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Volume Adequado</span>
-                  <Badge variant={conditionsStatus.sell.volume ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.sell.volume ? "✅ OK" : "❌ Baixo"}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-
-            {/* Valores Atuais */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 pt-3 sm:pt-4 border-t">
+              {/* Condições de Venda */}
               <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Preço Atual</p>
-                <p className="text-sm sm:text-base md:text-lg font-bold">${conditionsStatus.currentPrice.toFixed(2)}</p>
+                <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
+                  <ArrowDownCircle className="text-red-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  Condições para VENDA
+                </h3>
+                <div className="grid gap-1.5 sm:gap-2">
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Rompimento de Baixa</span>
+                    <Badge variant={conditionsStatus.sell.breakout ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.sell.breakout ? "✅ OK" : "❌ Não"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Didi Index (Agulhada Baixa)</span>
+                    <Badge variant={conditionsStatus.sell.didi ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.sell.didi ? "✅ OK" : "❌ Não"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">DMI (-DI &gt; +DI, ADX &gt; 25)</span>
+                    <Badge variant={conditionsStatus.sell.dmi ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.sell.dmi ? "✅ OK" : "❌ Não"} (ADX: {conditionsStatus.adx.toFixed(1)})
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Tendência (Preço &lt; EMA50)</span>
+                    <Badge variant={conditionsStatus.sell.trend ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.sell.trend ? "✅ OK" : "❌ Não"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Volatilidade Adequada</span>
+                    <Badge variant={conditionsStatus.sell.volatility ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.sell.volatility ? "✅ OK" : "❌ Baixa"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Volume Adequado</span>
+                    <Badge variant={conditionsStatus.sell.volume ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.sell.volume ? "✅ OK" : "❌ Baixo"}
+                    </Badge>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">EMA50</p>
-                <p className="text-sm sm:text-base md:text-lg font-bold">${conditionsStatus.ema50Value.toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">ATR</p>
-                <p className="text-sm sm:text-base md:text-lg font-bold">{conditionsStatus.atrValue.toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Volume Atual</p>
-                <p className="text-xs sm:text-sm font-medium">{conditionsStatus.currentVolume.toFixed(0)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Volume Médio</p>
-                <p className="text-xs sm:text-sm font-medium">{conditionsStatus.avgVolume.toFixed(0)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Referência</p>
-                <p className="text-xs sm:text-sm font-medium">
-                  H: ${conditionsStatus.referenceHigh.toFixed(2)}<br />
-                  L: ${conditionsStatus.referenceLow.toFixed(2)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
       )}
 
-      {/* Sinais Bem-Sucedidos */}
-      <Card className="border-green-500/30">
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <TrendingUp className="text-green-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-            Sinais de Sucesso (Take Profit Atingido)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 sm:p-6 pt-0">
-          {successfulSignals.length === 0 ? (
-            <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm sm:text-base">Nenhum sinal atingiu o alvo ainda</p>
-          ) : (
-            <div className="space-y-2 sm:space-y-3">
-              {successfulSignals.map((op, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="p-3 sm:p-4 rounded-lg border border-green-500/30 bg-green-500/10"
-                >
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <TrendingUp className="text-green-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                        <span className="font-semibold text-sm sm:text-base truncate">{op.type}</span>
-                        <Badge variant="default" className="bg-green-500 text-xs">+{op.profit}%</Badge>
-                      </div>
-                      <Badge variant="outline" className="text-green-500 border-green-500 text-xs flex-shrink-0">✓ SUCESSO</Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Entrada: </span>
-                        <span className="font-medium">${op.entryPrice.toFixed(2)}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Alvo: </span>
-                        <span className="font-medium text-green-500">${op.takeProfit.toFixed(2)}</span>
-                      </div>
-                      <div className="text-[10px] sm:text-xs text-muted-foreground col-span-2 sm:col-span-1">
-                        Aberto: {op.timestamp}
-                      </div>
-                      <div className="text-[10px] sm:text-xs text-muted-foreground col-span-2 sm:col-span-1">
-                        Fechado: {op.closedAt}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Histórico de Operações */}
-      <Card>
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-base sm:text-lg">Histórico de Todos os Sinais</CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 sm:p-6 pt-0">
-          {operationHistory.length === 0 ? (
-            <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm sm:text-base">Nenhum sinal gerado ainda</p>
-          ) : (
-            <div className="space-y-2 sm:space-y-3">
-              {operationHistory.map((op, idx) => (
-                <div
-                  key={idx}
-                  className={`p-3 sm:p-4 rounded-lg border ${
-                    op.type === 'COMPRA' ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'
-                  }`}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {op.type === 'COMPRA' ? (
-                        <TrendingUp className="text-green-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                      ) : (
-                        <TrendingDown className="text-red-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                      )}
-                      <span className="font-semibold text-sm sm:text-base">{op.type}</span>
-                      <span className="text-xs sm:text-sm text-muted-foreground">${op.entryPrice.toFixed(2)}</span>
-                    </div>
-                    <span className="text-[10px] sm:text-xs text-muted-foreground self-end sm:self-auto">{op.timestamp}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Descrição da Estratégia */}
-      <Card>
+      <Card className="border-border/50">
         <CardHeader className="p-4 sm:p-6">
           <CardTitle className="text-base sm:text-lg">Sobre a Estratégia</CardTitle>
         </CardHeader>
