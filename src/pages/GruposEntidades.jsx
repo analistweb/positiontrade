@@ -2,13 +2,13 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { COINGECKO_API_URL, getHeaders } from '@/config/api';
 import { toast } from "sonner";
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ErrorDisplay } from '../components/common/ErrorDisplay';
 import { DataSourceBadge } from '../components/common/DataSourceBadge';
+import EntityVolumeHeatmap from '../components/entities/EntityVolumeHeatmap';
 
 const GruposEntidades = () => {
   const { data, isLoading, error } = useQuery({
@@ -98,33 +98,7 @@ const GruposEntidades = () => {
         <DataSourceBadge isRealData={true} size="md" />
       </div>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Transações de Grandes Entidades</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Entidade</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Quantidade (USD)</TableHead>
-                <TableHead>Preço</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.transactions.map((transaction, index) => (
-                <TableRow key={index}>
-                  <TableCell>{transaction.entity}</TableCell>
-                  <TableCell>{transaction.type}</TableCell>
-                  <TableCell>${transaction.amount.toLocaleString()}</TableCell>
-                  <TableCell>${transaction.price.toLocaleString()}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <EntityVolumeHeatmap transactions={data.transactions} />
 
       <Card className="mb-6">
         <CardHeader>
