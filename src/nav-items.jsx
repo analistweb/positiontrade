@@ -23,11 +23,11 @@ export const navItems = [
     description: "Analise o melhor momento para comprar ou vender baseado em indicadores técnicos e volume de negociação"
   },
   {
-    title: "Carteira e Movimentações",
+    title: "Atividade das Baleias",
     to: "/posicao-carteira",
     icon: <WalletIcon className="h-4 w-4" />,
     page: <PosicaoCarteira />,
-    description: "Acompanhe suas criptomoedas e analise movimentações de grandes investidores"
+    description: "Monitore as movimentações dos grandes investidores em tempo real"
   },
   {
     title: "Formação de Topo",
