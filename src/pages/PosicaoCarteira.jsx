@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { Waves } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { fetchWhaleTransactions } from '@/services/marketService';
-import DataSourceBadge from '../components/common/DataSourceBadge';
+import { DataSourceBadge } from '../components/common/DataSourceBadge';
 
 const PosicaoCarteira = () => {
   const { 
@@ -44,7 +44,7 @@ const PosicaoCarteira = () => {
               </p>
             </div>
           </div>
-          <DataSourceBadge dataSource="exchange" />
+          <DataSourceBadge isRealData={true} size="md" />
         </div>
       </div>
 
