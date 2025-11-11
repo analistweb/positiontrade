@@ -51,6 +51,8 @@ export const fetchPortfolioData = async () => {
 
 export const fetchWhaleTransactions = async () => {
   try {
+    console.log('🔄 Buscando transações whale REAIS via CoinGecko API');
+    
     // Calcular score baseado em dados reais
     const calculateSmartMoneyScore = (ticker) => {
       const volumeScore = Math.min(100, (ticker.volume / 1000000) * 10);
@@ -70,22 +72,30 @@ export const fetchWhaleTransactions = async () => {
       smartMoneyScore: calculateSmartMoneyScore(ticker)
     });
 
-    // Buscar dados de volume de exchanges para Bitcoin
+    // Buscar dados de volume de exchanges para Bitcoin e Ethereum
     const [btcData, ethData] = await Promise.all([
-      axios.get(`${COINGECKO_API_URL}/exchanges/binance/tickers/btc_usdt`, {
+      axios.get(`${COINGECKO_API_URL}/exchanges/binance/tickers`, {
+        params: { coin_ids: 'bitcoin' },
         headers: getHeaders(),
-        timeout: 10000
-      }).catch(() => null),
-      axios.get(`${COINGECKO_API_URL}/exchanges/binance/tickers/eth_usdt`, {
+        timeout: 15000
+      }).catch((err) => {
+        console.error('❌ Erro ao buscar dados BTC:', err);
+        return null;
+      }),
+      axios.get(`${COINGECKO_API_URL}/exchanges/binance/tickers`, {
+        params: { coin_ids: 'ethereum' },
         headers: getHeaders(),
-        timeout: 10000
-      }).catch(() => null)
+        timeout: 15000
+      }).catch((err) => {
+        console.error('❌ Erro ao buscar dados ETH:', err);
+        return null;
+      })
     ]);
 
-    // Se não conseguir dados reais, usar simulados
+    // Verificar se conseguiu dados reais
     if (!btcData?.data?.tickers || !ethData?.data?.tickers) {
-      console.warn('Usando dados simulados para transações whale');
-      return generateMockWhaleTransactions();
+      console.error('❌ Falha ao obter dados reais de transações whale');
+      throw new Error('API não retornou dados de transações');
     }
 
     // Combinar transações de BTC e ETH
@@ -94,33 +104,19 @@ export const fetchWhaleTransactions = async () => {
       ...ethData.data.tickers.slice(0, 5).map(t => createTransaction(t, "ETH"))
     ].sort((a, b) => b.volume - a.volume);
 
+    console.log(`✅ ${whaleTransactions.length} transações whale REAIS obtidas`);
+    toast.success(`✅ ${whaleTransactions.length} transações reais carregadas`);
+
     return whaleTransactions;
   } catch (error) {
-    console.error('Erro ao buscar transações whale:', error);
-    return generateMockWhaleTransactions();
+    console.error('❌ ERRO ao buscar transações whale:', error);
+    toast.error(`Erro ao carregar transações reais: ${error.message}`);
+    throw error; // Propagar erro ao invés de usar fallback
   }
 };
 
-// Função auxiliar para gerar dados simulados
-const generateMockWhaleTransactions = () => {
-  const mockTransactions = [];
-  const cryptos = ['BTC', 'ETH'];
-  
-  for (let i = 0; i < 10; i++) {
-    mockTransactions.push({
-      timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString(),
-      type: Math.random() > 0.5 ? "Compra" : "Venda",
-      cryptoAmount: parseFloat((Math.random() * 100).toFixed(4)),
-      cryptoSymbol: cryptos[Math.floor(Math.random() * cryptos.length)],
-      volume: Math.random() * 10000000,
-      price: Math.random() * 50000,
-      exchange: 'Binance',
-      smartMoneyScore: Math.floor(Math.random() * 100)
-    });
-  }
-  
-  return mockTransactions.sort((a, b) => b.volume - a.volume);
-};
+// REMOVIDO: função de dados simulados
+// Agora apenas dados REAIS são utilizados
 
 export const fetchTopFormationData = async () => {
   try {

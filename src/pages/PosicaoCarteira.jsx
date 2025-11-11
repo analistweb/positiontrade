@@ -8,17 +8,39 @@ import { Waves } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { fetchWhaleTransactions } from '@/services/marketService';
 import { DataSourceBadge } from '../components/common/DataSourceBadge';
+import { ErrorDisplay } from '../components/common/ErrorDisplay';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
 
 const PosicaoCarteira = () => {
   const { 
     data: transactions, 
-    isLoading
+    isLoading,
+    error
   } = useQuery({
     queryKey: ['whaleTransactions', '7d'],
     queryFn: () => fetchWhaleTransactions('7d'),
     refetchInterval: 300000,
     staleTime: 240000,
+    retry: 2,
+    onError: (err) => {
+      console.error('Erro ao carregar transações de baleias:', err);
+    }
   });
+
+  if (isLoading) {
+    return <LoadingSpinner message="Carregando dados reais de transações de baleias..." />;
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto p-6">
+        <ErrorDisplay 
+          message="Erro ao carregar dados reais da API CoinGecko" 
+          details={error.message}
+        />
+      </div>
+    );
+  }
 
   return (
     <motion.div
