@@ -1,10 +1,11 @@
+
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from "@/components/ui/card";
 import { fetchTopFormationData } from '../services/cryptoService';
 import { toast } from "sonner";
 import { RSI, BollingerBands } from 'technicalindicators';
-import { Clock, Activity } from "lucide-react";
+import { Clock } from "lucide-react";
 import { motion } from "framer-motion";
 import PriceAnalysisChart from '../components/market/PriceAnalysisChart';
 import TechnicalIndicators from '../components/market/TechnicalIndicators';
@@ -97,18 +98,12 @@ const FormacaoTopo = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-xl">
-              <Activity className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-bold">Formação de Topo</h1>
-              <p className="text-sm text-muted-foreground mt-1">Análise técnica avançada</p>
-            </div>
+            <h1 className="text-3xl font-bold">Formação de Topo</h1>
             <DataSourceBadge isRealData={true} size="md" />
           </div>
-          <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground bg-card/50 px-3 py-2 rounded-lg border border-border/30">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Clock className="h-4 w-4" />
             <span>Última atualização: {lastUpdateTime}</span>
           </div>

@@ -1,175 +1,169 @@
 
-import React, { useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { InfoIcon, ArrowRightLeft, RefreshCw, Filter, AlertTriangle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import TransactionList from './whale-transactions/TransactionList';
+import TransactionInsights from './whale-transactions/TransactionInsights';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from '@tanstack/react-query';
-import { fetchWhaleTransactions } from '@/services/marketService';
-import { Skeleton } from "@/components/ui/skeleton";
-import CryptoImage from '../common/CryptoImage';
+import { fetchWhaleTransactions, clearMarketCache, fetchOnChainData } from '@/services/marketService';
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 const WhaleTransactions = () => {
+  const [timeframe, setTimeframe] = useState('7d');
+  const [dataSource, setDataSource] = useState('exchange'); // 'exchange' ou 'onchain'
+  
   const { 
     data: transactions, 
-    isLoading
+    isLoading, 
+    error,
+    refetch
   } = useQuery({
-    queryKey: ['whaleTransactions', '7d'],
-    queryFn: () => fetchWhaleTransactions('7d'),
-    refetchInterval: 300000,
-    staleTime: 240000,
+    queryKey: ['whaleTransactions', timeframe, dataSource],
+    queryFn: () => dataSource === 'exchange' 
+      ? fetchWhaleTransactions(timeframe)
+      : fetchOnChainData(timeframe),
+    refetchInterval: 300000, // Atualiza a cada 5 minutos
+    staleTime: 240000, // Considera dados obsoletos após 4 minutos
   });
 
-  // Analisar sentimento dos whales para BTC e ETH
-  const whaleAnalysis = useMemo(() => {
-    if (!transactions || transactions.length === 0) {
-      return { btc: null, eth: null };
-    }
-
-    const analyzeCrypto = (symbol) => {
-      const cryptoTransactions = transactions.filter(t => 
-        t.cryptoSymbol?.toUpperCase() === symbol
-      );
-
-      if (cryptoTransactions.length === 0) return null;
-
-      const buyVolume = cryptoTransactions
-        .filter(t => t.type === 'Compra')
-        .reduce((sum, t) => sum + (t.volume || 0), 0);
-      
-      const sellVolume = cryptoTransactions
-        .filter(t => t.type === 'Venda')
-        .reduce((sum, t) => sum + (t.volume || 0), 0);
-
-      const totalVolume = buyVolume + sellVolume;
-      const buyPercentage = totalVolume > 0 ? (buyVolume / totalVolume) * 100 : 50;
-      
-      return {
-        sentiment: buyPercentage >= 55 ? 'buying' : buyPercentage <= 45 ? 'selling' : 'neutral',
-        buyPercentage: buyPercentage.toFixed(1),
-        sellPercentage: (100 - buyPercentage).toFixed(1),
-        totalVolume: totalVolume
-      };
-    };
-
-    return {
-      btc: analyzeCrypto('BTC'),
-      eth: analyzeCrypto('ETH')
-    };
-  }, [transactions]);
-
-  const CryptoSentimentCard = ({ crypto, data, name }) => {
-    if (isLoading) {
-      return (
-        <div className="flex items-center gap-4 p-4 sm:p-6 rounded-xl bg-card/50 border border-border/50">
-          <Skeleton className="h-12 w-12 sm:h-16 sm:w-16 rounded-full" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-5 w-24" />
-            <Skeleton className="h-8 w-32" />
-          </div>
-        </div>
-      );
-    }
-
-    if (!data) {
-      return (
-        <div className="flex items-center gap-4 p-4 sm:p-6 rounded-xl bg-card/50 border border-border/50">
-          <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-muted flex items-center justify-center">
-            <Wallet className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm sm:text-base font-medium text-muted-foreground">{name}</p>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">Sem dados disponíveis</p>
-          </div>
-        </div>
-      );
-    }
-
-    const isBuying = data.sentiment === 'buying';
-    const isSelling = data.sentiment === 'selling';
-    const isNeutral = data.sentiment === 'neutral';
-
-    return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className={`relative overflow-hidden flex items-center gap-3 sm:gap-4 p-4 sm:p-6 rounded-xl border-2 transition-all ${
-          isBuying 
-            ? 'bg-emerald-500/5 border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.1)]' 
-            : isSelling 
-            ? 'bg-red-500/5 border-red-500/30 shadow-[0_0_20px_rgba(239,68,68,0.1)]'
-            : 'bg-card/50 border-border/50'
-        }`}
-      >
-        {/* Background gradient effect */}
-        <div className={`absolute inset-0 opacity-5 ${
-          isBuying ? 'bg-gradient-to-br from-emerald-500 to-green-500' 
-          : isSelling ? 'bg-gradient-to-br from-red-500 to-rose-500'
-          : 'bg-gradient-to-br from-primary to-primary'
-        }`} />
-
-        <div className="relative">
-          <CryptoImage 
-            symbol={crypto}
-            className="h-12 w-12 sm:h-16 sm:w-16"
-          />
-        </div>
-
-        <div className="flex-1 relative">
-          <p className="text-xs sm:text-sm text-muted-foreground font-medium mb-1">{name}</p>
-          <div className="flex items-center gap-2">
-            {isBuying && (
-              <>
-                <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-500" />
-                <span className="text-lg sm:text-2xl font-bold text-emerald-500">Comprando</span>
-              </>
-            )}
-            {isSelling && (
-              <>
-                <TrendingDown className="h-5 w-5 sm:h-6 sm:w-6 text-red-500" />
-                <span className="text-lg sm:text-2xl font-bold text-red-500">Vendendo</span>
-              </>
-            )}
-            {isNeutral && (
-              <>
-                <div className="h-5 w-5 sm:h-6 sm:w-6 rounded-full bg-muted" />
-                <span className="text-lg sm:text-2xl font-bold text-muted-foreground">Neutro</span>
-              </>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {isBuying && `${data.buyPercentage}% compras`}
-            {isSelling && `${data.sellPercentage}% vendas`}
-            {isNeutral && 'Equilíbrio entre compras e vendas'}
-          </p>
-        </div>
-      </motion.div>
-    );
+  const handleRefresh = async () => {
+    toast.info("Atualizando dados de grandes movimentações...");
+    clearMarketCache(); // Limpar cache para forçar atualização
+    await refetch();
+    toast.success("Dados atualizados com sucesso!");
   };
 
+  const handleTimeframeChange = (value) => {
+    setTimeframe(value);
+    toast.info(`Alterando período para: ${value}`);
+  };
+
+  const handleDataSourceChange = (value) => {
+    setDataSource(value);
+    toast.info(`Alterando fonte de dados para: ${value === 'exchange' ? 'Exchanges' : 'On-chain'}`);
+  };
+
+  // Adicionar informação de proxy quando houver erro de conexão
+  useEffect(() => {
+    if (error && error.message?.includes('Network Error')) {
+      toast.error(
+        "Erro de conexão ao obter dados. Usando cache local.", 
+        { 
+          description: "As APIs públicas podem ter limites de requisição.",
+          duration: 5000
+        }
+      );
+    }
+  }, [error]);
+
   return (
-    <Card className="shadow-lg border-primary/20 overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-blue-500/5 to-purple-500/5 pb-3 sm:pb-4">
-        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-          <Wallet className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-          Grandes Investidores
-        </CardTitle>
-        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-          Atividade dos whales nas últimas 24h
-        </p>
-      </CardHeader>
-      <CardContent className="p-4 sm:p-6 space-y-3 sm:space-y-4">
-        <CryptoSentimentCard 
-          crypto="bitcoin"
-          data={whaleAnalysis.btc}
-          name="Bitcoin (BTC)"
-        />
-        <CryptoSentimentCard 
-          crypto="ethereum"
-          data={whaleAnalysis.eth}
-          name="Ethereum (ETH)"
-        />
-      </CardContent>
-    </Card>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.2 }}
+      className="w-full"
+    >
+      <Toaster />
+      <Card className="shadow-lg border-primary/20">
+        <CardHeader className="bg-gradient-to-r from-blue-50/5 to-purple-50/5">
+          <div className="flex justify-between items-center">
+            <CardTitle className="flex items-center gap-2 text-xl text-primary">
+              <ArrowRightLeft className="h-6 w-6" />
+              Movimentações de Grandes Carteiras
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <InfoIcon className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">
+                      Análise de movimentações significativas baseada em dados reais de volume de transações das principais exchanges e dados on-chain
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center">
+                <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+                <Select value={timeframe} onValueChange={handleTimeframeChange}>
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue placeholder="Período" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1d">1 dia</SelectItem>
+                    <SelectItem value="7d">7 dias</SelectItem>
+                    <SelectItem value="14d">14 dias</SelectItem>
+                    <SelectItem value="30d">30 dias</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center ml-2">
+                <Select value={dataSource} onValueChange={handleDataSourceChange}>
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue placeholder="Fonte de dados" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="exchange">Exchanges</SelectItem>
+                    <SelectItem value="onchain">On-chain</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="hover:bg-primary/10"
+                onClick={handleRefresh}
+                disabled={isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                Atualizar
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {dataSource === 'onchain' && (
+            <Alert className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Os dados on-chain são obtidos de fontes públicas e podem não representar todas as transações em tempo real.
+              </AlertDescription>
+            </Alert>
+          )}
+        
+          <Tabs defaultValue="transactions" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="transactions">Transações</TabsTrigger>
+              <TabsTrigger value="insights">Insights</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="transactions">
+              <TransactionList 
+                transactions={transactions} 
+                isLoading={isLoading}
+                error={error}
+                dataSource={dataSource}
+              />
+            </TabsContent>
+
+            <TabsContent value="insights">
+              <TransactionInsights 
+                transactions={transactions} 
+                dataSource={dataSource}
+              />
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 };
 

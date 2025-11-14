@@ -1,64 +1,121 @@
+
 import React from 'react';
-import WhaleTransactions from '../components/portfolio/WhaleTransactions';
-import WhaleActivityMetrics from '../components/portfolio/WhaleActivityMetrics';
-import WhaleVolumeChart from '../components/portfolio/WhaleVolumeChart';
-import TopWhaleMovements from '../components/portfolio/TopWhaleMovements';
-import { motion } from "framer-motion";
-import { Waves } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
-import { fetchWhaleTransactions } from '@/services/marketService';
-import { DataSourceBadge } from '../components/common/DataSourceBadge';
+import { fetchPortfolioData } from '../services/cryptoService';
+import { clearMarketCache } from '../services/marketService';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import PortfolioOverview from '../components/portfolio/PortfolioOverview';
+import WhaleTransactions from '../components/portfolio/WhaleTransactions';
+import { motion } from "framer-motion";
+import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const PosicaoCarteira = () => {
   const { 
-    data: transactions, 
-    isLoading
+    data: portfolioData, 
+    isLoading: portfolioLoading, 
+    error: portfolioError,
+    refetch: refetchPortfolio 
   } = useQuery({
-    queryKey: ['whaleTransactions', '7d'],
-    queryFn: () => fetchWhaleTransactions('7d'),
+    queryKey: ['portfolio'],
+    queryFn: fetchPortfolioData,
     refetchInterval: 300000,
     staleTime: 240000,
+    retry: 2,
+    onError: (error) => {
+      toast.error("Erro ao carregar portfólio: " + error.message);
+    }
   });
+
+  const handleRefresh = async () => {
+    toast.info("Atualizando dados...");
+    
+    try {
+      clearMarketCache();
+      await refetchPortfolio();
+      toast.success("Dados atualizados com sucesso!");
+    } catch (error) {
+      toast.error("Erro ao atualizar dados. Tente novamente.");
+    }
+  };
+
+  if (portfolioLoading) {
+    return (
+      <div className="container mx-auto p-4 space-y-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Carteira e Movimentações</h1>
+          <Button variant="outline" disabled>
+            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            Atualizando...
+          </Button>
+        </div>
+        <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+          <Skeleton className="h-[500px] w-full rounded-xl" />
+          <Skeleton className="h-[500px] w-full rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  if (portfolioError) {
+    return (
+      <div className="container mx-auto p-4">
+        <Alert variant="destructive">
+          <AlertTitle>Erro ao carregar dados</AlertTitle>
+          <AlertDescription>
+            {portfolioError?.message}
+            <br />
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={handleRefresh}
+            >
+              Tentar novamente
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="container mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 pb-20"
+      className="container mx-auto p-4"
     >
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 p-6 sm:p-8 border border-primary/20">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5" />
-        <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 sm:p-4 rounded-2xl bg-primary/10 backdrop-blur-sm">
-              <Waves className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold flex items-center gap-2">
-                Atividade das Baleias
-              </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                Monitoramento em tempo real dos grandes investidores
-              </p>
-            </div>
-          </div>
-          <DataSourceBadge isRealData={true} size="md" />
-        </div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Carteira e Movimentações</h1>
+        <Button 
+          variant="outline"
+          onClick={handleRefresh}
+          className="hover:bg-primary/10"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Atualizar dados
+        </Button>
       </div>
-
-      {/* Activity Metrics */}
-      <WhaleActivityMetrics transactions={transactions} isLoading={isLoading} />
-
-      {/* Whale Sentiment Cards (BTC & ETH) */}
-      <WhaleTransactions />
-
-      {/* Volume Chart */}
-      <WhaleVolumeChart transactions={transactions} isLoading={isLoading} />
-
-      {/* Top Movements */}
-      <TopWhaleMovements transactions={transactions} isLoading={isLoading} />
+      
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <PortfolioOverview portfolioData={portfolioData} />
+        </motion.div>
+        
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
+          <WhaleTransactions />
+        </motion.div>
+      </div>
     </motion.div>
   );
 };

@@ -49,12 +49,12 @@ const Dashboard = () => {
     >
       <motion.div 
         variants={itemVariants} 
-        className="glass-morphism rounded-2xl p-8"
+        className="mb-8 glass-morphism p-8 rounded-2xl"
       >
-        <h1 className="text-4xl sm:text-5xl font-bold mb-4 bg-gradient-to-r from-primary via-purple-400 to-pink-400 bg-clip-text text-transparent">
+        <h1 className="text-5xl font-bold gradient-text mb-4">
           Painel de Criptomoedas
         </h1>
-        <p className="text-gray-400 text-base sm:text-lg mb-4">
+        <p className="text-gray-400 text-lg mb-4">
           Análise em tempo real do mercado com tecnologia avançada
         </p>
         <DataSourceLegend />
@@ -66,14 +66,12 @@ const Dashboard = () => {
       >
         <motion.div 
           variants={itemVariants} 
-          className="glass-morphism rounded-2xl p-6 card-hover border border-border/30 hover:border-primary/30 transition-all"
+          className="glass-morphism rounded-2xl p-6 card-hover"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
-              <div className="p-3 bg-blue-500/10 rounded-xl mr-3">
-                <Activity className="w-6 h-6 text-blue-400" />
-              </div>
-              <h2 className="text-xl sm:text-2xl font-semibold">Estatísticas do Mercado</h2>
+              <Activity className="w-6 h-6 mr-2 text-blue-400" />
+              <h2 className="text-2xl font-semibold neon-glow">Estatísticas do Mercado</h2>
             </div>
             <DataSourceBadge isRealData={true} size="sm" />
           </div>
@@ -86,14 +84,12 @@ const Dashboard = () => {
 
         <motion.div 
           variants={itemVariants} 
-          className="glass-morphism rounded-2xl p-6 card-hover border border-border/30 hover:border-primary/30 transition-all"
+          className="glass-morphism rounded-2xl p-6 card-hover"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
-              <div className="p-3 bg-purple-500/10 rounded-xl mr-3">
-                <Globe className="w-6 h-6 text-purple-400" />
-              </div>
-              <h2 className="text-xl sm:text-2xl font-semibold">Indicador CBBI</h2>
+              <Globe className="w-6 h-6 mr-2 text-purple-400" />
+              <h2 className="text-2xl font-semibold neon-glow">Indicador CBBI</h2>
             </div>
             <DataSourceBadge isRealData={true} size="sm" />
           </div>
@@ -103,14 +99,12 @@ const Dashboard = () => {
       
       <motion.div 
         variants={itemVariants} 
-        className="glass-morphism rounded-2xl p-6 mb-8 card-hover border border-border/30 hover:border-primary/30 transition-all"
+        className="glass-morphism rounded-2xl p-6 mb-8 card-hover"
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
-            <div className="p-3 bg-green-500/10 rounded-xl mr-3">
-              <Brain className="w-6 h-6 text-green-400" />
-            </div>
-            <h2 className="text-xl sm:text-2xl font-semibold">Análise de Sentimento</h2>
+            <Brain className="w-6 h-6 mr-2 text-green-400" />
+            <h2 className="text-2xl font-semibold neon-glow">Análise de Sentimento</h2>
           </div>
           <DataSourceBadge isRealData={true} size="sm" />
         </div>
@@ -119,14 +113,12 @@ const Dashboard = () => {
       
       <motion.div 
         variants={itemVariants} 
-        className="glass-morphism rounded-2xl p-6 card-hover border border-border/30 hover:border-primary/30 transition-all"
+        className="glass-morphism rounded-2xl p-6 card-hover"
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
-            <div className="p-3 bg-orange-500/10 rounded-xl mr-3">
-              <Flame className="w-6 h-6 text-orange-400" />
-            </div>
-            <h2 className="text-xl sm:text-2xl font-semibold">Mapa de Calor do Mercado</h2>
+            <Flame className="w-6 h-6 mr-2 text-orange-400" />
+            <h2 className="text-2xl font-semibold neon-glow">Mapa de Calor do Mercado</h2>
           </div>
           <DataSourceBadge isRealData={true} size="sm" />
         </div>

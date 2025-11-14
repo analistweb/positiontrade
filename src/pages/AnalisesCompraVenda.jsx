@@ -13,12 +13,11 @@ import RSIRecommendation from '@/components/market/RSIRecommendation';
 import RSIFallback from '@/components/market/RSIFallback';
 import { RSI } from 'technicalindicators';
 import { fetchMarketData, fetchTopCoins } from '../services/marketService';
+import VolumeChart from '../components/market/VolumeChart';
 import MarketStats from '../components/market/MarketStats';
 import EMAAnalysis from '../components/market/EMAAnalysis';
 import { ErrorDisplay } from '../components/common/ErrorDisplay';
 import { DataSourceBadge } from '../components/common/DataSourceBadge';
-import AdvancedVolumeChart from '../components/market/AdvancedVolumeChart';
-import TechnicalGaugeGrid from '../components/market/TechnicalGaugeGrid';
 
 const AnalisesCompraVenda = () => {
   const [selectedCoin, setSelectedCoin] = useState('bitcoin');
@@ -100,12 +99,6 @@ const AnalisesCompraVenda = () => {
 
     return (
       <>
-        <TechnicalGaugeGrid 
-          rsi={currentRSI}
-          mma200Ratio={1.1}
-          volumeChange={12}
-        />
-        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <motion.div 
             className="lg:col-span-2"
@@ -113,7 +106,17 @@ const AnalisesCompraVenda = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <AdvancedVolumeChart data={marketData} />
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Volume de Negociação</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <VolumeChart 
+                  marketData={marketData} 
+                  minVolume={minVolume} 
+                />
+              </CardContent>
+            </Card>
           </motion.div>
           
           <motion.div 
