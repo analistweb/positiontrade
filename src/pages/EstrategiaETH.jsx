@@ -8,6 +8,7 @@ import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { ArrowUpCircle, ArrowDownCircle, AlertTriangle, RefreshCw, Sparkles, Radio } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { z } from 'zod';
 import { fetchETHUSDTData } from '@/services/binanceService';
 import { useBinanceKlineStream } from '@/services/binanceSocket';
 import { 
@@ -26,6 +27,17 @@ import StrategyMetrics from '@/components/strategy/StrategyMetrics';
 import TechnicalGauges from '@/components/strategy/TechnicalGauges';
 import CandlestickChart from '@/components/strategy/CandlestickChart';
 import SignalTimeline from '@/components/strategy/SignalTimeline';
+
+// Schema de validação para dados do candle recebidos do WebSocket
+const candleDataSchema = z.object({
+  timestamp: z.number().positive(),
+  open: z.number().positive(),
+  high: z.number().positive(),
+  low: z.number().positive(),
+  close: z.number().positive(),
+  volume: z.number().nonnegative(),
+  isClosed: z.boolean()
+});
 
 const EstrategiaETH = () => {
   const [lastSignal, setLastSignal] = useState(null);
@@ -49,11 +61,23 @@ const EstrategiaETH = () => {
     staleTime: 4000,
   });
 
-  // WebSocket para updates em tempo real
+  // WebSocket para updates em tempo real com validação
   const handleNewKline = (klineData) => {
-    console.log('[EstrategiaETH] Novo candle fechado via WebSocket:', klineData);
-    // Refetch data quando novo candle fecha
-    refetch();
+    // Validar dados recebidos do WebSocket
+    const validation = candleDataSchema.safeParse(klineData);
+    
+    if (validation.success) {
+      if (import.meta.env.DEV) {
+        console.log('[EstrategiaETH] Candle validado:', validation.data);
+      }
+      // Refetch data quando novo candle válido fecha
+      refetch();
+    } else {
+      toast.error('Dados de mercado inválidos recebidos');
+      if (import.meta.env.DEV) {
+        console.error('[EstrategiaETH] Validação falhou:', validation.error.issues);
+      }
+    }
   };
 
   const { connect, disconnect, isConnected } = useBinanceKlineStream('ethusdt', '15m', handleNewKline);
