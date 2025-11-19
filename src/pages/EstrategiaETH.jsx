@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
-import { ArrowUpCircle, ArrowDownCircle, AlertTriangle, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, AlertTriangle, RefreshCw, Sparkles, Radio } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { fetchETHUSDTData } from '@/services/binanceService';
+import { useBinanceKlineStream } from '@/services/binanceSocket';
 import { 
   calculateDidiIndex, 
   calculateDMI, 
@@ -17,7 +18,9 @@ import {
   findPivotHigh,
   findPivotLow,
   calculateFibonacciLevels,
-  getAdaptiveFibonacciTargets
+  getAdaptiveFibonacciTargets,
+  calculateTPSL,
+  validateRiskReward
 } from '@/utils/technicalIndicators';
 import StrategyMetrics from '@/components/strategy/StrategyMetrics';
 import TechnicalGauges from '@/components/strategy/TechnicalGauges';
@@ -29,17 +32,45 @@ const EstrategiaETH = () => {
   const [operationHistory, setOperationHistory] = useState([]);
   const [successfulSignals, setSuccessfulSignals] = useState([]);
   const [conditionsStatus, setConditionsStatus] = useState(null);
-  const [activeOperation, setActiveOperation] = useState(null); // Controla bloqueio de entrada
-  const [fibonacciLevels, setFibonacciLevels] = useState(null); // Níveis de Fibonacci
+  const [activeOperation, setActiveOperation] = useState(null);
+  const [fibonacciLevels, setFibonacciLevels] = useState(null);
+  const [signalStatus, setSignalStatus] = useState('wait'); // 'buy', 'sell', 'wait'
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
+  
+  const audioRef = useRef({
+    buy: typeof Audio !== 'undefined' ? new Audio('/sounds/buy.mp3') : null,
+    sell: typeof Audio !== 'undefined' ? new Audio('/sounds/sell.mp3') : null
+  });
 
   const { data: marketData, isLoading, error, refetch } = useQuery({
     queryKey: ['ethusdt-15m'],
-    queryFn: () => fetchETHUSDTData('15m'),
-    refetchInterval: 60000, // Atualiza a cada 1 minuto
+    queryFn: () => fetchETHUSDTData('15m', 100),
+    refetchInterval: 5000, // Atualiza a cada 5 segundos
+    staleTime: 4000,
   });
 
+  // WebSocket para updates em tempo real
+  const handleNewKline = (klineData) => {
+    console.log('[EstrategiaETH] Novo candle fechado via WebSocket:', klineData);
+    // Refetch data quando novo candle fecha
+    refetch();
+  };
+
+  const { connect, disconnect, isConnected } = useBinanceKlineStream('ethusdt', '15m', handleNewKline);
+
   useEffect(() => {
-    if (marketData) {
+    // Conectar WebSocket
+    connect();
+    setIsWebSocketConnected(true);
+
+    return () => {
+      disconnect();
+      setIsWebSocketConnected(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (marketData && marketData.length > 0) {
       analyzeStrategy(marketData);
       checkSuccessfulSignals(marketData);
     }
@@ -94,6 +125,19 @@ const EstrategiaETH = () => {
         setActiveOperation(null); // Libera para nova entrada
         toast.error(`🛑 Stop Loss atingido. Perda: ${lossPercent}%`);
       }
+    }
+  };
+
+  // Função auxiliar para tocar som de alerta
+  const playSignalSound = (signalType) => {
+    try {
+      if (audioRef.current[signalType]) {
+        audioRef.current[signalType].play().catch(err => {
+          console.log('Erro ao tocar som (pode ser bloqueado pelo navegador):', err);
+        });
+      }
+    } catch (error) {
+      console.log('Audio não suportado:', error);
     }
   };
 
@@ -173,30 +217,49 @@ const EstrategiaETH = () => {
     const avgVolume = volumes.slice(-20).reduce((a, b) => a + b, 0) / 20;
     const volumeOk = triggerCandle.volume >= avgVolume;
 
-    // 9. Calcular Fibonacci adaptativo
+    // 9. Calcular Fibonacci adaptativo orientado pela direção
     let fiboLevels = null;
-    let swingStart = null;
-    let swingEnd = null;
+    let swingLow = null;
+    let swingHigh = null;
+    let direction = null;
 
-    if (buyBreakout && pivotLows.length > 0) {
-      // Para compra: medir da última mínima até a máxima atual
+    if (buyBreakout && pivotLows.length > 0 && pivotHighs.length > 0) {
+      // Para compra: medir da última mínima até a última máxima
       const lastPivotLow = pivotLows[pivotLows.length - 1];
-      swingStart = lastPivotLow.value;
-      swingEnd = triggerCandle.high;
-      fiboLevels = calculateFibonacciLevels(swingStart, swingEnd, 'up');
-    } else if (sellBreakout && pivotHighs.length > 0) {
-      // Para venda: medir da última máxima até a mínima atual
       const lastPivotHigh = pivotHighs[pivotHighs.length - 1];
-      swingStart = lastPivotHigh.value;
-      swingEnd = triggerCandle.low;
-      fiboLevels = calculateFibonacciLevels(swingStart, swingEnd, 'down');
+      swingLow = lastPivotLow.value;
+      swingHigh = lastPivotHigh.value;
+      direction = 'buy';
+      fiboLevels = calculateFibonacciLevels(swingLow, swingHigh, direction);
+    } else if (sellBreakout && pivotHighs.length > 0 && pivotLows.length > 0) {
+      // Para venda: medir da última máxima até a última mínima
+      const lastPivotHigh = pivotHighs[pivotHighs.length - 1];
+      const lastPivotLow = pivotLows[pivotLows.length - 1];
+      swingLow = lastPivotLow.value;
+      swingHigh = lastPivotHigh.value;
+      direction = 'sell';
+      fiboLevels = calculateFibonacciLevels(swingLow, swingHigh, direction);
     }
 
     // 10. Determinar TP e SL baseado na força do ADX
     const adxStrength = currentDMI.adx;
-    const { tpLevel, slLevel } = getAdaptiveFibonacciTargets(adxStrength);
+    const { tpLevel, slLevel } = getAdaptiveFibonacciTargets(adxStrength, direction);
 
-    // 11. Salvar status das condições e Fibonacci
+    // 11. Calcular TP/SL usando Fibonacci
+    let calculatedTP = null;
+    let calculatedSL = null;
+    let rrValidation = null;
+
+    if (fiboLevels && direction) {
+      const result = calculateTPSL(swingLow, swingHigh, adxStrength, direction, currentPrice);
+      calculatedTP = result.tp;
+      calculatedSL = result.sl;
+      
+      // Validar R:R mínimo de 1:1
+      rrValidation = validateRiskReward(currentPrice, calculatedTP, calculatedSL, 1.0);
+    }
+
+    // 12. Salvar status das condições e Fibonacci
     setConditionsStatus({
       buy: {
         breakout: buyBreakout,
@@ -204,7 +267,8 @@ const EstrategiaETH = () => {
         dmi: dmiConfirmBuy,
         trend: trendUp,
         volatility: volatilityOk,
-        volume: volumeOk
+        volume: volumeOk,
+        rrValid: rrValidation?.isValid || false
       },
       sell: {
         breakout: sellBreakout,
@@ -212,7 +276,8 @@ const EstrategiaETH = () => {
         dmi: dmiConfirmSell,
         trend: trendDown,
         volatility: volatilityOk,
-        volume: volumeOk
+        volume: volumeOk,
+        rrValid: rrValidation?.isValid || false
       },
       currentPrice,
       ema50Value: ema50Confirm,
@@ -224,18 +289,103 @@ const EstrategiaETH = () => {
       referenceLow: referenceCandle.low,
       fibonacci: fiboLevels,
       tpLevel,
-      slLevel
+      slLevel,
+      rrRatio: rrValidation?.ratio || 0,
+      direction
     });
 
     if (fiboLevels) {
       setFibonacciLevels(fiboLevels);
     }
 
-    // 12. Gerar sinal com Fibonacci adaptativo
+    // 13. Atualizar status do sinal para UI
+    if (buyBreakout && didiConfirmBuy && dmiConfirmBuy && trendUp && rrValidation?.isValid) {
+      setSignalStatus('buy');
+    } else if (sellBreakout && didiConfirmSell && dmiConfirmSell && trendDown && rrValidation?.isValid) {
+      setSignalStatus('sell');
+    } else {
+      setSignalStatus('wait');
+    }
+
+    // 14. Gerar sinal com Fibonacci adaptativo e validação de R:R
     let signal = null;
 
-    if (buyBreakout && didiConfirmBuy && dmiConfirmBuy && trendUp && volatilityOk && volumeOk && fiboLevels) {
+    if (buyBreakout && didiConfirmBuy && dmiConfirmBuy && trendUp && volatilityOk && volumeOk && 
+        fiboLevels && calculatedTP && calculatedSL && rrValidation?.isValid) {
       const entryPrice = triggerCandle.close;
+
+      signal = {
+        type: 'COMPRA',
+        entryPrice,
+        stopLoss: calculatedSL,
+        takeProfit: calculatedTP,
+        timestamp: new Date().toLocaleString('pt-BR'),
+        confirmations: {
+          didi: true,
+          dmi: true,
+          ema50: true,
+          volatility: volatilityOk,
+          volume: volumeOk,
+          fibonacci: true,
+          riskReward: true
+        },
+        adx: currentDMI.adx.toFixed(2),
+        atr: atr[atr.length - 1].toFixed(2),
+        fibonacciTP: tpLevel,
+        fibonacciSL: slLevel,
+        riskReward: rrValidation.ratio.toFixed(2),
+        direction: 'buy'
+      };
+
+      setLastSignal(signal);
+      setOperationHistory(prev => [signal, ...prev].slice(0, 50));
+      setActiveOperation(signal);
+      
+      // Tocar som de alerta
+      playSignalSound('buy');
+      
+      toast.success(`🟢 Sinal de COMPRA confirmado! R:R = ${rrValidation.ratio.toFixed(2)}:1`, {
+        duration: 5000
+      });
+    } else if (sellBreakout && didiConfirmSell && dmiConfirmSell && trendDown && volatilityOk && volumeOk && 
+               fiboLevels && calculatedTP && calculatedSL && rrValidation?.isValid) {
+      const entryPrice = triggerCandle.close;
+
+      signal = {
+        type: 'VENDA',
+        entryPrice,
+        stopLoss: calculatedSL,
+        takeProfit: calculatedTP,
+        timestamp: new Date().toLocaleString('pt-BR'),
+        confirmations: {
+          didi: true,
+          dmi: true,
+          ema50: true,
+          volatility: volatilityOk,
+          volume: volumeOk,
+          fibonacci: true,
+          riskReward: true
+        },
+        adx: currentDMI.adx.toFixed(2),
+        atr: atr[atr.length - 1].toFixed(2),
+        fibonacciTP: tpLevel,
+        fibonacciSL: slLevel,
+        riskReward: rrValidation.ratio.toFixed(2),
+        direction: 'sell'
+      };
+
+      setLastSignal(signal);
+      setOperationHistory(prev => [signal, ...prev].slice(0, 50));
+      setActiveOperation(signal);
+      
+      // Tocar som de alerta
+      playSignalSound('sell');
+      
+      toast.success(`🔴 Sinal de VENDA confirmado! R:R = ${rrValidation.ratio.toFixed(2)}:1`, {
+        duration: 5000
+      });
+    }
+  };
       
       // Stop Loss dinâmico baseado no nível de Fibonacci
       const stopLoss = fiboLevels[slLevel] || (referenceCandle.low * (1 - breakoutThreshold));
@@ -324,10 +474,55 @@ const EstrategiaETH = () => {
             <div className="flex items-center gap-3 mb-2">
               <Sparkles className="w-8 h-8 text-primary" />
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Estratégia ETHUSDT</h1>
+              
+              {/* Badge de Status WebSocket */}
+              {isWebSocketConnected && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="flex items-center gap-1"
+                >
+                  <Radio className="w-4 h-4 text-green-500 animate-pulse" />
+                  <Badge variant="outline" className="text-xs border-green-500 text-green-500">
+                    Tempo Real
+                  </Badge>
+                </motion.div>
+              )}
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-2">
               Análise automática com Didi Index + DMI + Rompimento (Timeframe: 15min)
             </p>
+            
+            {/* Badge de Sinal Atual */}
+            <div className="flex items-center gap-2 mt-2">
+              {signalStatus === 'buy' && (
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", duration: 0.5 }}
+                >
+                  <Badge className="bg-green-500 text-white hover:bg-green-600 text-sm px-3 py-1">
+                    🟢 Sinal de Compra Ativo
+                  </Badge>
+                </motion.div>
+              )}
+              {signalStatus === 'sell' && (
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", duration: 0.5 }}
+                >
+                  <Badge className="bg-red-500 text-white hover:bg-red-600 text-sm px-3 py-1">
+                    🔴 Sinal de Venda Ativo
+                  </Badge>
+                </motion.div>
+              )}
+              {signalStatus === 'wait' && (
+                <Badge variant="outline" className="text-sm px-3 py-1 border-muted-foreground/30">
+                  ⚪ Aguardando Condições
+                </Badge>
+              )}
+            </div>
           </div>
           <Button 
             onClick={handleRefresh} 
