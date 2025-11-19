@@ -12,7 +12,6 @@ import { motion } from 'framer-motion';
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
@@ -57,18 +56,16 @@ const EnhancedPortfolioTable = ({ portfolioData, onUpdateHolding }) => {
       <CardHeader className="p-4 sm:p-6">
         <CardTitle className="flex items-center justify-between text-base sm:text-lg">
           <span>Detalhamento dos Ativos</span>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <AlertCircle className="h-4 w-4 text-muted-foreground" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                <p className="text-xs">
-                  Clique no botão de edição para adicionar seu preço médio de compra e calcular lucros reais
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p className="text-xs">
+                Clique no botão de edição para adicionar seu preço médio de compra e calcular lucros reais
+              </p>
+            </TooltipContent>
+          </Tooltip>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0 sm:p-6 sm:pt-0">
