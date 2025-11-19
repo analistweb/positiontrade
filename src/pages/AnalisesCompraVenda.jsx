@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { z } from 'zod';
 import RSIRecommendation from '@/components/market/RSIRecommendation';
 import RSIFallback from '@/components/market/RSIFallback';
 import { RSI } from 'technicalindicators';
@@ -20,11 +21,39 @@ import { DataSourceBadge } from '../components/common/DataSourceBadge';
 import AdvancedVolumeChart from '../components/market/AdvancedVolumeChart';
 import TechnicalGaugeGrid from '../components/market/TechnicalGaugeGrid';
 
+// Schema de validação para volume mínimo
+const volumeSchema = z.number()
+  .min(0, "Volume não pode ser negativo")
+  .max(1e12, "Volume muito grande (máx: 1 trilhão)")
+  .finite("Valor deve ser um número finito")
+  .nonnegative("Volume não pode ser negativo");
+
 const AnalisesCompraVenda = () => {
   const [selectedCoin, setSelectedCoin] = useState('bitcoin');
   const [selectedDays, setSelectedDays] = useState(90);
   const [minVolume, setMinVolume] = useState(0);
   const [currentRSI, setCurrentRSI] = useState(50);
+
+  // Handler com validação para volume mínimo
+  const handleVolumeChange = useCallback((e) => {
+    const value = e.target.value;
+    
+    // Permitir campo vazio
+    if (value === '' || value === null) {
+      setMinVolume(0);
+      return;
+    }
+    
+    // Validar com Zod
+    const parsed = volumeSchema.safeParse(Number(value));
+    
+    if (parsed.success) {
+      setMinVolume(parsed.data);
+    } else {
+      const errorMsg = parsed.error.issues[0].message;
+      toast.error(errorMsg);
+    }
+  }, []);
 
   const { 
     data: marketData, 
@@ -208,8 +237,11 @@ const AnalisesCompraVenda = () => {
             <Input
               id="min-volume"
               type="number"
+              min="0"
+              max="1000000000000"
+              step="1000"
               value={minVolume}
-              onChange={(e) => setMinVolume(Number(e.target.value))}
+              onChange={handleVolumeChange}
               placeholder="Digite o volume mínimo"
               className="w-full"
             />

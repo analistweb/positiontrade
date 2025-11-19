@@ -1,5 +1,10 @@
 import axios from 'axios';
 
+// ⚠️ AVISO DE SEGURANÇA ⚠️
+// API Keys estão expostas no cliente (VITE_ prefix inclui no bundle).
+// RECOMENDAÇÃO: Implementar Edge Functions com Lovable Cloud para ocultar chaves.
+// RISCO ATUAL: Chaves podem ser extraídas por qualquer usuário via DevTools.
+// Para produção: Mova estas chamadas para Edge Functions ou aceite uso limitado de APIs gratuitas.
 const COINGLASS_API_KEY = import.meta.env.VITE_COINGLASS_API_KEY;
 const CRYPTOPANIC_API_KEY = import.meta.env.VITE_CRYPTOPANIC_API_KEY;
 const FEAR_GREED_API = 'https://api.alternative.me/fng/';
