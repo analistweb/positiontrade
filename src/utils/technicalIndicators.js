@@ -162,41 +162,94 @@ export const findPivotLow = (lows, leftBars = 5, rightBars = 5) => {
   return pivots;
 };
 
-// Calcular níveis de Fibonacci
-export const calculateFibonacciLevels = (startPrice, endPrice, direction = 'up') => {
-  const diff = endPrice - startPrice;
+// Fibonacci Levels Calculation - Orientado pela Direção do Trade
+export const calculateFibonacciLevels = (swingLow, swingHigh, direction = 'buy') => {
+  const diff = Math.abs(swingHigh - swingLow);
   
-  const levels = {
-    0: startPrice,
-    0.236: direction === 'up' ? endPrice - diff * 0.236 : startPrice + diff * 0.236,
-    0.382: direction === 'up' ? endPrice - diff * 0.382 : startPrice + diff * 0.382,
-    0.5: direction === 'up' ? endPrice - diff * 0.5 : startPrice + diff * 0.5,
-    0.618: direction === 'up' ? endPrice - diff * 0.618 : startPrice + diff * 0.618,
-    0.786: direction === 'up' ? endPrice - diff * 0.786 : startPrice + diff * 0.786,
-    1: endPrice
-  };
-  
-  return levels;
+  if (direction === 'buy') {
+    // COMPRA: Fibonacci de baixo para cima
+    // TP acima (projeção), SL abaixo (retração)
+    return {
+      level_0: swingLow,
+      level_236: swingLow + diff * 0.236,
+      level_382: swingLow + diff * 0.382,
+      level_500: swingLow + diff * 0.500,
+      level_618: swingLow + diff * 0.618,
+      level_786: swingLow + diff * 0.786,
+      level_1000: swingHigh
+    };
+  } else {
+    // VENDA: Fibonacci de cima para baixo
+    // TP abaixo (projeção), SL acima (retração)
+    return {
+      level_0: swingHigh,
+      level_236: swingHigh - diff * 0.236,
+      level_382: swingHigh - diff * 0.382,
+      level_500: swingHigh - diff * 0.500,
+      level_618: swingHigh - diff * 0.618,
+      level_786: swingHigh - diff * 0.786,
+      level_1000: swingLow
+    };
+  }
 };
 
-// Determinar níveis de TP e SL baseado no ADX
+// Adaptive Fibonacci Targets based on ADX - Orientado pela Direção
 export const getAdaptiveFibonacciTargets = (adx, direction = 'buy') => {
-  // ADX forte (> 40): TP agressivo (0.618), SL apertado (0.5)
-  // ADX médio (25-40): TP moderado (0.5), SL moderado (0.618)
-  // ADX fraco (< 25): TP conservador (0.382), SL largo (0.786)
+  let targets = {};
   
-  let tpLevel, slLevel;
-  
-  if (adx > 40) {
-    tpLevel = 0.618;
-    slLevel = 0.5;
-  } else if (adx > 30) {
-    tpLevel = 0.5;
-    slLevel = 0.618;
+  // ADX strength categories
+  if (adx >= 50) {
+    // Tendência muito forte - targets agressivos
+    targets = { tpLevel: 'level_618', slLevel: 'level_382' };
+  } else if (adx >= 40) {
+    // Tendência forte
+    targets = { tpLevel: 'level_618', slLevel: 'level_500' };
+  } else if (adx >= 30) {
+    // Tendência moderada
+    targets = { tpLevel: 'level_500', slLevel: 'level_618' };
+  } else if (adx >= 25) {
+    // Tendência fraca
+    targets = { tpLevel: 'level_382', slLevel: 'level_618' };
   } else {
-    tpLevel = 0.382;
-    slLevel = 0.786;
+    // Sem tendência clara - conservador
+    targets = { tpLevel: 'level_382', slLevel: 'level_786' };
   }
+
+  return targets;
+};
+
+// Calcular TP/SL baseado em Fibonacci e ADX
+export const calculateTPSL = (swingLow, swingHigh, adx, direction = 'buy', entryPrice) => {
+  const fibLevels = calculateFibonacciLevels(swingLow, swingHigh, direction);
+  const targets = getAdaptiveFibonacciTargets(adx, direction);
   
-  return { tpLevel, slLevel };
+  const diff = Math.abs(swingHigh - swingLow);
+  
+  if (direction === 'buy') {
+    // COMPRA: TP acima, SL abaixo
+    const tp = fibLevels[targets.tpLevel];
+    const sl = fibLevels[targets.slLevel];
+    return { tp, sl, fibLevels };
+  } else {
+    // VENDA: TP abaixo, SL acima
+    const tp = fibLevels[targets.tpLevel];
+    const sl = fibLevels[targets.slLevel];
+    return { tp, sl, fibLevels };
+  }
+};
+
+// Validar Risco-Retorno (R:R) mínimo
+export const validateRiskReward = (entryPrice, tp, sl, minRR = 1.0) => {
+  const reward = Math.abs(tp - entryPrice);
+  const risk = Math.abs(entryPrice - sl);
+  
+  if (risk === 0) return { isValid: false, ratio: 0 };
+  
+  const ratio = reward / risk;
+  return {
+    isValid: ratio >= minRR,
+    ratio: ratio,
+    reward: reward,
+    risk: risk
+  };
 };
