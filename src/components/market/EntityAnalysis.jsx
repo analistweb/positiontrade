@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
@@ -21,38 +20,34 @@ const EntityAnalysis = ({ data }) => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             Análise de Entidades
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-sm">
-                  <p>Análise do comportamento das grandes entidades (whales) do mercado</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <HelpCircle className="h-4 w-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-sm">
+                <p>Análise do comportamento das grandes entidades (whales) do mercado</p>
+              </TooltipContent>
+            </Tooltip>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="p-4 bg-card/50 rounded-lg">
               <div className="flex justify-between items-start">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger className="flex items-center gap-2">
-                      <span>Volume de Grandes Entidades:</span>
-                      <Info className="h-4 w-4 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-sm p-4">
-                      <p>Volume movimentado por grandes players (whales):</p>
-                      <ul className="list-disc list-inside mt-2">
-                        <li>Alto volume: Possível mudança de tendência</li>
-                        <li>Volume crescente: Aumento de interesse institucional</li>
-                        <li>Volume &gt; $20B: Atividade significativa</li>
-                      </ul>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center gap-2">
+                    <span>Volume de Grandes Entidades:</span>
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-sm p-4">
+                    <p>Volume movimentado por grandes players (whales):</p>
+                    <ul className="list-disc list-inside mt-2">
+                      <li>Alto volume: Possível mudança de tendência</li>
+                      <li>Volume crescente: Aumento de interesse institucional</li>
+                      <li>Volume &gt; $20B: Atividade significativa</li>
+                    </ul>
+                  </TooltipContent>
+                </Tooltip>
                 <span className="font-mono">
                   ${((data.total_volumes?.[data.total_volumes.length - 1]?.[1] || 0) / 1000000).toFixed(2)}M
                 </span>
@@ -61,22 +56,20 @@ const EntityAnalysis = ({ data }) => {
 
             <div className="p-4 bg-card/50 rounded-lg">
               <div className="flex justify-between items-start">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger className="flex items-center gap-2">
-                      <span>Variação 24h:</span>
-                      <Info className="h-4 w-4 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-sm p-4">
-                      <p>Variação percentual nas últimas 24 horas:</p>
-                      <ul className="list-disc list-inside mt-2">
-                        <li>Positiva: Movimento de alta no período</li>
-                        <li>Negativa: Movimento de baixa no período</li>
-                        <li>Alta volatilidade: Variação &gt; 5%</li>
-                      </ul>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger className="flex items-center gap-2">
+                    <span>Variação 24h:</span>
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-sm p-4">
+                    <p>Variação percentual nas últimas 24 horas:</p>
+                    <ul className="list-disc list-inside mt-2">
+                      <li>Positiva: Movimento de alta no período</li>
+                      <li>Negativa: Movimento de baixa no período</li>
+                      <li>Alta volatilidade: Variação &gt; 5%</li>
+                    </ul>
+                  </TooltipContent>
+                </Tooltip>
                 <div className="flex items-center gap-2">
                   {((data.prices?.[data.prices.length - 1]?.[1] - data.prices?.[data.prices.length - 24]?.[1]) / 
                     data.prices?.[data.prices.length - 24]?.[1] * 100) > 0 ? 

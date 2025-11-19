@@ -14,7 +14,6 @@ import TechnicalGaugeGrid from '../components/market/TechnicalGaugeGrid';
 import {
   Tooltip as UITooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
@@ -86,8 +85,7 @@ const AnaliseTecnica = () => {
   };
 
   return (
-    <TooltipProvider>
-      <div className="container mx-auto p-4 space-y-6">
+    <div className="container mx-auto p-4 space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold mb-6" role="heading" aria-level="1">Análise Técnica Bitcoin</h1>
           <DataSourceBadge isRealData={true} size="md" />
@@ -219,7 +217,6 @@ const AnaliseTecnica = () => {
           volumeChange={15}
         />
       </div>
-    </TooltipProvider>
   );
 };
 

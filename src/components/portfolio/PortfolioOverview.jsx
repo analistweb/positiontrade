@@ -5,7 +5,6 @@ import { InfoIcon } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
@@ -28,18 +27,16 @@ const PortfolioOverview = ({ portfolioData }) => {
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span>Seu Portfólio</span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <InfoIcon className="h-4 w-4 text-muted-foreground" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="max-w-xs">
-                      Visão geral das suas criptomoedas e seu desempenho atual
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <InfoIcon className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">
+                    Visão geral das suas criptomoedas e seu desempenho atual
+                  </p>
+                </TooltipContent>
+              </Tooltip>
             </div>
             <div className="text-xl">
               Total: ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
