@@ -259,26 +259,21 @@ const EstrategiaETH = () => {
 
     // 9. Calcular Fibonacci adaptativo orientado pela direção
     let fiboLevels = null;
-    let swingLow = null;
-    let swingHigh = null;
+    let swingReference = null;
     let direction = null;
 
     if (buyBreakout && pivotLows.length > 0 && pivotHighs.length > 0) {
-      // Para compra: medir da última mínima até a última máxima
-      const lastPivotLow = pivotLows[pivotLows.length - 1];
+      // Para compra: usar o swing high como referência de projeção
       const lastPivotHigh = pivotHighs[pivotHighs.length - 1];
-      swingLow = lastPivotLow.value;
-      swingHigh = lastPivotHigh.value;
+      swingReference = lastPivotHigh.value;
       direction = 'buy';
-      fiboLevels = calculateFibonacciLevels(swingLow, swingHigh, direction);
+      fiboLevels = calculateFibonacciLevels(currentPrice, swingReference, direction);
     } else if (sellBreakout && pivotHighs.length > 0 && pivotLows.length > 0) {
-      // Para venda: medir da última máxima até a última mínima
-      const lastPivotHigh = pivotHighs[pivotHighs.length - 1];
+      // Para venda: usar o swing low como referência de projeção
       const lastPivotLow = pivotLows[pivotLows.length - 1];
-      swingLow = lastPivotLow.value;
-      swingHigh = lastPivotHigh.value;
+      swingReference = lastPivotLow.value;
       direction = 'sell';
-      fiboLevels = calculateFibonacciLevels(swingLow, swingHigh, direction);
+      fiboLevels = calculateFibonacciLevels(currentPrice, swingReference, direction);
     }
 
     // 10. Determinar TP e SL baseado na força do ADX
@@ -290,13 +285,24 @@ const EstrategiaETH = () => {
     let calculatedSL = null;
     let rrValidation = null;
 
-    if (fiboLevels && direction) {
-      const result = calculateTPSL(swingLow, swingHigh, adxStrength, direction, currentPrice);
+    if (fiboLevels && swingReference !== null && direction) {
+      const result = calculateTPSL(currentPrice, swingReference, adxStrength, direction);
       calculatedTP = result.tp;
       calculatedSL = result.sl;
       
       // Validar R:R mínimo de 1:1
       rrValidation = validateRiskReward(currentPrice, calculatedTP, calculatedSL, 1.0);
+      
+      console.log(`📊 TP/SL ${direction.toUpperCase()}:`, {
+        entrada: currentPrice,
+        referencia: swingReference,
+        tp: calculatedTP,
+        sl: calculatedSL,
+        tpLevel: tpLevel,
+        slLevel: slLevel,
+        rr: rrValidation?.ratio?.toFixed(2),
+        adx: adxStrength
+      });
     }
 
     // 12. Salvar status das condições e Fibonacci
