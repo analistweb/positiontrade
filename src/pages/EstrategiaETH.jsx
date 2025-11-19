@@ -5,17 +5,32 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
-import { ArrowUpCircle, ArrowDownCircle, TrendingUp, TrendingDown, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, AlertTriangle, RefreshCw, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { fetchETHUSDTData } from '@/services/binanceService';
-import { calculateDidiIndex, calculateDMI, calculateEMA, calculateATR } from '@/utils/technicalIndicators';
+import { 
+  calculateDidiIndex, 
+  calculateDMI, 
+  calculateEMA, 
+  calculateATR,
+  findPivotHigh,
+  findPivotLow,
+  calculateFibonacciLevels,
+  getAdaptiveFibonacciTargets
+} from '@/utils/technicalIndicators';
+import StrategyMetrics from '@/components/strategy/StrategyMetrics';
+import TechnicalGauges from '@/components/strategy/TechnicalGauges';
+import CandlestickChart from '@/components/strategy/CandlestickChart';
+import SignalTimeline from '@/components/strategy/SignalTimeline';
 
 const EstrategiaETH = () => {
   const [lastSignal, setLastSignal] = useState(null);
   const [operationHistory, setOperationHistory] = useState([]);
   const [successfulSignals, setSuccessfulSignals] = useState([]);
   const [conditionsStatus, setConditionsStatus] = useState(null);
+  const [activeOperation, setActiveOperation] = useState(null); // Controla bloqueio de entrada
+  const [fibonacciLevels, setFibonacciLevels] = useState(null); // Níveis de Fibonacci
 
   const { data: marketData, isLoading, error, refetch } = useQuery({
     queryKey: ['ethusdt-15m'],
@@ -31,43 +46,64 @@ const EstrategiaETH = () => {
   }, [marketData]);
 
   const checkSuccessfulSignals = (data) => {
-    if (!data || data.length === 0 || operationHistory.length === 0) return;
+    if (!data || data.length === 0) return;
 
     const currentPrice = data[data.length - 1].close;
     
-    operationHistory.forEach((signal) => {
-      // Verifica se o sinal ainda não foi marcado como sucesso
-      const alreadySuccessful = successfulSignals.some(s => s.timestamp === signal.timestamp);
-      if (alreadySuccessful) return;
-
-      // Verifica se atingiu o take profit
-      let hitTarget = false;
-      if (signal.type === 'COMPRA' && currentPrice >= signal.takeProfit) {
-        hitTarget = true;
-      } else if (signal.type === 'VENDA' && currentPrice <= signal.takeProfit) {
-        hitTarget = true;
+    // Verificar operação ativa
+    if (activeOperation) {
+      let hitTP = false;
+      let hitSL = false;
+      
+      if (activeOperation.type === 'COMPRA') {
+        hitTP = currentPrice >= activeOperation.takeProfit;
+        hitSL = currentPrice <= activeOperation.stopLoss;
+      } else {
+        hitTP = currentPrice <= activeOperation.takeProfit;
+        hitSL = currentPrice >= activeOperation.stopLoss;
       }
 
-      if (hitTarget) {
-        const profitPercent = signal.type === 'COMPRA' 
-          ? ((signal.takeProfit - signal.entryPrice) / signal.entryPrice * 100).toFixed(2)
-          : ((signal.entryPrice - signal.takeProfit) / signal.entryPrice * 100).toFixed(2);
+      if (hitTP) {
+        const profitPercent = activeOperation.type === 'COMPRA' 
+          ? ((activeOperation.takeProfit - activeOperation.entryPrice) / activeOperation.entryPrice * 100).toFixed(2)
+          : ((activeOperation.entryPrice - activeOperation.takeProfit) / activeOperation.entryPrice * 100).toFixed(2);
 
         const successSignal = {
-          ...signal,
+          ...activeOperation,
           closedAt: new Date().toLocaleString('pt-BR'),
           profit: profitPercent,
           status: 'SUCESSO'
         };
 
         setSuccessfulSignals(prev => [successSignal, ...prev].slice(0, 20));
-        toast.success(`Sinal de ${signal.type} atingiu o alvo! +${profitPercent}%`);
+        setActiveOperation(null); // Libera para nova entrada
+        toast.success(`✅ Take Profit atingido! Lucro: +${profitPercent}%`);
+      } else if (hitSL) {
+        const lossPercent = activeOperation.type === 'COMPRA' 
+          ? ((activeOperation.stopLoss - activeOperation.entryPrice) / activeOperation.entryPrice * 100).toFixed(2)
+          : ((activeOperation.entryPrice - activeOperation.stopLoss) / activeOperation.entryPrice * 100).toFixed(2);
+
+        const lossSignal = {
+          ...activeOperation,
+          closedAt: new Date().toLocaleString('pt-BR'),
+          profit: lossPercent,
+          status: 'STOP LOSS'
+        };
+
+        setSuccessfulSignals(prev => [lossSignal, ...prev].slice(0, 20));
+        setActiveOperation(null); // Libera para nova entrada
+        toast.error(`🛑 Stop Loss atingido. Perda: ${lossPercent}%`);
       }
-    });
+    }
   };
 
   const analyzeStrategy = (data) => {
     if (!data || data.length < 100) return;
+
+    // Se há operação ativa, não gera novos sinais
+    if (activeOperation) {
+      return;
+    }
 
     const closes = data.map(d => d.close);
     const highs = data.map(d => d.high);
@@ -75,8 +111,12 @@ const EstrategiaETH = () => {
     const opens = data.map(d => d.open);
     const volumes = data.map(d => d.volume);
 
-    // 1. Identificar o candle de referência (menor corpo real entre as últimas 5 velas)
-    const last5Candles = data.slice(-6, -1); // Últimas 5 velas fechadas
+    // 1. Detectar pivôs (máximas e mínimas significativas)
+    const pivotHighs = findPivotHigh(highs, 5, 2);
+    const pivotLows = findPivotLow(lows, 5, 2);
+
+    // 2. Identificar o candle de referência (menor corpo real entre as últimas 5 velas)
+    const last5Candles = data.slice(-6, -1);
     let smallestCandleIndex = 0;
     let smallestBody = Infinity;
 
@@ -89,29 +129,27 @@ const EstrategiaETH = () => {
     });
 
     const referenceCandle = last5Candles[smallestCandleIndex];
-    const triggerCandle = data[data.length - 1]; // Candle atual (gatilho)
+    const triggerCandle = data[data.length - 1];
 
-    // 2. Calcular indicadores
+    // 3. Calcular indicadores
     const didiIndex = calculateDidiIndex(closes);
     const dmi = calculateDMI(highs, lows, closes);
     const atr = calculateATR(highs, lows, closes, 14);
-    
-    // EMA50 no timeframe de 1h (simulado com dados de 15m)
     const ema50 = calculateEMA(closes, 50);
 
-    // 3. Verificar rompimento
+    // 4. Verificar rompimento
     const breakoutThreshold = 0.0005; // 0.05%
     const buyBreakout = triggerCandle.close > referenceCandle.high * (1 + breakoutThreshold);
     const sellBreakout = triggerCandle.close < referenceCandle.low * (1 - breakoutThreshold);
 
-    // 4. Validar Didi Index (agulhada)
+    // 5. Validar Didi Index (agulhada)
     const didiConfirmBuy = didiIndex.short[didiIndex.short.length - 1] > didiIndex.medium[didiIndex.medium.length - 1] &&
                            didiIndex.short[didiIndex.short.length - 1] > didiIndex.long[didiIndex.long.length - 1];
     
     const didiConfirmSell = didiIndex.short[didiIndex.short.length - 1] < didiIndex.medium[didiIndex.medium.length - 1] &&
                             didiIndex.short[didiIndex.short.length - 1] < didiIndex.long[didiIndex.long.length - 1];
 
-    // 5. Validar DMI
+    // 6. Validar DMI
     const currentDMI = dmi[dmi.length - 1];
     const prevDMI = dmi[dmi.length - 2];
     const dmiConfirmBuy = currentDMI.plusDI > currentDMI.minusDI && 
@@ -122,20 +160,43 @@ const EstrategiaETH = () => {
                            currentDMI.adx > 25 && 
                            currentDMI.adx > prevDMI.adx;
 
-    // 6. Validar EMA50 (contexto de tendência)
+    // 7. Validar EMA50 (contexto de tendência)
     const currentPrice = triggerCandle.close;
     const ema50Confirm = ema50[ema50.length - 1];
     const trendUp = currentPrice > ema50Confirm;
     const trendDown = currentPrice < ema50Confirm;
 
-    // 7. Filtros adicionais
+    // 8. Filtros adicionais
     const avgATR = atr.slice(-100).reduce((a, b) => a + b, 0) / 100;
     const volatilityOk = atr[atr.length - 1] >= avgATR * 0.5;
     
     const avgVolume = volumes.slice(-20).reduce((a, b) => a + b, 0) / 20;
     const volumeOk = triggerCandle.volume >= avgVolume;
 
-    // 8. Salvar status das condições para debug
+    // 9. Calcular Fibonacci adaptativo
+    let fiboLevels = null;
+    let swingStart = null;
+    let swingEnd = null;
+
+    if (buyBreakout && pivotLows.length > 0) {
+      // Para compra: medir da última mínima até a máxima atual
+      const lastPivotLow = pivotLows[pivotLows.length - 1];
+      swingStart = lastPivotLow.value;
+      swingEnd = triggerCandle.high;
+      fiboLevels = calculateFibonacciLevels(swingStart, swingEnd, 'up');
+    } else if (sellBreakout && pivotHighs.length > 0) {
+      // Para venda: medir da última máxima até a mínima atual
+      const lastPivotHigh = pivotHighs[pivotHighs.length - 1];
+      swingStart = lastPivotHigh.value;
+      swingEnd = triggerCandle.low;
+      fiboLevels = calculateFibonacciLevels(swingStart, swingEnd, 'down');
+    }
+
+    // 10. Determinar TP e SL baseado na força do ADX
+    const adxStrength = currentDMI.adx;
+    const { tpLevel, slLevel } = getAdaptiveFibonacciTargets(adxStrength);
+
+    // 11. Salvar status das condições e Fibonacci
     setConditionsStatus({
       buy: {
         breakout: buyBreakout,
@@ -160,17 +221,27 @@ const EstrategiaETH = () => {
       avgVolume,
       currentVolume: triggerCandle.volume,
       referenceHigh: referenceCandle.high,
-      referenceLow: referenceCandle.low
+      referenceLow: referenceCandle.low,
+      fibonacci: fiboLevels,
+      tpLevel,
+      slLevel
     });
 
-    // 9. Gerar sinal
+    if (fiboLevels) {
+      setFibonacciLevels(fiboLevels);
+    }
+
+    // 12. Gerar sinal com Fibonacci adaptativo
     let signal = null;
 
-    if (buyBreakout && didiConfirmBuy && dmiConfirmBuy && trendUp && volatilityOk && volumeOk) {
+    if (buyBreakout && didiConfirmBuy && dmiConfirmBuy && trendUp && volatilityOk && volumeOk && fiboLevels) {
       const entryPrice = triggerCandle.close;
-      const stopLoss = referenceCandle.low * (1 - breakoutThreshold);
-      const risk = entryPrice - stopLoss;
-      const takeProfit = entryPrice + (risk * 2);
+      
+      // Stop Loss dinâmico baseado no nível de Fibonacci
+      const stopLoss = fiboLevels[slLevel] || (referenceCandle.low * (1 - breakoutThreshold));
+      
+      // Take Profit adaptativo baseado na força do ADX
+      const takeProfit = fiboLevels[tpLevel] || (entryPrice + Math.abs(entryPrice - stopLoss) * 2);
 
       signal = {
         type: 'COMPRA',
@@ -183,16 +254,23 @@ const EstrategiaETH = () => {
           dmi: true,
           ema50: true,
           volatility: volatilityOk,
-          volume: volumeOk
+          volume: volumeOk,
+          fibonacci: true
         },
         adx: currentDMI.adx.toFixed(2),
-        atr: atr[atr.length - 1].toFixed(2)
+        atr: atr[atr.length - 1].toFixed(2),
+        fibonacciTP: tpLevel,
+        fibonacciSL: slLevel,
+        riskReward: ((takeProfit - entryPrice) / (entryPrice - stopLoss)).toFixed(2)
       };
-    } else if (sellBreakout && didiConfirmSell && dmiConfirmSell && trendDown && volatilityOk && volumeOk) {
+    } else if (sellBreakout && didiConfirmSell && dmiConfirmSell && trendDown && volatilityOk && volumeOk && fiboLevels) {
       const entryPrice = triggerCandle.close;
-      const stopLoss = referenceCandle.high * (1 + breakoutThreshold);
-      const risk = stopLoss - entryPrice;
-      const takeProfit = entryPrice - (risk * 2);
+      
+      // Stop Loss dinâmico baseado no nível de Fibonacci
+      const stopLoss = fiboLevels[slLevel] || (referenceCandle.high * (1 + breakoutThreshold));
+      
+      // Take Profit adaptativo baseado na força do ADX
+      const takeProfit = fiboLevels[tpLevel] || (entryPrice - Math.abs(stopLoss - entryPrice) * 2);
 
       signal = {
         type: 'VENDA',
@@ -205,17 +283,22 @@ const EstrategiaETH = () => {
           dmi: true,
           ema50: true,
           volatility: volatilityOk,
-          volume: volumeOk
+          volume: volumeOk,
+          fibonacci: true
         },
         adx: currentDMI.adx.toFixed(2),
-        atr: atr[atr.length - 1].toFixed(2)
+        atr: atr[atr.length - 1].toFixed(2),
+        fibonacciTP: tpLevel,
+        fibonacciSL: slLevel,
+        riskReward: ((entryPrice - takeProfit) / (stopLoss - entryPrice)).toFixed(2)
       };
     }
 
-    if (signal && (!lastSignal || lastSignal.timestamp !== signal.timestamp)) {
+    if (signal && !activeOperation) {
       setLastSignal(signal);
+      setActiveOperation(signal); // Bloqueia nova entrada
       setOperationHistory(prev => [signal, ...prev.slice(0, 9)]);
-      toast.success(`Novo sinal de ${signal.type} detectado!`);
+      toast.success(`🎯 Novo sinal de ${signal.type}! Fibo TP: ${signal.fibonacciTP} | SL: ${signal.fibonacciSL}`);
     }
   };
 
@@ -229,35 +312,68 @@ const EstrategiaETH = () => {
 
   return (
     <div className="container mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 pb-20">
+      {/* Header com gradiente e animação */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4"
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-background border border-primary/20 p-6 sm:p-8"
       >
-        <div className="w-full sm:w-auto">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-1 sm:mb-2">Estratégia ETHUSDT</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">Didi Index + DMI + Rompimento (15min)</p>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -mr-32 -mt-32" />
+        <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+          <div className="w-full sm:w-auto">
+            <div className="flex items-center gap-3 mb-2">
+              <Sparkles className="w-8 h-8 text-primary" />
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Estratégia ETHUSDT</h1>
+            </div>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Análise automática com Didi Index + DMI + Rompimento (Timeframe: 15min)
+            </p>
+          </div>
+          <Button 
+            onClick={handleRefresh} 
+            variant="outline" 
+            className="self-end sm:self-auto hover:bg-primary/10 hover:border-primary"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Atualizar
+          </Button>
         </div>
-        <Button onClick={handleRefresh} variant="outline" size="icon" className="self-end sm:self-auto">
-          <RefreshCw className="h-4 w-4" />
-        </Button>
       </motion.div>
 
-      {/* Sinal Atual */}
+      {/* Métricas de Performance */}
+      <StrategyMetrics 
+        signals={operationHistory} 
+        successfulSignals={successfulSignals} 
+      />
+
+      {/* Indicadores Técnicos Visuais */}
+      <TechnicalGauges conditionsStatus={conditionsStatus} />
+
+      {/* Gráfico de Candlestick */}
+      <CandlestickChart marketData={marketData} lastSignal={lastSignal} />
+
+      {/* Sinal Atual com Fibonacci */}
       {lastSignal && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
         >
-          <Card className={`border-2 ${lastSignal.type === 'COMPRA' ? 'border-green-500' : 'border-red-500'}`}>
+          <Card className={`border-2 ${lastSignal.type === 'COMPRA' ? 'border-green-500' : 'border-red-500'} ${activeOperation ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
             <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                {lastSignal.type === 'COMPRA' ? (
-                  <ArrowUpCircle className="text-green-500 w-5 h-5 sm:w-6 sm:h-6" />
-                ) : (
-                  <ArrowDownCircle className="text-red-500 w-5 h-5 sm:w-6 sm:h-6" />
+              <CardTitle className="flex items-center justify-between gap-2 text-lg sm:text-xl">
+                <div className="flex items-center gap-2">
+                  {lastSignal.type === 'COMPRA' ? (
+                    <ArrowUpCircle className="text-green-500 w-5 h-5 sm:w-6 sm:h-6" />
+                  ) : (
+                    <ArrowDownCircle className="text-red-500 w-5 h-5 sm:w-6 sm:h-6" />
+                  )}
+                  Sinal de {lastSignal.type}
+                </div>
+                {activeOperation && (
+                  <Badge variant="default" className="animate-pulse">
+                    🔒 Operação Ativa
+                  </Badge>
                 )}
-                Sinal de {lastSignal.type}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0">
@@ -267,16 +383,16 @@ const EstrategiaETH = () => {
                   <p className="text-base sm:text-lg md:text-xl font-bold">${lastSignal.entryPrice.toFixed(2)}</p>
                 </div>
                 <div>
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Stop Loss</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Stop Loss (Fibo {lastSignal.fibonacciSL})</p>
                   <p className="text-base sm:text-lg md:text-xl font-bold text-red-500">${lastSignal.stopLoss.toFixed(2)}</p>
                 </div>
                 <div>
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Take Profit</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Take Profit (Fibo {lastSignal.fibonacciTP})</p>
                   <p className="text-base sm:text-lg md:text-xl font-bold text-green-500">${lastSignal.takeProfit.toFixed(2)}</p>
                 </div>
                 <div className="col-span-2 lg:col-span-1">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Data/Hora</p>
-                  <p className="text-xs sm:text-sm font-medium">{lastSignal.timestamp}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Risco:Retorno</p>
+                  <p className="text-base sm:text-lg md:text-xl font-bold text-primary">1:{lastSignal.riskReward}</p>
                 </div>
               </div>
 
@@ -290,256 +406,160 @@ const EstrategiaETH = () => {
                 <Badge variant={lastSignal.confirmations.ema50 ? "default" : "destructive"} className="text-xs">
                   EMA50 {lastSignal.confirmations.ema50 ? '✅' : '❌'}
                 </Badge>
+                <Badge variant={lastSignal.confirmations.fibonacci ? "default" : "destructive"} className="text-xs">
+                  Fibonacci {lastSignal.confirmations.fibonacci ? '✅' : '❌'}
+                </Badge>
                 <Badge variant="outline" className="text-xs">ADX: {lastSignal.adx}</Badge>
                 <Badge variant="outline" className="text-xs">ATR: {lastSignal.atr}</Badge>
               </div>
 
-              <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground bg-primary/5 p-2 rounded">
                 <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                <span className="leading-tight">Risco:Retorno = 1:2 | Máx. 2 operações/hora</span>
+                <span className="leading-tight">
+                  {activeOperation 
+                    ? "🔒 Aguardando TP ou SL para liberar nova entrada" 
+                    : "Fibonacci adaptativo baseado na força do ADX"}
+                </span>
               </div>
             </CardContent>
           </Card>
         </motion.div>
       )}
 
-      {/* Painel de Debug das Condições */}
+      {/* Timeline de Sinais */}
+      <SignalTimeline 
+        signals={operationHistory} 
+        successfulSignals={successfulSignals} 
+      />
+
+      {/* Painel de Condições (colapsável) */}
       {conditionsStatus && (
-        <Card>
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-              Status das Condições em Tempo Real
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 pt-0">
-            {/* Condições de Compra */}
-            <div>
-              <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
-                <ArrowUpCircle className="text-green-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                Condições para COMPRA
-              </h3>
-              <div className="grid gap-1.5 sm:gap-2">
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Rompimento de Alta</span>
-                  <Badge variant={conditionsStatus.buy.breakout ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.buy.breakout ? "✅ OK" : "❌ Não"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Didi Index (Agulhada Alta)</span>
-                  <Badge variant={conditionsStatus.buy.didi ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.buy.didi ? "✅ OK" : "❌ Não"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">DMI (+DI &gt; -DI, ADX &gt; 25)</span>
-                  <Badge variant={conditionsStatus.buy.dmi ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.buy.dmi ? "✅ OK" : "❌ Não"} (ADX: {conditionsStatus.adx.toFixed(1)})
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Tendência (Preço &gt; EMA50)</span>
-                  <Badge variant={conditionsStatus.buy.trend ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.buy.trend ? "✅ OK" : "❌ Não"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Volatilidade Adequada</span>
-                  <Badge variant={conditionsStatus.buy.volatility ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.buy.volatility ? "✅ OK" : "❌ Baixa"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Volume Adequado</span>
-                  <Badge variant={conditionsStatus.buy.volume ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.buy.volume ? "✅ OK" : "❌ Baixo"}
-                  </Badge>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card className="border-border/50">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                Status Detalhado das Condições
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 pt-0">
+              {/* Condições de Compra */}
+              <div>
+                <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
+                  <ArrowUpCircle className="text-green-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  Condições para COMPRA
+                </h3>
+                <div className="grid gap-1.5 sm:gap-2">
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Rompimento de Alta</span>
+                    <Badge variant={conditionsStatus.buy.breakout ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.buy.breakout ? "✅ OK" : "❌ Não"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Didi Index (Agulhada Alta)</span>
+                    <Badge variant={conditionsStatus.buy.didi ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.buy.didi ? "✅ OK" : "❌ Não"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">DMI (+DI &gt; -DI, ADX &gt; 25)</span>
+                    <Badge variant={conditionsStatus.buy.dmi ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.buy.dmi ? "✅ OK" : "❌ Não"} (ADX: {conditionsStatus.adx.toFixed(1)})
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Tendência (Preço &gt; EMA50)</span>
+                    <Badge variant={conditionsStatus.buy.trend ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.buy.trend ? "✅ OK" : "❌ Não"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Volatilidade Adequada</span>
+                    <Badge variant={conditionsStatus.buy.volatility ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.buy.volatility ? "✅ OK" : "❌ Baixa"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Volume Adequado</span>
+                    <Badge variant={conditionsStatus.buy.volume ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.buy.volume ? "✅ OK" : "❌ Baixo"}
+                    </Badge>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Condições de Venda */}
-            <div>
-              <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
-                <ArrowDownCircle className="text-red-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                Condições para VENDA
-              </h3>
-              <div className="grid gap-1.5 sm:gap-2">
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Rompimento de Baixa</span>
-                  <Badge variant={conditionsStatus.sell.breakout ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.sell.breakout ? "✅ OK" : "❌ Não"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Didi Index (Agulhada Baixa)</span>
-                  <Badge variant={conditionsStatus.sell.didi ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.sell.didi ? "✅ OK" : "❌ Não"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">DMI (-DI &gt; +DI, ADX &gt; 25)</span>
-                  <Badge variant={conditionsStatus.sell.dmi ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.sell.dmi ? "✅ OK" : "❌ Não"} (ADX: {conditionsStatus.adx.toFixed(1)})
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Tendência (Preço &lt; EMA50)</span>
-                  <Badge variant={conditionsStatus.sell.trend ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.sell.trend ? "✅ OK" : "❌ Não"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Volatilidade Adequada</span>
-                  <Badge variant={conditionsStatus.sell.volatility ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.sell.volatility ? "✅ OK" : "❌ Baixa"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                  <span className="pr-2">Volume Adequado</span>
-                  <Badge variant={conditionsStatus.sell.volume ? "default" : "outline"} className="text-xs flex-shrink-0">
-                    {conditionsStatus.sell.volume ? "✅ OK" : "❌ Baixo"}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-
-            {/* Valores Atuais */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 pt-3 sm:pt-4 border-t">
+              {/* Condições de Venda */}
               <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Preço Atual</p>
-                <p className="text-sm sm:text-base md:text-lg font-bold">${conditionsStatus.currentPrice.toFixed(2)}</p>
+                <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
+                  <ArrowDownCircle className="text-red-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  Condições para VENDA
+                </h3>
+                <div className="grid gap-1.5 sm:gap-2">
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Rompimento de Baixa</span>
+                    <Badge variant={conditionsStatus.sell.breakout ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.sell.breakout ? "✅ OK" : "❌ Não"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Didi Index (Agulhada Baixa)</span>
+                    <Badge variant={conditionsStatus.sell.didi ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.sell.didi ? "✅ OK" : "❌ Não"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">DMI (-DI &gt; +DI, ADX &gt; 25)</span>
+                    <Badge variant={conditionsStatus.sell.dmi ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.sell.dmi ? "✅ OK" : "❌ Não"} (ADX: {conditionsStatus.adx.toFixed(1)})
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Tendência (Preço &lt; EMA50)</span>
+                    <Badge variant={conditionsStatus.sell.trend ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.sell.trend ? "✅ OK" : "❌ Não"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Volatilidade Adequada</span>
+                    <Badge variant={conditionsStatus.sell.volatility ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.sell.volatility ? "✅ OK" : "❌ Baixa"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
+                    <span className="pr-2">Volume Adequado</span>
+                    <Badge variant={conditionsStatus.sell.volume ? "default" : "outline"} className="text-xs flex-shrink-0">
+                      {conditionsStatus.sell.volume ? "✅ OK" : "❌ Baixo"}
+                    </Badge>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">EMA50</p>
-                <p className="text-sm sm:text-base md:text-lg font-bold">${conditionsStatus.ema50Value.toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">ATR</p>
-                <p className="text-sm sm:text-base md:text-lg font-bold">{conditionsStatus.atrValue.toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Volume Atual</p>
-                <p className="text-xs sm:text-sm font-medium">{conditionsStatus.currentVolume.toFixed(0)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Volume Médio</p>
-                <p className="text-xs sm:text-sm font-medium">{conditionsStatus.avgVolume.toFixed(0)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">Referência</p>
-                <p className="text-xs sm:text-sm font-medium">
-                  H: ${conditionsStatus.referenceHigh.toFixed(2)}<br />
-                  L: ${conditionsStatus.referenceLow.toFixed(2)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
       )}
 
-      {/* Sinais Bem-Sucedidos */}
-      <Card className="border-green-500/30">
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <TrendingUp className="text-green-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-            Sinais de Sucesso (Take Profit Atingido)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 sm:p-6 pt-0">
-          {successfulSignals.length === 0 ? (
-            <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm sm:text-base">Nenhum sinal atingiu o alvo ainda</p>
-          ) : (
-            <div className="space-y-2 sm:space-y-3">
-              {successfulSignals.map((op, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="p-3 sm:p-4 rounded-lg border border-green-500/30 bg-green-500/10"
-                >
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <TrendingUp className="text-green-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                        <span className="font-semibold text-sm sm:text-base truncate">{op.type}</span>
-                        <Badge variant="default" className="bg-green-500 text-xs">+{op.profit}%</Badge>
-                      </div>
-                      <Badge variant="outline" className="text-green-500 border-green-500 text-xs flex-shrink-0">✓ SUCESSO</Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Entrada: </span>
-                        <span className="font-medium">${op.entryPrice.toFixed(2)}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Alvo: </span>
-                        <span className="font-medium text-green-500">${op.takeProfit.toFixed(2)}</span>
-                      </div>
-                      <div className="text-[10px] sm:text-xs text-muted-foreground col-span-2 sm:col-span-1">
-                        Aberto: {op.timestamp}
-                      </div>
-                      <div className="text-[10px] sm:text-xs text-muted-foreground col-span-2 sm:col-span-1">
-                        Fechado: {op.closedAt}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Histórico de Operações */}
-      <Card>
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-base sm:text-lg">Histórico de Todos os Sinais</CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 sm:p-6 pt-0">
-          {operationHistory.length === 0 ? (
-            <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm sm:text-base">Nenhum sinal gerado ainda</p>
-          ) : (
-            <div className="space-y-2 sm:space-y-3">
-              {operationHistory.map((op, idx) => (
-                <div
-                  key={idx}
-                  className={`p-3 sm:p-4 rounded-lg border ${
-                    op.type === 'COMPRA' ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'
-                  }`}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {op.type === 'COMPRA' ? (
-                        <TrendingUp className="text-green-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                      ) : (
-                        <TrendingDown className="text-red-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                      )}
-                      <span className="font-semibold text-sm sm:text-base">{op.type}</span>
-                      <span className="text-xs sm:text-sm text-muted-foreground">${op.entryPrice.toFixed(2)}</span>
-                    </div>
-                    <span className="text-[10px] sm:text-xs text-muted-foreground self-end sm:self-auto">{op.timestamp}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Descrição da Estratégia */}
-      <Card>
+      <Card className="border-border/50">
         <CardHeader className="p-4 sm:p-6">
           <CardTitle className="text-base sm:text-lg">Sobre a Estratégia</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm p-4 sm:p-6 pt-0">
           <p><strong>Timeframe:</strong> 15 minutos</p>
           <p><strong>Ativo:</strong> ETHUSDT</p>
-          <p><strong>Indicadores:</strong> Didi Index, DMI (ADX), EMA50, ATR</p>
-          <p><strong>Lógica:</strong> Identifica o menor candle entre as últimas 5 velas e aguarda rompimento confirmado por múltiplos indicadores técnicos.</p>
-          <p><strong>Gestão de Risco:</strong> Stop Loss baseado na mínima/máxima do candle de referência. Take Profit com relação 1:2.</p>
+          <p><strong>Indicadores:</strong> Didi Index, DMI (ADX), EMA50, ATR, Fibonacci Adaptativo</p>
+          <p><strong>Lógica de Entrada:</strong> Identifica pivôs (máximas/mínimas significativas) e rompimento do candle de referência com confirmações de Didi, DMI e EMA50.</p>
+          <p><strong>Fibonacci Adaptativo:</strong> Detecta pernadas de movimento e aplica níveis de Fibonacci para TP e SL dinâmicos.</p>
+          <p><strong>Gestão Inteligente:</strong> TP e SL ajustados pela força do ADX:
+            <br/>• ADX &gt; 40: TP agressivo (Fibo 0.618), SL apertado (0.5)
+            <br/>• ADX 30-40: TP moderado (Fibo 0.5), SL moderado (0.618)
+            <br/>• ADX 25-30: TP conservador (Fibo 0.382), SL largo (0.786)
+          </p>
+          <p><strong>Bloqueio de Entrada:</strong> Não permite novas operações até que TP ou SL sejam atingidos.</p>
         </CardContent>
       </Card>
     </div>

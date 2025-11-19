@@ -20,7 +20,7 @@ import {
 import { axiosInstance } from '@/config/api';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { DataSourceBadge } from '../components/common/DataSourceBadge';
-import CryptoImage from '../components/common/CryptoImage';
+import LivePriceCard from '../components/dashboard/LivePriceCard';
 import { toast } from "sonner";
 
 const Index = () => {
@@ -186,46 +186,7 @@ const Index = () => {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {marketOverview?.topCoins?.map((coin, index) => (
-                    <motion.div
-                      key={coin.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="glass-morphism p-4 rounded-xl card-hover"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <CryptoImage 
-                            src={coin.image} 
-                            alt={coin.name}
-                            symbol={coin.symbol}
-                            className="w-8 h-8"
-                          />
-                          <div>
-                            <h3 className="font-semibold text-white">{coin.name}</h3>
-                            <p className="text-xs text-gray-400 uppercase">{coin.symbol}</p>
-                          </div>
-                        </div>
-                        {coin.price_change_percentage_24h >= 0 ? (
-                          <TrendingUp className="w-5 h-5 text-green-400" />
-                        ) : (
-                          <TrendingDown className="w-5 h-5 text-red-400" />
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-2xl font-bold gradient-text">
-                          {formatCurrency(coin.current_price)}
-                        </p>
-                        <p className={`text-sm font-medium ${
-                          coin.price_change_percentage_24h >= 0 ? 'text-green-400' : 'text-red-400'
-                        }`}>
-                          {formatPercentage(coin.price_change_percentage_24h)}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          Cap: {formatCurrency(coin.market_cap)}
-                        </p>
-                      </div>
-                    </motion.div>
+                    <LivePriceCard key={coin.id} coin={coin} index={index} />
                   ))}
                 </div>
               </CardContent>
