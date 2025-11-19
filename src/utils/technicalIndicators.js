@@ -226,14 +226,25 @@ export const calculateTPSL = (swingLow, swingHigh, adx, direction = 'buy', entry
   const diff = Math.abs(swingHigh - swingLow);
   
   if (direction === 'buy') {
-    // COMPRA: TP acima, SL abaixo
+    // COMPRA: TP acima (usar target mais alto), SL abaixo (usar target mais baixo)
     const tp = fibLevels[targets.tpLevel];
     const sl = fibLevels[targets.slLevel];
     return { tp, sl, fibLevels };
   } else {
-    // VENDA: TP abaixo, SL acima
-    const tp = fibLevels[targets.tpLevel];
-    const sl = fibLevels[targets.slLevel];
+    // VENDA: TP abaixo (usar target mais baixo), SL acima (usar target mais alto)
+    // IMPORTANTE: Inverter os targets porque em VENDA a semântica é oposta
+    // - tpLevel (ex: level_618) está MAIS LONGE (mais abaixo) = TP correto ✓
+    // - slLevel (ex: level_500) está MAIS PERTO (menos abaixo) = deveria ser SL mas está invertido!
+    // SOLUÇÃO: trocar os targets
+    const tp = fibLevels[targets.tpLevel];  // Usa o nível mais distante para TP (mais abaixo)
+    const sl = fibLevels[targets.slLevel];   // Usa o nível mais próximo para SL (menos abaixo, mais perto do topo)
+    
+    // Para VENDA, precisamos garantir que SL > entrada > TP
+    // Se os níveis ficaram invertidos, trocar
+    if (sl < tp) {
+      return { tp: sl, sl: tp, fibLevels };
+    }
+    
     return { tp, sl, fibLevels };
   }
 };
