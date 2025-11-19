@@ -162,33 +162,45 @@ export const findPivotLow = (lows, leftBars = 5, rightBars = 5) => {
   return pivots;
 };
 
-// Fibonacci Levels Calculation - Orientado pela Direção do Trade
-export const calculateFibonacciLevels = (swingLow, swingHigh, direction = 'buy') => {
-  const diff = Math.abs(swingHigh - swingLow);
+// Fibonacci Levels Calculation - Orientado pela Direção do Trade a partir da Entrada
+export const calculateFibonacciLevels = (entryPrice, swingReference, direction = 'buy') => {
+  // Para COMPRA: entryPrice é a base, swingReference é o topo esperado
+  // Para VENDA: entryPrice é o topo, swingReference é o fundo esperado
+  const diff = Math.abs(entryPrice - swingReference);
   
   if (direction === 'buy') {
-    // COMPRA: Fibonacci de baixo para cima
-    // TP acima (projeção), SL abaixo (retração)
+    // COMPRA: Fibonacci de entrada para cima (projeção de alta)
+    // TP acima da entrada, SL abaixo da entrada
     return {
-      level_0: swingLow,
-      level_236: swingLow + diff * 0.236,
-      level_382: swingLow + diff * 0.382,
-      level_500: swingLow + diff * 0.500,
-      level_618: swingLow + diff * 0.618,
-      level_786: swingLow + diff * 0.786,
-      level_1000: swingHigh
+      level_0: entryPrice,
+      level_236: entryPrice + diff * 0.236,
+      level_382: entryPrice + diff * 0.382,
+      level_500: entryPrice + diff * 0.500,
+      level_618: entryPrice + diff * 0.618,
+      level_786: entryPrice + diff * 0.786,
+      level_1000: entryPrice + diff,
+      // Níveis de retração (para SL)
+      level_neg_236: entryPrice - diff * 0.236,
+      level_neg_382: entryPrice - diff * 0.382,
+      level_neg_500: entryPrice - diff * 0.500,
+      level_neg_618: entryPrice - diff * 0.618,
     };
   } else {
-    // VENDA: Fibonacci de cima para baixo
-    // TP abaixo (projeção), SL acima (retração)
+    // VENDA: Fibonacci de entrada para baixo (projeção de baixa)
+    // TP abaixo da entrada, SL acima da entrada
     return {
-      level_0: swingHigh,
-      level_236: swingHigh - diff * 0.236,
-      level_382: swingHigh - diff * 0.382,
-      level_500: swingHigh - diff * 0.500,
-      level_618: swingHigh - diff * 0.618,
-      level_786: swingHigh - diff * 0.786,
-      level_1000: swingLow
+      level_0: entryPrice,
+      level_236: entryPrice - diff * 0.236,
+      level_382: entryPrice - diff * 0.382,
+      level_500: entryPrice - diff * 0.500,
+      level_618: entryPrice - diff * 0.618,
+      level_786: entryPrice - diff * 0.786,
+      level_1000: entryPrice - diff,
+      // Níveis de retração (para SL)
+      level_neg_236: entryPrice + diff * 0.236,
+      level_neg_382: entryPrice + diff * 0.382,
+      level_neg_500: entryPrice + diff * 0.500,
+      level_neg_618: entryPrice + diff * 0.618,
     };
   }
 };
@@ -200,39 +212,41 @@ export const getAdaptiveFibonacciTargets = (adx, direction = 'buy') => {
   // ADX strength categories
   if (adx >= 50) {
     // Tendência muito forte - targets agressivos
-    targets = { tpLevel: 'level_618', slLevel: 'level_382' };
+    targets = { tpLevel: 'level_618', slLevel: 'level_neg_382' };
   } else if (adx >= 40) {
     // Tendência forte
-    targets = { tpLevel: 'level_618', slLevel: 'level_500' };
+    targets = { tpLevel: 'level_500', slLevel: 'level_neg_382' };
   } else if (adx >= 30) {
     // Tendência moderada
-    targets = { tpLevel: 'level_500', slLevel: 'level_618' };
+    targets = { tpLevel: 'level_382', slLevel: 'level_neg_382' };
   } else if (adx >= 25) {
     // Tendência fraca
-    targets = { tpLevel: 'level_382', slLevel: 'level_618' };
+    targets = { tpLevel: 'level_382', slLevel: 'level_neg_500' };
   } else {
     // Sem tendência clara - conservador
-    targets = { tpLevel: 'level_382', slLevel: 'level_786' };
+    targets = { tpLevel: 'level_236', slLevel: 'level_neg_618' };
   }
 
   return targets;
 };
 
 // Calcular TP/SL baseado em Fibonacci e ADX
-export const calculateTPSL = (swingLow, swingHigh, adx, direction = 'buy', entryPrice) => {
-  const fibLevels = calculateFibonacciLevels(swingLow, swingHigh, direction);
+export const calculateTPSL = (entryPrice, swingReference, adx, direction = 'buy') => {
+  // swingReference: para COMPRA é o swing high esperado, para VENDA é o swing low esperado
+  const fibLevels = calculateFibonacciLevels(entryPrice, swingReference, direction);
   const targets = getAdaptiveFibonacciTargets(adx, direction);
   
-  const diff = Math.abs(swingHigh - swingLow);
+  const tp = fibLevels[targets.tpLevel];
+  const sl = fibLevels[targets.slLevel];
   
   if (direction === 'buy') {
-    // COMPRA: TP acima (usar target mais alto), SL abaixo (usar target mais baixo)
-    const tp = fibLevels[targets.tpLevel];
-    const sl = fibLevels[targets.slLevel];
-    
-    // Validação: TP deve ser > entrada > SL
-    if (tp <= entryPrice || sl >= entryPrice) {
-      console.error('❌ COMPRA: TP/SL inválidos', { entrada: entryPrice, tp, sl, targets });
+    // COMPRA: TP deve ser > entrada, SL deve ser < entrada
+    if (tp <= entryPrice) {
+      console.error('❌ COMPRA: TP inválido', { entrada: entryPrice, tp, tpLevel: targets.tpLevel });
+      return { tp: null, sl: null, fibLevels };
+    }
+    if (sl >= entryPrice) {
+      console.error('❌ COMPRA: SL inválido', { entrada: entryPrice, sl, slLevel: targets.slLevel });
       return { tp: null, sl: null, fibLevels };
     }
     
@@ -247,31 +261,20 @@ export const calculateTPSL = (swingLow, swingHigh, adx, direction = 'buy', entry
     
     return { tp, sl, fibLevels };
   } else {
-    // VENDA: TP abaixo (usar target mais baixo), SL acima (usar target mais alto)
-    // IMPORTANTE: Inverter os targets porque em VENDA a semântica é oposta
-    // - tpLevel (ex: level_618) está MAIS LONGE (mais abaixo) = TP correto ✓
-    // - slLevel (ex: level_500) está MAIS PERTO (menos abaixo) = deveria ser SL mas está invertido!
-    // SOLUÇÃO: trocar os targets
-    const tp = fibLevels[targets.tpLevel];  // Usa o nível mais distante para TP (mais abaixo)
-    const sl = fibLevels[targets.slLevel];   // Usa o nível mais próximo para SL (menos abaixo, mais perto do topo)
-    
-    // Para VENDA, precisamos garantir que SL > entrada > TP
-    // Se os níveis ficaram invertidos, trocar
-    if (sl < tp) {
-      console.warn('⚠️ VENDA: Invertendo SL/TP', { tp, sl });
-      return { tp: sl, sl: tp, fibLevels };
+    // VENDA: TP deve ser < entrada, SL deve ser > entrada
+    if (tp >= entryPrice) {
+      console.error('❌ VENDA: TP inválido', { entrada: entryPrice, tp, tpLevel: targets.tpLevel });
+      return { tp: null, sl: null, fibLevels };
     }
-    
-    // Validação final: SL deve ser > entrada > TP
-    if (sl <= entryPrice || tp >= entryPrice) {
-      console.error('❌ VENDA: TP/SL inválidos', { entrada: entryPrice, sl, tp, targets });
+    if (sl <= entryPrice) {
+      console.error('❌ VENDA: SL inválido', { entrada: entryPrice, sl, slLevel: targets.slLevel });
       return { tp: null, sl: null, fibLevels };
     }
     
     console.log('✅ VENDA: TP/SL calculados', { 
       entrada: entryPrice, 
-      sl, 
       tp, 
+      sl, 
       tpLevel: targets.tpLevel, 
       slLevel: targets.slLevel,
       adx 
