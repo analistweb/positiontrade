@@ -4,12 +4,23 @@ import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Target, Zap, BarChart3, Clock } from 'lucide-react';
 
 const StrategyMetrics = ({ signals, successfulSignals }) => {
+  // Total de sinais gerados
   const totalSignals = signals.length;
-  const successCount = successfulSignals.length;
-  const successRate = totalSignals > 0 ? ((successCount / totalSignals) * 100).toFixed(1) : 0;
   
-  const avgProfit = successfulSignals.length > 0
-    ? (successfulSignals.reduce((sum, s) => sum + parseFloat(s.profit || 0), 0) / successfulSignals.length).toFixed(2)
+  // Total de sinais FECHADOS (TP + SL)
+  const closedSignals = successfulSignals.length;
+  
+  // Sinais que atingiram TP (sucesso)
+  const successfulCount = successfulSignals.filter(s => s.status === 'SUCESSO').length;
+  
+  // Taxa de sucesso = (sinais com TP / sinais fechados) * 100
+  const successRate = closedSignals > 0 ? ((successfulCount / closedSignals) * 100).toFixed(1) : 0;
+  
+  // Lucro médio APENAS dos sinais bem-sucedidos (TP)
+  const avgProfit = successfulCount > 0
+    ? (successfulSignals
+        .filter(s => s.status === 'SUCESSO')
+        .reduce((sum, s) => sum + parseFloat(s.profit || 0), 0) / successfulCount).toFixed(2)
     : 0;
 
   const buySignals = signals.filter(s => s.type === 'COMPRA').length;
@@ -38,7 +49,7 @@ const StrategyMetrics = ({ signals, successfulSignals }) => {
       icon: Zap,
       color: 'text-purple-500',
       bgColor: 'bg-purple-500/10',
-      subValue: `${successCount} bem-sucedidos`
+      subValue: `${closedSignals} fechados`
     },
     {
       label: 'Compra vs Venda',

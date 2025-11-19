@@ -229,6 +229,22 @@ export const calculateTPSL = (swingLow, swingHigh, adx, direction = 'buy', entry
     // COMPRA: TP acima (usar target mais alto), SL abaixo (usar target mais baixo)
     const tp = fibLevels[targets.tpLevel];
     const sl = fibLevels[targets.slLevel];
+    
+    // Validação: TP deve ser > entrada > SL
+    if (tp <= entryPrice || sl >= entryPrice) {
+      console.error('❌ COMPRA: TP/SL inválidos', { entrada: entryPrice, tp, sl, targets });
+      return { tp: null, sl: null, fibLevels };
+    }
+    
+    console.log('✅ COMPRA: TP/SL calculados', { 
+      entrada: entryPrice, 
+      tp, 
+      sl, 
+      tpLevel: targets.tpLevel, 
+      slLevel: targets.slLevel,
+      adx 
+    });
+    
     return { tp, sl, fibLevels };
   } else {
     // VENDA: TP abaixo (usar target mais baixo), SL acima (usar target mais alto)
@@ -242,8 +258,24 @@ export const calculateTPSL = (swingLow, swingHigh, adx, direction = 'buy', entry
     // Para VENDA, precisamos garantir que SL > entrada > TP
     // Se os níveis ficaram invertidos, trocar
     if (sl < tp) {
+      console.warn('⚠️ VENDA: Invertendo SL/TP', { tp, sl });
       return { tp: sl, sl: tp, fibLevels };
     }
+    
+    // Validação final: SL deve ser > entrada > TP
+    if (sl <= entryPrice || tp >= entryPrice) {
+      console.error('❌ VENDA: TP/SL inválidos', { entrada: entryPrice, sl, tp, targets });
+      return { tp: null, sl: null, fibLevels };
+    }
+    
+    console.log('✅ VENDA: TP/SL calculados', { 
+      entrada: entryPrice, 
+      sl, 
+      tp, 
+      tpLevel: targets.tpLevel, 
+      slLevel: targets.slLevel,
+      adx 
+    });
     
     return { tp, sl, fibLevels };
   }

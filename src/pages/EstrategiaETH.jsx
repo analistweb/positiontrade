@@ -119,9 +119,17 @@ const EstrategiaETH = () => {
       }
 
       if (hitTP) {
+        // Calcular lucro: sempre positivo para TP
         const profitPercent = activeOperation.type === 'COMPRA' 
           ? ((activeOperation.takeProfit - activeOperation.entryPrice) / activeOperation.entryPrice * 100).toFixed(2)
           : ((activeOperation.entryPrice - activeOperation.takeProfit) / activeOperation.entryPrice * 100).toFixed(2);
+
+        console.log('✅ Take Profit atingido:', {
+          tipo: activeOperation.type,
+          entrada: activeOperation.entryPrice,
+          tp: activeOperation.takeProfit,
+          lucro: profitPercent
+        });
 
         const successSignal = {
           ...activeOperation,
@@ -130,13 +138,21 @@ const EstrategiaETH = () => {
           status: 'SUCESSO'
         };
 
-        setSuccessfulSignals(prev => [successSignal, ...prev].slice(0, 20));
-        setActiveOperation(null); // Libera para nova entrada
+        setSuccessfulSignals(prev => [successSignal, ...prev].slice(0, 50));
+        setActiveOperation(null);
         toast.success(`✅ Take Profit atingido! Lucro: +${profitPercent}%`);
       } else if (hitSL) {
+        // Calcular perda: sempre negativo para SL
         const lossPercent = activeOperation.type === 'COMPRA' 
           ? ((activeOperation.stopLoss - activeOperation.entryPrice) / activeOperation.entryPrice * 100).toFixed(2)
           : ((activeOperation.entryPrice - activeOperation.stopLoss) / activeOperation.entryPrice * 100).toFixed(2);
+
+        console.log('🛑 Stop Loss atingido:', {
+          tipo: activeOperation.type,
+          entrada: activeOperation.entryPrice,
+          sl: activeOperation.stopLoss,
+          perda: lossPercent
+        });
 
         const lossSignal = {
           ...activeOperation,
@@ -145,8 +161,8 @@ const EstrategiaETH = () => {
           status: 'STOP LOSS'
         };
 
-        setSuccessfulSignals(prev => [lossSignal, ...prev].slice(0, 20));
-        setActiveOperation(null); // Libera para nova entrada
+        setSuccessfulSignals(prev => [lossSignal, ...prev].slice(0, 50));
+        setActiveOperation(null);
         toast.error(`🛑 Stop Loss atingido. Perda: ${lossPercent}%`);
       }
     }
@@ -361,6 +377,23 @@ const EstrategiaETH = () => {
         direction: 'buy'
       };
 
+      // Validação: Para COMPRA, TP deve ser > entrada > SL
+      if (calculatedTP <= entryPrice || calculatedSL >= entryPrice) {
+        console.error('❌ ERRO: Níveis TP/SL inválidos para COMPRA:', {
+          entrada: entryPrice,
+          tp: calculatedTP,
+          sl: calculatedSL
+        });
+        return; // Não gera sinal se TP/SL estiverem errados
+      }
+
+      console.log('🟢 Sinal de COMPRA gerado:', {
+        entrada: entryPrice,
+        tp: calculatedTP,
+        sl: calculatedSL,
+        rr: rrValidation.ratio.toFixed(2)
+      });
+
       setLastSignal(signal);
       setOperationHistory(prev => [signal, ...prev].slice(0, 50));
       setActiveOperation(signal);
@@ -397,6 +430,23 @@ const EstrategiaETH = () => {
         riskReward: rrValidation.ratio.toFixed(2),
         direction: 'sell'
       };
+
+      // Validação: Para VENDA, SL deve ser > entrada > TP
+      if (calculatedSL <= entryPrice || calculatedTP >= entryPrice) {
+        console.error('❌ ERRO: Níveis TP/SL inválidos para VENDA:', {
+          entrada: entryPrice,
+          sl: calculatedSL,
+          tp: calculatedTP
+        });
+        return; // Não gera sinal se TP/SL estiverem errados
+      }
+
+      console.log('🔴 Sinal de VENDA gerado:', {
+        entrada: entryPrice,
+        sl: calculatedSL,
+        tp: calculatedTP,
+        rr: rrValidation.ratio.toFixed(2)
+      });
 
       setLastSignal(signal);
       setOperationHistory(prev => [signal, ...prev].slice(0, 50));
