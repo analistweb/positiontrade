@@ -3,6 +3,52 @@
  * Fornece atualizações em tempo real de klines (candlesticks)
  */
 
+import { z } from 'zod';
+
+// Schema de validação para mensagens da Binance
+const binanceKlineMessageSchema = z.object({
+  e: z.literal('kline'),
+  E: z.number().int().positive().optional(),
+  s: z.string().optional(),
+  k: z.object({
+    t: z.number().int().positive(),
+    T: z.number().int().positive().optional(),
+    s: z.string().optional(),
+    i: z.string().optional(),
+    o: z.string().regex(/^\d+\.?\d*$/),
+    c: z.string().regex(/^\d+\.?\d*$/),
+    h: z.string().regex(/^\d+\.?\d*$/),
+    l: z.string().regex(/^\d+\.?\d*$/),
+    v: z.string().regex(/^\d+\.?\d*$/),
+    n: z.number().int().nonnegative().optional(),
+    x: z.boolean(),
+    q: z.string().optional(),
+    V: z.string().optional(),
+    Q: z.string().optional()
+  })
+});
+
+// Schema de validação para dados do candle processados
+const candleDataSchema = z.object({
+  timestamp: z.number().int().positive(),
+  open: z.number().positive().finite(),
+  high: z.number().positive().finite(),
+  low: z.number().positive().finite(),
+  close: z.number().positive().finite(),
+  volume: z.number().nonnegative().finite(),
+  isClosed: z.boolean()
+}).refine(data => data.high >= data.low, {
+  message: "High deve ser >= Low"
+}).refine(data => {
+  return data.high >= data.open && data.high >= data.close;
+}, {
+  message: "High deve ser maior ou igual a Open e Close"
+}).refine(data => {
+  return data.low <= data.open && data.low <= data.close;
+}, {
+  message: "Low deve ser menor ou igual a Open e Close"
+});
+
 export class BinanceKlineStream {
   constructor() {
     this.ws = null;
@@ -36,29 +82,51 @@ export class BinanceKlineStream {
 
     this.ws.onmessage = (event) => {
       try {
-        const message = JSON.parse(event.data);
+        const rawMessage = JSON.parse(event.data);
         
-        if (message.e === 'kline' && message.k) {
+        // Validar estrutura da mensagem com Zod
+        const messageValidation = binanceKlineMessageSchema.safeParse(rawMessage);
+        
+        if (!messageValidation.success) {
+          if (import.meta.env.DEV) {
+            console.error('[BinanceWS] Mensagem inválida:', messageValidation.error.issues);
+          }
+          return; // Ignorar mensagem inválida silenciosamente
+        }
+        
+        const message = messageValidation.data;
+        
+        // Notificar listeners apenas quando o candle FECHA (x = true)
+        if (message.k.x) {
           const kline = message.k;
           
-          // Notificar listeners apenas quando o candle FECHA (x = true)
-          // ou se quiser intrabar, remova o check de kline.x
-          if (kline.x) {
-            const candleData = {
-              timestamp: kline.t,
-              open: parseFloat(kline.o),
-              high: parseFloat(kline.h),
-              low: parseFloat(kline.l),
-              close: parseFloat(kline.c),
-              volume: parseFloat(kline.v),
-              isClosed: kline.x
-            };
-
-            this.notifyListeners(candleData);
+          // Converter strings para números
+          const candleData = {
+            timestamp: kline.t,
+            open: parseFloat(kline.o),
+            high: parseFloat(kline.h),
+            low: parseFloat(kline.l),
+            close: parseFloat(kline.c),
+            volume: parseFloat(kline.v),
+            isClosed: kline.x
+          };
+          
+          // Validar candle completo com Zod
+          const candleValidation = candleDataSchema.safeParse(candleData);
+          
+          if (candleValidation.success) {
+            this.notifyListeners(candleValidation.data);
+          } else {
+            if (import.meta.env.DEV) {
+              console.error('[BinanceWS] Candle inválido:', candleValidation.error.issues);
+            }
           }
         }
       } catch (error) {
-        console.error('[BinanceWS] Erro ao processar mensagem:', error);
+        if (import.meta.env.DEV) {
+          console.error('[BinanceWS] Erro ao processar mensagem:', error);
+        }
+        // Em produção, ignora silenciosamente para evitar exposição
       }
     };
 
