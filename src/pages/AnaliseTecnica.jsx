@@ -81,7 +81,7 @@ const AnaliseTecnica = () => {
   }
 
   const getSignalColor = (value, threshold) => {
-    return value < threshold ? 'bg-green-500' : 'bg-red-500';
+    return value >= threshold ? 'bg-green-500' : 'bg-red-500';
   };
 
   return (
