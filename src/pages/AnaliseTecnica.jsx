@@ -81,7 +81,7 @@ const AnaliseTecnica = () => {
   }
 
   const getSignalColor = (value, threshold) => {
-    return value >= threshold ? 'bg-red-500' : 'bg-green-500';
+    return value < threshold ? 'bg-green-500' : 'bg-red-500';
   };
 
   return (
@@ -105,11 +105,11 @@ const AnaliseTecnica = () => {
                   </TooltipContent>
                 </UITooltip>
                 <Badge 
-                  className={getSignalColor(btcData.prices[btcData.prices.length - 1].price, btcData.mma200 * 2)}
+                  className={getSignalColor(btcData.prices[btcData.prices.length - 1].price, btcData.mma200)}
                   role="status"
-                  aria-label={`Sinal atual: ${btcData.prices[btcData.prices.length - 1].price > btcData.mma200 * 2 ? 'Venda' : 'Compra'}`}
+                  aria-label={`Sinal atual: ${btcData.prices[btcData.prices.length - 1].price > btcData.mma200 ? 'Alta' : 'Baixa'}`}
                 >
-                  {btcData.prices[btcData.prices.length - 1].price > btcData.mma200 * 2 ? 'Venda' : 'Compra'}
+                  {btcData.prices[btcData.prices.length - 1].price > btcData.mma200 ? 'Alta' : 'Baixa'}
                 </Badge>
               </CardTitle>
             </CardHeader>
@@ -155,11 +155,11 @@ const AnaliseTecnica = () => {
                   </TooltipContent>
                 </UITooltip>
                 <Badge 
-                  className={getSignalColor(btcData.mayerMultiple, 2.4)}
+                  className={btcData.mayerMultiple >= 2.4 ? 'bg-red-500' : btcData.mayerMultiple <= 1.3 ? 'bg-green-500' : 'bg-yellow-500'}
                   role="status"
-                  aria-label={`Status atual: ${btcData.mayerMultiple > 2.4 ? 'Venda' : btcData.mayerMultiple < 1.3 ? 'Compra' : 'Neutro'}`}
+                  aria-label={`Status atual: ${btcData.mayerMultiple >= 2.4 ? 'Venda' : btcData.mayerMultiple <= 1.3 ? 'Compra' : 'Neutro'}`}
                 >
-                  {btcData.mayerMultiple > 2.4 ? 'Venda' : btcData.mayerMultiple < 1.3 ? 'Compra' : 'Neutro'}
+                  {btcData.mayerMultiple >= 2.4 ? 'Venda' : btcData.mayerMultiple <= 1.3 ? 'Compra' : 'Neutro'}
                 </Badge>
               </CardTitle>
             </CardHeader>
