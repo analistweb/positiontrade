@@ -16,6 +16,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+// Páginas de autenticação
+import Register from "@/pages/auth/Register";
+import VerifyEmail from "@/pages/auth/VerifyEmail";
+import CreatePassword from "@/pages/auth/CreatePassword";
+import AdminPanel from "@/pages/auth/AdminPanel";
+import CustomLogin from "@/pages/auth/CustomLogin";
+
 const queryClient = new QueryClient();
 
 const HelpDialog = () => (
@@ -124,9 +131,17 @@ const AppContent = () => {
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto pt-16 lg:pt-6">
         <div className="container mx-auto max-w-7xl">
           <Routes>
+            {/* Rotas principais */}
             {navItems.map(({ to, page }) => (
               <Route key={to} path={to} element={page} />
             ))}
+            
+            {/* Rotas de autenticação (fora da navegação principal) */}
+            <Route path="/register" element={<Register />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/create-password" element={<CreatePassword />} />
+            <Route path="/admin-panel" element={<AdminPanel />} />
+            <Route path="/custom-login" element={<CustomLogin />} />
           </Routes>
         </div>
       </main>

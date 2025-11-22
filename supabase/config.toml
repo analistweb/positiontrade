@@ -1,1 +1,33 @@
 project_id = "gunkkcdtsibxhspkjweu"
+
+# Edge Functions - Sistema de Autenticação e Autorização
+
+# Funções públicas (sem JWT) - acessíveis antes do login
+[functions.auth-register]
+verify_jwt = false
+
+[functions.auth-verify-email]
+verify_jwt = false
+
+[functions.auth-create-password]
+verify_jwt = false
+
+[functions.auth-custom-login]
+verify_jwt = false
+
+# Funções protegidas (requerem JWT e role admin)
+[functions.admin-list-pending-users]
+verify_jwt = true
+
+[functions.admin-approve-user]
+verify_jwt = true
+
+[functions.admin-revoke-user]
+verify_jwt = true
+
+# Funções protegidas (requerem JWT de usuário autenticado)
+[functions.auth-refresh-token]
+verify_jwt = true
+
+[functions.auth-logout]
+verify_jwt = true
