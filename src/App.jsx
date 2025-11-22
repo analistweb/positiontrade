@@ -8,6 +8,8 @@ import { motion } from "framer-motion";
 import { HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/common/MobileNav";
+import { AuthStatus } from "@/components/common/AuthStatus";
+import { ProtectedRoute } from "@/components/common/ProtectedRoute";
 import {
   Dialog,
   DialogContent,
@@ -122,6 +124,11 @@ const AppContent = () => {
               );
             })}
           </ul>
+          
+          {/* Auth Status */}
+          <div className="pt-4 border-t border-border">
+            <AuthStatus />
+          </div>
         </div>
       </nav>
 
@@ -132,17 +139,34 @@ const AppContent = () => {
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto pt-16 lg:pt-6">
         <div className="container mx-auto max-w-7xl">
           <Routes>
-            {/* Rotas principais */}
+            {/* Rotas principais - PROTEGIDAS */}
             {navItems.map(({ to, page }) => (
-              <Route key={to} path={to} element={page} />
+              <Route 
+                key={to} 
+                path={to} 
+                element={
+                  <ProtectedRoute>
+                    {page}
+                  </ProtectedRoute>
+                } 
+              />
             ))}
             
-            {/* Rotas de autenticação (fora da navegação principal) */}
+            {/* Rotas de autenticação (PÚBLICAS) */}
             <Route path="/register" element={<Register />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/create-password" element={<CreatePassword />} />
-            <Route path="/admin-panel" element={<AdminPanel />} />
             <Route path="/custom-login" element={<CustomLogin />} />
+            
+            {/* Admin Panel (PROTEGIDA - validação adicional dentro do componente) */}
+            <Route 
+              path="/admin-panel" 
+              element={
+                <ProtectedRoute>
+                  <AdminPanel />
+                </ProtectedRoute>
+              } 
+            />
           </Routes>
         </div>
       </main>
