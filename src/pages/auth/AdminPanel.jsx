@@ -12,7 +12,7 @@ import { CheckCircle, XCircle, Clock, Shield } from 'lucide-react';
  * Fluxo: Lista usuários pending → Aprovar/Revogar → Auditoria
  */
 export default function AdminPanel() {
-  const [pendingUsers, setP endingUsers] = useState([]);
+  const [pendingUsers, setPendingUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [processingUserId, setProcessingUserId] = useState(null);
