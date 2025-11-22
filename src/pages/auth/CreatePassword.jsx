@@ -15,20 +15,31 @@ import { CheckCircle } from 'lucide-react';
 export default function CreatePassword() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const userId = searchParams.get('user_id');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [passwordErrors, setPasswordErrors] = useState([]);
 
   useEffect(() => {
-    if (!userId) {
-      toast.error('ID de usuário não encontrado');
-      navigate('/register');
+    const token = sessionStorage.getItem('verification_token');
+    if (!token) {
+      toast.error('Sessão expirada. Por favor, verifique seu email novamente.');
+      navigate('/verify-email');
     }
-  }, [userId, navigate]);
+  }, [navigate]);
+
+  const validatePassword = (pwd) => {
+    const errors = [];
+    if (pwd.length < 12) errors.push('Mínimo 12 caracteres');
+    if (!/[a-z]/.test(pwd)) errors.push('Letra minúscula');
+    if (!/[A-Z]/.test(pwd)) errors.push('Letra maiúscula');
+    if (!/[0-9]/.test(pwd)) errors.push('Número');
+    if (!/[^a-zA-Z0-9]/.test(pwd)) errors.push('Caractere especial');
+    return errors;
+  };
 
   const handleCreatePassword = async (e) => {
     e.preventDefault();
@@ -38,21 +49,36 @@ export default function CreatePassword() {
       return;
     }
 
-    if (password.length < 8) {
-      toast.error('Senha deve ter no mínimo 8 caracteres');
+    const errors = validatePassword(password);
+    if (errors.length > 0) {
+      setPasswordErrors(errors);
+      toast.error('Senha não atende aos requisitos');
       return;
     }
 
     setLoading(true);
+    setPasswordErrors([]);
 
     try {
-      // Chama Edge Function auth-create-password
+      const token = sessionStorage.getItem('verification_token');
+      
+      // Chama Edge Function auth-create-password com token
       const { data, error } = await supabase.functions.invoke('auth-create-password', {
-        body: { email, password, user_id: userId }
+        body: { email, password, verification_token: token }
       });
 
       if (error) throw error;
 
+      if (data.error) {
+        if (data.details) {
+          setPasswordErrors(data.details);
+        }
+        throw new Error(data.error);
+      }
+
+      // Limpa token do sessionStorage
+      sessionStorage.removeItem('verification_token');
+      
       setSuccess(true);
       toast.success('Senha criada com sucesso!');
 
@@ -124,12 +150,22 @@ export default function CreatePassword() {
               <label className="text-sm font-medium">Senha</label>
               <Input
                 type="password"
-                placeholder="Mínimo 8 caracteres"
+                placeholder="Mínimo 12 caracteres"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
               />
+              {passwordErrors.length > 0 && (
+                <ul className="text-xs text-red-500 mt-1 list-disc list-inside">
+                  {passwordErrors.map((err, i) => (
+                    <li key={i}>{err}</li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Deve conter: 12+ caracteres, maiúsculas, minúsculas, números e caracteres especiais
+              </p>
             </div>
 
             <div>

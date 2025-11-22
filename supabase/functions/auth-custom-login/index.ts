@@ -28,6 +28,32 @@ serve(async (req) => {
       );
     }
 
+    // Rate limiting: 5 tentativas/5 min por email
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const rateLimitId = `login:${email}`;
+    const { data: recentAttempts } = await supabaseAdmin
+      .from('rate_limit_attempts')
+      .select('*')
+      .eq('identifier', rateLimitId)
+      .gte('attempted_at', new Date(Date.now() - 5 * 60 * 1000).toISOString());
+
+    if (recentAttempts && recentAttempts.length >= 5) {
+      return new Response(
+        JSON.stringify({ error: 'Muitas tentativas. Tente novamente em 5 minutos.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Registra tentativa
+    await supabaseAdmin.from('rate_limit_attempts').insert({
+      identifier: rateLimitId,
+      attempted_at: new Date().toISOString()
+    });
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -40,29 +66,17 @@ serve(async (req) => {
     });
 
     if (authError || !authData.user) {
-      // Log de tentativa falha
-      const supabaseAdmin = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      );
-      
       await supabaseAdmin.from('audit_events').insert({
         event_type: 'login_failed',
-        metadata: { email, reason: authError?.message || 'Credenciais inválidas' },
+        metadata: { email, reason: 'Credenciais inválidas' },
         result: 'failure'
       });
 
       return new Response(
-        JSON.stringify({ error: 'Acesso negado' }), // Mensagem neutra
+        JSON.stringify({ error: 'Credenciais inválidas ou conta não autorizada' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Verifica status da conta
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
 
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('user_profiles')
@@ -84,7 +98,7 @@ serve(async (req) => {
       );
     }
 
-    // Bloqueia login se status != active
+    // Bloqueia login se status != active (mensagem genérica)
     if (profile.status !== 'active') {
       await supabaseAdmin.from('audit_events').insert({
         event_type: 'login_denied',
@@ -93,15 +107,8 @@ serve(async (req) => {
         result: 'denied'
       });
 
-      let message = 'Acesso negado';
-      if (profile.status === 'pending') {
-        message = 'Sua conta está aguardando aprovação do administrador.';
-      } else if (profile.status === 'blocked') {
-        message = 'Sua conta foi bloqueada.';
-      }
-
       return new Response(
-        JSON.stringify({ error: message }),
+        JSON.stringify({ error: 'Credenciais inválidas ou conta não autorizada' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

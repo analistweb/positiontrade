@@ -93,12 +93,33 @@ serve(async (req) => {
       result: 'success'
     });
 
-    // SAÍDA: Confirmação de verificação
+    // Check rate limit: 10 tentativas/hora por token
+    const rateLimitId = `verify:${token.substring(0, 8)}`;
+    
+    const { data: recentAttempts } = await supabaseAdmin
+      .from('rate_limit_attempts')
+      .select('*')
+      .eq('identifier', rateLimitId)
+      .gte('attempted_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
+
+    if (recentAttempts && recentAttempts.length >= 10) {
+      return new Response(
+        JSON.stringify({ error: 'Muitas tentativas. Tente novamente em 1 hora.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Registra tentativa
+    await supabaseAdmin.from('rate_limit_attempts').insert({
+      identifier: rateLimitId,
+      attempted_at: new Date().toISOString()
+    });
+
+    // SAÍDA: Confirmação de verificação (SEM user_id)
     return new Response(
       JSON.stringify({ 
         status: 'email_verified',
-        next: '/create-password',
-        user_id: tokenData.user_id
+        next: '/create-password'
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

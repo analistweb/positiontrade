@@ -56,6 +56,27 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limit_attempts: {
+        Row: {
+          attempted_at: string
+          created_at: string
+          id: string
+          identifier: string
+        }
+        Insert: {
+          attempted_at?: string
+          created_at?: string
+          id?: string
+          identifier: string
+        }
+        Update: {
+          attempted_at?: string
+          created_at?: string
+          id?: string
+          identifier?: string
+        }
+        Relationships: []
+      }
       refresh_tokens: {
         Row: {
           created_at: string
@@ -170,6 +191,7 @@ export type Database = {
     }
     Functions: {
       cleanup_expired_tokens: { Args: never; Returns: undefined }
+      cleanup_old_rate_limits: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

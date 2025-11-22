@@ -30,9 +30,12 @@ export default function VerifyEmail() {
 
       toast.success('Email verificado com sucesso!');
       
-      // Redireciona para criação de senha com user_id
+      // Salva token no sessionStorage para usar no próximo passo
+      sessionStorage.setItem('verification_token', token);
+      
+      // Redireciona para criação de senha
       setTimeout(() => {
-        navigate(`/create-password?user_id=${data.user_id}`);
+        navigate('/create-password');
       }, 1000);
 
     } catch (error) {

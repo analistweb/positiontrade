@@ -16,6 +16,9 @@ verify_jwt = false
 verify_jwt = false
 
 # Funções protegidas (requerem JWT e role admin)
+[functions.admin-verify-role]
+verify_jwt = true
+
 [functions.admin-list-pending-users]
 verify_jwt = true
 

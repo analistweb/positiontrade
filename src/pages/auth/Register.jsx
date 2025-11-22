@@ -30,7 +30,7 @@ export default function Register() {
       if (error) throw error;
 
       setSuccess(true);
-      setDevToken(data._dev_token || ''); // Token de desenvolvimento
+      setDevToken(''); // Não mais retornado
       toast.success('Verificação enviada! Verifique seu email.');
 
     } catch (error) {
@@ -59,21 +59,6 @@ export default function Register() {
                   Verifique sua caixa de entrada e siga as instruções.
                 </AlertDescription>
               </Alert>
-
-              {devToken && (
-                <Alert className="bg-yellow-50 border-yellow-200">
-                  <AlertDescription className="text-sm">
-                    <strong>Token de desenvolvimento:</strong>
-                    <br />
-                    <code className="text-xs bg-white p-2 block mt-2 rounded">
-                      {devToken}
-                    </code>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Use este token na próxima tela (modo dev).
-                    </p>
-                  </AlertDescription>
-                </Alert>
-              )}
 
               <Button
                 onClick={() => window.location.href = '/verify-email'}

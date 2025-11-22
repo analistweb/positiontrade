@@ -41,9 +41,6 @@ export default function CustomLogin() {
       // Login bem-sucedido
       toast.success('Login realizado com sucesso!');
       
-      // Salva sessão localmente (opcional, Supabase já gerencia)
-      localStorage.setItem('user_roles', JSON.stringify(data.user.roles));
-      
       // Redireciona baseado em role
       if (data.user.roles.includes('admin')) {
         navigate('/admin-panel');

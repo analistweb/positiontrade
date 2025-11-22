@@ -100,12 +100,33 @@ serve(async (req) => {
       result: 'success'
     });
 
-    // SAÍDA: Resposta neutra por segurança
+    // Check rate limit: 3 contas/hora por IP
+    const clientIp = req.headers.get('x-forwarded-for') || 'unknown';
+    const rateLimitId = `register:${clientIp}`;
+    
+    const { data: recentAttempts } = await supabaseAdmin
+      .from('rate_limit_attempts')
+      .select('*')
+      .eq('identifier', rateLimitId)
+      .gte('attempted_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
+
+    if (recentAttempts && recentAttempts.length >= 3) {
+      return new Response(
+        JSON.stringify({ error: 'Muitas tentativas. Tente novamente em 1 hora.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Registra tentativa
+    await supabaseAdmin.from('rate_limit_attempts').insert({
+      identifier: rateLimitId,
+      attempted_at: new Date().toISOString()
+    });
+
+    // SAÍDA: Resposta neutra por segurança (SEM _dev_token)
     return new Response(
       JSON.stringify({ 
-        message: 'Verificação enviada se o e-mail for válido.',
-        // Para desenvolvimento, inclui o token (remover em produção!)
-        _dev_token: verificationToken
+        message: 'Verificação enviada se o e-mail for válido.'
       }),
       { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
