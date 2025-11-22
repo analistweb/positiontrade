@@ -52,29 +52,61 @@ Deno.serve(async (req) => {
     const email = 'admin@cryptoanalytics.app';
     const password = generateSecurePassword();
 
-    console.log('Creating first admin user...');
+    console.log('Checking if user already exists...');
+    
+    let userId: string;
+    let isNewUser = false;
+    let userPassword = password;
 
-    // Create user in auth
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: email,
-      password: password,
-      email_confirm: true, // Auto-confirm email
-      user_metadata: {
-        created_via: 'first_admin_setup'
+    // Try to get existing user first
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find(u => u.email === email);
+
+    if (existingUser) {
+      console.log('User already exists, will promote to admin:', existingUser.id);
+      userId = existingUser.id;
+      
+      // Update password for existing user
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        { 
+          password: password,
+          email_confirm: true
+        }
+      );
+
+      if (updateError) {
+        console.error('Error updating user password:', updateError);
+        throw new Error(`Erro ao atualizar senha: ${updateError.message}`);
       }
-    });
 
-    if (authError) {
-      console.error('Error creating user:', authError);
-      throw new Error(`Erro ao criar usuário: ${authError.message}`);
+      console.log('Password updated for existing user');
+    } else {
+      console.log('Creating new admin user...');
+      isNewUser = true;
+
+      // Create user in auth
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email: email,
+        password: password,
+        email_confirm: true, // Auto-confirm email
+        user_metadata: {
+          created_via: 'first_admin_setup'
+        }
+      });
+
+      if (authError) {
+        console.error('Error creating user:', authError);
+        throw new Error(`Erro ao criar usuário: ${authError.message}`);
+      }
+
+      if (!authData.user) {
+        throw new Error('Usuário não foi criado');
+      }
+
+      userId = authData.user.id;
+      console.log('User created with ID:', userId);
     }
-
-    if (!authData.user) {
-      throw new Error('Usuário não foi criado');
-    }
-
-    const userId = authData.user.id;
-    console.log('User created with ID:', userId);
 
     // Update user profile to active
     const { error: profileError } = await supabaseAdmin
@@ -127,10 +159,12 @@ Deno.serve(async (req) => {
         success: true,
         credentials: {
           email: email,
-          password: password,
+          password: userPassword,
           userId: userId
         },
-        message: '✅ Primeiro administrador criado com sucesso! Guarde estas credenciais em local seguro.'
+        message: isNewUser 
+          ? '✅ Primeiro administrador criado com sucesso! Guarde estas credenciais em local seguro.'
+          : '✅ Usuário existente promovido a administrador! Nova senha gerada. Guarde estas credenciais em local seguro.'
       }),
       {
         status: 200,
