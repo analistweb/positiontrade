@@ -19,19 +19,11 @@ serve(async (req) => {
 
   try {
     // ENTRADA: Validação do payload
-    const { email, password, user_id } = await req.json();
+    const { email, password, verification_token } = await req.json();
     
-    if (!email || !password || !user_id) {
+    if (!email || !password || !verification_token) {
       return new Response(
         JSON.stringify({ error: 'Dados incompletos' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Validação básica de senha
-    if (password.length < 8) {
-      return new Response(
-        JSON.stringify({ error: 'Senha deve ter no mínimo 8 caracteres' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -41,6 +33,84 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
+
+    // Busca user_id pelo token de verificação
+    const { data: tokenData, error: tokenError } = await supabaseAdmin
+      .from('verification_tokens')
+      .select('user_id, used_at')
+      .eq('token', verification_token)
+      .eq('token_type', 'email_verification')
+      .single();
+
+    if (tokenError || !tokenData) {
+      return new Response(
+        JSON.stringify({ error: 'Token de verificação inválido' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!tokenData.used_at) {
+      return new Response(
+        JSON.stringify({ error: 'Email não verificado. Por favor, verifique seu email primeiro.' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const user_id = tokenData.user_id;
+
+    // Rate limiting: 5 tentativas/hora por user_id
+    const rateLimitId = `create-password:${user_id}`;
+    const { data: recentAttempts } = await supabaseAdmin
+      .from('rate_limit_attempts')
+      .select('*')
+      .eq('identifier', rateLimitId)
+      .gte('attempted_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
+
+    if (recentAttempts && recentAttempts.length >= 5) {
+      return new Response(
+        JSON.stringify({ error: 'Muitas tentativas. Tente novamente em 1 hora.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Registra tentativa
+    await supabaseAdmin.from('rate_limit_attempts').insert({
+      identifier: rateLimitId,
+      attempted_at: new Date().toISOString()
+    });
+
+    // Validação robusta de senha
+    const passwordErrors = [];
+    if (password.length < 12) {
+      passwordErrors.push('Mínimo 12 caracteres');
+    }
+    if (!/[a-z]/.test(password)) {
+      passwordErrors.push('Letra minúscula');
+    }
+    if (!/[A-Z]/.test(password)) {
+      passwordErrors.push('Letra maiúscula');
+    }
+    if (!/[0-9]/.test(password)) {
+      passwordErrors.push('Número');
+    }
+    if (!/[^a-zA-Z0-9]/.test(password)) {
+      passwordErrors.push('Caractere especial');
+    }
+
+    const commonPasswords = ['password', '12345678', 'qwerty', 'abc123'];
+    if (commonPasswords.some(common => password.toLowerCase().includes(common))) {
+      passwordErrors.push('Senha muito comum');
+    }
+
+    if (passwordErrors.length > 0) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Senha não atende aos requisitos',
+          details: passwordErrors
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // PROCESSAMENTO: Verifica se email foi verificado
     const { data: profile, error: profileError } = await supabaseAdmin

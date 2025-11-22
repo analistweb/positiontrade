@@ -31,19 +31,24 @@ export default function AdminPanel() {
         return;
       }
 
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', session.user.id);
+      // Valida admin SERVER-SIDE via Edge Function
+      const { data, error } = await supabase.functions.invoke('admin-verify-role', {
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
 
-      const admin = roles?.some(r => r.role === 'admin');
-      setIsAdmin(admin);
-
-      if (!admin) {
+      if (error || !data?.isAdmin) {
         toast.error('Acesso negado: apenas administradores');
+        setIsAdmin(false);
+        window.location.href = '/';
+        return;
       }
+
+      setIsAdmin(true);
     } catch (error) {
       console.error('Erro ao verificar role:', error);
+      setIsAdmin(false);
+      toast.error('Erro ao verificar permissões');
+      window.location.href = '/';
     }
   };
 
