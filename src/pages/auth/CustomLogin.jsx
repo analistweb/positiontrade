@@ -25,24 +25,32 @@ export default function CustomLogin() {
     setError('');
 
     try {
-      // Chama Edge Function auth-custom-login
-      const { data, error: loginError } = await supabase.functions.invoke('auth-custom-login', {
+      // Primeiro, chama Edge Function para validar status da conta
+      const { data: validationData, error: validationError } = await supabase.functions.invoke('auth-custom-login', {
         body: { email, password }
       });
 
-      if (loginError) throw loginError;
+      if (validationError) throw validationError;
 
-      if (data.error) {
-        setError(data.error);
-        toast.error(data.error);
+      if (validationData.error) {
+        setError(validationData.error);
+        toast.error(validationData.error);
         return;
       }
+
+      // Se validação passou, estabelece sessão com Supabase
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (authError) throw authError;
 
       // Login bem-sucedido
       toast.success('Login realizado com sucesso!');
       
       // Redireciona baseado em role
-      if (data.user.roles.includes('admin')) {
+      if (validationData.user.roles.includes('admin')) {
         navigate('/admin-panel');
       } else {
         navigate('/');
