@@ -25,6 +25,7 @@ import VerifyEmail from "@/pages/auth/VerifyEmail";
 import CreatePassword from "@/pages/auth/CreatePassword";
 import AdminPanel from "@/pages/auth/AdminPanel";
 import CustomLogin from "@/pages/auth/CustomLogin";
+import CreateFirstAdmin from "@/pages/auth/CreateFirstAdmin";
 
 const queryClient = new QueryClient();
 
@@ -157,6 +158,7 @@ const AppContent = () => {
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/create-password" element={<CreatePassword />} />
             <Route path="/custom-login" element={<CustomLogin />} />
+            <Route path="/create-first-admin" element={<CreateFirstAdmin />} />
             
             {/* Admin Panel (PROTEGIDA - validação adicional dentro do componente) */}
             <Route 
