@@ -5,6 +5,7 @@ import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { navItems } from '@/nav-items';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { AuthStatus } from '@/components/common/AuthStatus';
 
 export const MobileNav = () => {
   const [open, setOpen] = useState(false);
@@ -49,6 +50,11 @@ export const MobileNav = () => {
               </Link>
             );
           })}
+          
+          {/* Auth Status no mobile */}
+          <div className="pt-4 mt-4 border-t border-border">
+            <AuthStatus />
+          </div>
         </nav>
       </SheetContent>
     </Sheet>
