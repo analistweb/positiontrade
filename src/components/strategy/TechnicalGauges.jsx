@@ -1,7 +1,8 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { motion } from 'framer-motion';
-import { Activity, TrendingUp, Volume2 } from 'lucide-react';
+import { Activity, TrendingUp, Volume2, Gauge, BarChart3, Target } from 'lucide-react';
 
 const GaugeChart = ({ value, max, label, color, icon: Icon }) => {
   const percentage = (value / max) * 100;
@@ -57,6 +58,28 @@ const TechnicalGauges = ({ conditionsStatus }) => {
   const volumeRatio = conditionsStatus.currentVolume / conditionsStatus.avgVolume;
   const volumePercentage = Math.min(volumeRatio * 100, 200);
 
+  // Determinar cor do Market Strength
+  const getStrengthColor = (score) => {
+    if (score >= 70) return '#10b981'; // Verde - Bullish
+    if (score >= 45 && score <= 55) return '#f59e0b'; // Amarelo - Neutro
+    return '#ef4444'; // Vermelho - Bearish
+  };
+
+  const getStrengthLabel = (score) => {
+    if (score >= 70) return 'Forte Alta';
+    if (score >= 55) return 'Moderado Alta';
+    if (score >= 45) return 'Neutro';
+    if (score >= 30) return 'Moderado Baixa';
+    return 'Forte Baixa';
+  };
+
+  // Determinar cor do RSI
+  const getRSIColor = (rsi) => {
+    if (rsi >= 70) return '#ef4444'; // Sobrecomprado
+    if (rsi <= 30) return '#10b981'; // Sobrevendido (oportunidade)
+    return '#3b82f6'; // Normal
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -65,12 +88,27 @@ const TechnicalGauges = ({ conditionsStatus }) => {
     >
       <Card className="border-border/50">
         <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-            <Activity className="w-5 h-5 text-primary" />
-            Indicadores Técnicos em Tempo Real
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <Activity className="w-5 h-5 text-primary" />
+              Indicadores Técnicos - FASE 1
+            </CardTitle>
+            {conditionsStatus.marketStrength && (
+              <Badge 
+                variant="outline" 
+                className="text-xs"
+                style={{ 
+                  borderColor: getStrengthColor(conditionsStatus.marketStrength),
+                  color: getStrengthColor(conditionsStatus.marketStrength)
+                }}
+              >
+                {getStrengthLabel(conditionsStatus.marketStrength)}
+              </Badge>
+            )}
+          </div>
         </CardHeader>
-        <CardContent className="p-4 sm:p-6 pt-0">
+        <CardContent className="p-4 sm:p-6 pt-0 space-y-6">
+          {/* Linha 1: Indicadores Clássicos */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
             <GaugeChart
               value={conditionsStatus.adx}
@@ -94,8 +132,37 @@ const TechnicalGauges = ({ conditionsStatus }) => {
               icon={Volume2}
             />
           </div>
-          <div className="mt-6 pt-6 border-t border-border/50">
-            <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm">
+
+          {/* Linha 2: Novos Indicadores FASE 1 */}
+          {conditionsStatus.rsi && conditionsStatus.marketStrength && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 pt-6 border-t border-border/50">
+              <GaugeChart
+                value={conditionsStatus.rsi}
+                max={100}
+                label="RSI (Força Relativa)"
+                color={getRSIColor(conditionsStatus.rsi)}
+                icon={Gauge}
+              />
+              <GaugeChart
+                value={Math.abs(conditionsStatus.macdValue || 0)}
+                max={Math.abs(conditionsStatus.macdValue || 0) * 3}
+                label="MACD (Momentum)"
+                color={conditionsStatus.macdValue > 0 ? '#10b981' : '#ef4444'}
+                icon={BarChart3}
+              />
+              <GaugeChart
+                value={conditionsStatus.marketStrength}
+                max={100}
+                label="Score de Mercado"
+                color={getStrengthColor(conditionsStatus.marketStrength)}
+                icon={Target}
+              />
+            </div>
+          )}
+
+          {/* Informações Detalhadas */}
+          <div className="pt-6 border-t border-border/50">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs sm:text-sm">
               <div>
                 <p className="text-muted-foreground mb-1">Preço Atual</p>
                 <p className="font-bold text-lg">${conditionsStatus.currentPrice.toFixed(2)}</p>
@@ -113,6 +180,22 @@ const TechnicalGauges = ({ conditionsStatus }) => {
                 <p className="font-bold text-lg">${conditionsStatus.referenceLow.toFixed(2)}</p>
               </div>
             </div>
+
+            {/* Linha adicional com OBV e Volume Profile */}
+            {conditionsStatus.obvTrend && conditionsStatus.volumeProfile && (
+              <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm mt-4">
+                <div>
+                  <p className="text-muted-foreground mb-1">OBV Tendência</p>
+                  <Badge variant={conditionsStatus.obvTrend === 'up' ? 'default' : 'destructive'}>
+                    {conditionsStatus.obvTrend === 'up' ? '📈 Alta' : '📉 Baixa'}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-muted-foreground mb-1">POC (Volume)</p>
+                  <p className="font-bold text-lg">${conditionsStatus.volumeProfile.toFixed(2)}</p>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
