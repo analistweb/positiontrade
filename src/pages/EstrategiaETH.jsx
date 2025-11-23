@@ -23,6 +23,15 @@ import {
   calculateTPSL,
   validateRiskReward
 } from '@/utils/technicalIndicators';
+import {
+  calculateOBV,
+  calculateVROC,
+  calculateVolumeProfile,
+  calculateRSI,
+  calculateMACD,
+  calculateBreakoutStrength,
+  calculateMarketStrength
+} from '@/utils/advancedIndicators';
 import StrategyMetrics from '@/components/strategy/StrategyMetrics';
 import TechnicalGauges from '@/components/strategy/TechnicalGauges';
 import CandlestickChart from '@/components/strategy/CandlestickChart';
@@ -215,11 +224,22 @@ const EstrategiaETH = () => {
     const referenceCandle = last5Candles[smallestCandleIndex];
     const triggerCandle = data[data.length - 1];
 
-    // 3. Calcular indicadores
+    // 3. Calcular indicadores técnicos básicos
     const didiIndex = calculateDidiIndex(closes);
     const dmi = calculateDMI(highs, lows, closes);
     const atr = calculateATR(highs, lows, closes, 14);
     const ema50 = calculateEMA(closes, 50);
+
+    // 3.1 Calcular indicadores avançados (FASE 1)
+    const obv = calculateOBV(closes, volumes);
+    const vroc = calculateVROC(volumes, 14);
+    const volumeProfile = calculateVolumeProfile(closes.slice(-100), volumes.slice(-100));
+    const rsi = calculateRSI(closes, 14);
+    const macd = calculateMACD(closes);
+    
+    // Tendência do OBV
+    const obvTrend = obv[obv.length - 1] > obv[obv.length - 5] ? 'up' : 'down';
+    const obvConfirm = obvTrend === 'up' ? 'bullish' : 'bearish';
 
     // 4. Verificar rompimento
     const breakoutThreshold = 0.0005; // 0.05%
@@ -250,12 +270,58 @@ const EstrategiaETH = () => {
     const trendUp = currentPrice > ema50Confirm;
     const trendDown = currentPrice < ema50Confirm;
 
-    // 8. Filtros adicionais
+    // 8. Filtros adicionais aprimorados (FASE 1)
     const avgATR = atr.slice(-100).reduce((a, b) => a + b, 0) / 100;
     const volatilityOk = atr[atr.length - 1] >= avgATR * 0.5;
     
     const avgVolume = volumes.slice(-20).reduce((a, b) => a + b, 0) / 20;
     const volumeOk = triggerCandle.volume >= avgVolume;
+
+    // 8.1 Validação de RSI (evitar extremos)
+    const currentRSI = rsi[rsi.length - 1];
+    const rsiOkForBuy = currentRSI >= 40 && currentRSI <= 70; // Não sobrecomprado
+    const rsiOkForSell = currentRSI >= 30 && currentRSI <= 60; // Não sobrevendido
+
+    // 8.2 Confirmação MACD
+    const currentMACD = macd.histogram[macd.histogram.length - 1];
+    const prevMACD = macd.histogram[macd.histogram.length - 2];
+    const macdBullish = currentMACD > 0 && currentMACD > prevMACD;
+    const macdBearish = currentMACD < 0 && currentMACD < prevMACD;
+
+    // 8.3 Análise de força do breakout
+    let breakoutStrengthBuy = null;
+    let breakoutStrengthSell = null;
+    
+    if (buyBreakout) {
+      breakoutStrengthBuy = calculateBreakoutStrength(
+        triggerCandle.volume,
+        avgVolume,
+        triggerCandle.close,
+        referenceCandle.high,
+        referenceCandle.low,
+        'buy'
+      );
+    }
+    
+    if (sellBreakout) {
+      breakoutStrengthSell = calculateBreakoutStrength(
+        triggerCandle.volume,
+        avgVolume,
+        triggerCandle.close,
+        referenceCandle.high,
+        referenceCandle.low,
+        'sell'
+      );
+    }
+
+    // 8.4 Score de força do mercado
+    const marketStrengthScore = calculateMarketStrength({
+      rsi: currentRSI,
+      macdHistogram: currentMACD,
+      macdHistogramPrev: prevMACD,
+      volumeRatio: triggerCandle.volume / avgVolume,
+      obvTrend
+    });
 
     // 9. Calcular Fibonacci adaptativo orientado pela direção
     let fiboLevels = null;
@@ -305,7 +371,7 @@ const EstrategiaETH = () => {
       });
     }
 
-    // 12. Salvar status das condições e Fibonacci
+    // 12. Salvar status das condições e Fibonacci (atualizado FASE 1)
     setConditionsStatus({
       buy: {
         breakout: buyBreakout,
@@ -314,6 +380,10 @@ const EstrategiaETH = () => {
         trend: trendUp,
         volatility: volatilityOk,
         volume: volumeOk,
+        rsi: rsiOkForBuy,
+        macd: macdBullish,
+        obv: obvConfirm === 'bullish',
+        breakoutStrength: breakoutStrengthBuy?.strength || 0,
         rrValid: rrValidation?.isValid || false
       },
       sell: {
@@ -323,6 +393,10 @@ const EstrategiaETH = () => {
         trend: trendDown,
         volatility: volatilityOk,
         volume: volumeOk,
+        rsi: rsiOkForSell,
+        macd: macdBearish,
+        obv: obvConfirm === 'bearish',
+        breakoutStrength: breakoutStrengthSell?.strength || 0,
         rrValid: rrValidation?.isValid || false
       },
       currentPrice,
@@ -337,27 +411,42 @@ const EstrategiaETH = () => {
       tpLevel,
       slLevel,
       rrRatio: rrValidation?.ratio || 0,
-      direction
+      direction,
+      // Novos indicadores Fase 1
+      rsi: currentRSI,
+      macdValue: currentMACD,
+      obvValue: obv[obv.length - 1],
+      obvTrend,
+      marketStrength: marketStrengthScore,
+      volumeProfile: volumeProfile.pocPrice
     });
 
     if (fiboLevels) {
       setFibonacciLevels(fiboLevels);
     }
 
-    // 13. Atualizar status do sinal para UI
-    if (buyBreakout && didiConfirmBuy && dmiConfirmBuy && trendUp && rrValidation?.isValid) {
+    // 13. Atualizar status do sinal para UI (melhorado FASE 1)
+    const signalQualityBuy = buyBreakout && didiConfirmBuy && dmiConfirmBuy && trendUp && 
+                             rsiOkForBuy && macdBullish && breakoutStrengthBuy?.isValid && 
+                             rrValidation?.isValid && marketStrengthScore >= 60;
+    
+    const signalQualitySell = sellBreakout && didiConfirmSell && dmiConfirmSell && trendDown && 
+                              rsiOkForSell && macdBearish && breakoutStrengthSell?.isValid && 
+                              rrValidation?.isValid && marketStrengthScore <= 40;
+
+    if (signalQualityBuy) {
       setSignalStatus('buy');
-    } else if (sellBreakout && didiConfirmSell && dmiConfirmSell && trendDown && rrValidation?.isValid) {
+    } else if (signalQualitySell) {
       setSignalStatus('sell');
     } else {
       setSignalStatus('wait');
     }
 
-    // 14. Gerar sinal com Fibonacci adaptativo e validação de R:R
+    // 14. Gerar sinal com validações aprimoradas (FASE 1)
     let signal = null;
 
-    if (buyBreakout && didiConfirmBuy && dmiConfirmBuy && trendUp && volatilityOk && volumeOk && 
-        fiboLevels && calculatedTP && calculatedSL && rrValidation?.isValid) {
+    if (signalQualityBuy && volatilityOk && volumeOk && 
+        fiboLevels && calculatedTP && calculatedSL) {
       const entryPrice = triggerCandle.close;
 
       signal = {
@@ -373,7 +462,12 @@ const EstrategiaETH = () => {
           volatility: volatilityOk,
           volume: volumeOk,
           fibonacci: true,
-          riskReward: true
+          riskReward: true,
+          rsi: rsiOkForBuy,
+          macd: macdBullish,
+          obv: obvConfirm === 'bullish',
+          breakoutStrength: breakoutStrengthBuy?.strength || 0,
+          marketStrength: marketStrengthScore
         },
         adx: currentDMI.adx.toFixed(2),
         atr: atr[atr.length - 1].toFixed(2),
@@ -410,8 +504,8 @@ const EstrategiaETH = () => {
       toast.success(`🟢 Sinal de COMPRA confirmado! R:R = ${rrValidation.ratio.toFixed(2)}:1`, {
         duration: 5000
       });
-    } else if (sellBreakout && didiConfirmSell && dmiConfirmSell && trendDown && volatilityOk && volumeOk && 
-               fiboLevels && calculatedTP && calculatedSL && rrValidation?.isValid) {
+    } else if (signalQualitySell && volatilityOk && volumeOk && 
+               fiboLevels && calculatedTP && calculatedSL) {
       const entryPrice = triggerCandle.close;
 
       signal = {
@@ -427,7 +521,12 @@ const EstrategiaETH = () => {
           volatility: volatilityOk,
           volume: volumeOk,
           fibonacci: true,
-          riskReward: true
+          riskReward: true,
+          rsi: rsiOkForSell,
+          macd: macdBearish,
+          obv: obvConfirm === 'bearish',
+          breakoutStrength: breakoutStrengthSell?.strength || 0,
+          marketStrength: marketStrengthScore
         },
         adx: currentDMI.adx.toFixed(2),
         atr: atr[atr.length - 1].toFixed(2),
