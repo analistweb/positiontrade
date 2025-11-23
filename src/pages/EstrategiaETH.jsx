@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { fetchETHUSDTData } from '@/services/binanceService';
 import { useBinanceKlineStream } from '@/services/binanceSocket';
+import { showSignalNotification } from '@/components/strategy/SignalNotification';
 import { 
   calculateDidiIndex, 
   calculateDMI, 
@@ -36,6 +37,8 @@ import StrategyMetrics from '@/components/strategy/StrategyMetrics';
 import TechnicalGauges from '@/components/strategy/TechnicalGauges';
 import CandlestickChart from '@/components/strategy/CandlestickChart';
 import SignalTimeline from '@/components/strategy/SignalTimeline';
+import SignalStrengthIndicator from '@/components/strategy/SignalStrengthIndicator';
+import ParametersPanel from '@/components/strategy/ParametersPanel';
 
 // Schema de validação para dados do candle recebidos do WebSocket
 const candleDataSchema = z.object({
@@ -149,7 +152,8 @@ const EstrategiaETH = () => {
 
         setSuccessfulSignals(prev => [successSignal, ...prev].slice(0, 50));
         setActiveOperation(null);
-        toast.success(`✅ Take Profit atingido! Lucro: +${profitPercent}%`);
+        showSignalNotification(successSignal, 'tp');
+        playSignalSound('sell'); // Som de venda (fim da operação)
       } else if (hitSL) {
         // Calcular perda: sempre negativo para SL
         const lossPercent = activeOperation.type === 'COMPRA' 
@@ -172,7 +176,7 @@ const EstrategiaETH = () => {
 
         setSuccessfulSignals(prev => [lossSignal, ...prev].slice(0, 50));
         setActiveOperation(null);
-        toast.error(`🛑 Stop Loss atingido. Perda: ${lossPercent}%`);
+        showSignalNotification(lossSignal, 'sl');
       }
     }
   };
@@ -498,12 +502,9 @@ const EstrategiaETH = () => {
       setOperationHistory(prev => [signal, ...prev].slice(0, 50));
       setActiveOperation(signal);
       
-      // Tocar som de alerta
+      // Tocar som de alerta e mostrar notificação rica
       playSignalSound('buy');
-      
-      toast.success(`🟢 Sinal de COMPRA confirmado! R:R = ${rrValidation.ratio.toFixed(2)}:1`, {
-        duration: 5000
-      });
+      showSignalNotification(signal, 'new');
     } else if (signalQualitySell && volatilityOk && volumeOk && 
                fiboLevels && calculatedTP && calculatedSL) {
       const entryPrice = triggerCandle.close;
@@ -557,12 +558,9 @@ const EstrategiaETH = () => {
       setOperationHistory(prev => [signal, ...prev].slice(0, 50));
       setActiveOperation(signal);
       
-      // Tocar som de alerta
+      // Tocar som de alerta e mostrar notificação rica
       playSignalSound('sell');
-      
-      toast.success(`🔴 Sinal de VENDA confirmado! R:R = ${rrValidation.ratio.toFixed(2)}:1`, {
-        duration: 5000
-      });
+      showSignalNotification(signal, 'new');
     }
   };
 
@@ -658,6 +656,12 @@ const EstrategiaETH = () => {
       {/* Indicadores Técnicos Visuais */}
       <TechnicalGauges conditionsStatus={conditionsStatus} />
 
+      {/* Indicador de Força do Sinal - FASE 2 */}
+      <SignalStrengthIndicator 
+        conditionsStatus={conditionsStatus} 
+        signalStatus={signalStatus}
+      />
+
       {/* Gráfico de Candlestick */}
       <CandlestickChart marketData={marketData} lastSignal={lastSignal} />
 
@@ -734,6 +738,14 @@ const EstrategiaETH = () => {
           </Card>
         </motion.div>
       )}
+
+      {/* Painel de Personalização - FASE 2 */}
+      <ParametersPanel 
+        onParametersChange={(params) => {
+          console.log('Novos parâmetros aplicados:', params);
+          // TODO: Integrar parâmetros na lógica de sinais
+        }}
+      />
 
       {/* Timeline de Sinais */}
       <SignalTimeline 
@@ -860,8 +872,21 @@ const EstrategiaETH = () => {
         <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm p-4 sm:p-6 pt-0">
           <p><strong>Timeframe:</strong> 15 minutos</p>
           <p><strong>Ativo:</strong> ETHUSDT</p>
-          <p><strong>Indicadores:</strong> Didi Index, DMI (ADX), EMA50, ATR, Fibonacci Adaptativo</p>
-          <p><strong>Lógica de Entrada:</strong> Identifica pivôs (máximas/mínimas significativas) e rompimento do candle de referência com confirmações de Didi, DMI e EMA50.</p>
+          <p><strong>Indicadores Principais:</strong> Didi Index, DMI (ADX), EMA50, ATR, Fibonacci Adaptativo</p>
+          <p><strong>Indicadores Avançados (FASE 1):</strong> RSI, MACD, OBV, Volume Profile, VROC, Força de Mercado</p>
+          <p><strong>Lógica de Entrada:</strong> Identifica pivôs (máximas/mínimas significativas) e rompimento do candle de referência com múltiplas confirmações técnicas.</p>
+          <p><strong>Confirmações Necessárias:</strong>
+            <br/>• Rompimento validado (0.05%)
+            <br/>• Didi Index alinhado (agulhada)
+            <br/>• DMI favorável (ADX &gt; 25)
+            <br/>• Tendência EMA50 confirmada
+            <br/>• RSI em zona adequada (40-70 compra, 30-60 venda)
+            <br/>• MACD com momentum positivo
+            <br/>• OBV confirmando tendência
+            <br/>• Volume acima da média
+            <br/>• Força de breakout &gt; 60%
+            <br/>• Score de mercado &gt; 60 (compra) ou &lt; 40 (venda)
+          </p>
           <p><strong>Fibonacci Adaptativo:</strong> Detecta pernadas de movimento e aplica níveis de Fibonacci para TP e SL dinâmicos.</p>
           <p><strong>Gestão Inteligente:</strong> TP e SL ajustados pela força do ADX:
             <br/>• ADX &gt; 40: TP agressivo (Fibo 0.618), SL apertado (0.5)
@@ -869,6 +894,12 @@ const EstrategiaETH = () => {
             <br/>• ADX 25-30: TP conservador (Fibo 0.382), SL largo (0.786)
           </p>
           <p><strong>Bloqueio de Entrada:</strong> Não permite novas operações até que TP ou SL sejam atingidos.</p>
+          <p className="mt-3 pt-3 border-t border-border/50"><strong>FASE 2 Implementada:</strong>
+            <br/>✅ Indicador visual de força do sinal
+            <br/>✅ Sistema de notificações em tempo real
+            <br/>✅ Painel de personalização de parâmetros
+            <br/>✅ Timeline aprimorado com detalhes expandidos
+          </p>
         </CardContent>
       </Card>
     </div>
