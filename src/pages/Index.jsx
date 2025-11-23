@@ -21,6 +21,8 @@ import { axiosInstance } from '@/config/api';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { DataSourceBadge } from '../components/common/DataSourceBadge';
 import LivePriceCard from '../components/dashboard/LivePriceCard';
+import FearGreedIndex from '../components/dashboard/FearGreedIndex';
+import WhaleActivityPreview from '../components/dashboard/WhaleActivityPreview';
 import { toast } from "sonner";
 
 const Index = () => {
@@ -115,10 +117,10 @@ const Index = () => {
         <LoadingSpinner text="Carregando dados do mercado..." />
       ) : (
         <>
-          {/* Global Market Stats */}
+          {/* Global Market Stats + Fear & Greed + Whale Activity */}
           <motion.div 
             variants={containerVariants}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8"
           >
             <motion.div variants={itemVariants}>
               <Card className="glass-morphism border-0 card-hover">
@@ -169,6 +171,14 @@ const Index = () => {
                   </p>
                 </CardContent>
               </Card>
+            </motion.div>
+
+            <motion.div variants={itemVariants}>
+              <FearGreedIndex />
+            </motion.div>
+
+            <motion.div variants={itemVariants}>
+              <WhaleActivityPreview />
             </motion.div>
           </motion.div>
 
