@@ -6,6 +6,22 @@ import { ArrowUpCircle, ArrowDownCircle, Trophy, Clock } from 'lucide-react';
 
 const SignalCard = ({ signal, index, isSuccess = false }) => {
   const isBuy = signal.type === 'COMPRA';
+  const [showDetails, setShowDetails] = React.useState(false);
+  
+  // Calcular quantas confirmações estão ativas
+  const confirmations = signal.confirmations || {};
+  const activeConfirmations = Object.values(confirmations).filter(v => v === true).length;
+  const totalConfirmations = Object.keys(confirmations).length;
+
+  const getSignalQuality = () => {
+    const marketStrength = confirmations.marketStrength || 50;
+    if (marketStrength >= 70) return { label: 'EXCELENTE', color: 'text-green-500', bgColor: 'bg-green-500/10' };
+    if (marketStrength >= 60) return { label: 'BOM', color: 'text-blue-500', bgColor: 'bg-blue-500/10' };
+    if (marketStrength >= 50) return { label: 'MODERADO', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' };
+    return { label: 'FRACO', color: 'text-orange-500', bgColor: 'bg-orange-500/10' };
+  };
+
+  const quality = getSignalQuality();
   
   return (
     <motion.div
@@ -29,7 +45,8 @@ const SignalCard = ({ signal, index, isSuccess = false }) => {
             : 'bg-red-500'
       } border-4 border-background`} />
       
-      <div className="bg-card/50 border border-border/50 rounded-lg p-3 sm:p-4 hover:border-primary/50 transition-all">
+      <div className="bg-card/50 border border-border/50 rounded-lg p-3 sm:p-4 hover:border-primary/50 transition-all cursor-pointer"
+           onClick={() => setShowDetails(!showDetails)}>
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center gap-2">
             {isSuccess ? (
@@ -43,11 +60,18 @@ const SignalCard = ({ signal, index, isSuccess = false }) => {
               {signal.type}
             </span>
           </div>
-          {isSuccess && (
-            <Badge className="bg-green-500 text-white">
-              +{signal.profit}%
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {!isSuccess && confirmations && (
+              <Badge variant="outline" className={`text-xs ${quality.bgColor} ${quality.color} border-none`}>
+                {quality.label}
+              </Badge>
+            )}
+            {isSuccess && (
+              <Badge className={signal.status === 'SUCESSO' ? 'bg-green-500' : 'bg-red-500'}>
+                {signal.status === 'SUCESSO' ? `+${signal.profit}%` : `${signal.profit}%`}
+              </Badge>
+            )}
+          </div>
         </div>
         
         <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm mb-2">
@@ -60,11 +84,78 @@ const SignalCard = ({ signal, index, isSuccess = false }) => {
             <p className="font-medium text-green-500">${signal.takeProfit.toFixed(2)}</p>
           </div>
         </div>
+
+        {/* Barra de confirmações */}
+        {!isSuccess && confirmations && totalConfirmations > 0 && (
+          <div className="mb-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <span>Confirmações</span>
+              <span>{activeConfirmations}/{totalConfirmations}</span>
+            </div>
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-300"
+                style={{ width: `${(activeConfirmations / totalConfirmations) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
         
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Clock className="w-3 h-3" />
           <span>{signal.timestamp}</span>
+          {signal.closedAt && (
+            <>
+              <span>→</span>
+              <span>{signal.closedAt}</span>
+            </>
+          )}
         </div>
+
+        {/* Detalhes expandidos */}
+        {showDetails && confirmations && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="mt-3 pt-3 border-t border-border/50 space-y-2"
+          >
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <p className="text-muted-foreground">Stop Loss</p>
+                <p className="font-medium text-red-500">${signal.stopLoss.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">R:R</p>
+                <p className="font-medium">{signal.riskReward || 'N/A'}</p>
+              </div>
+              {signal.adx && (
+                <div>
+                  <p className="text-muted-foreground">ADX</p>
+                  <p className="font-medium">{signal.adx}</p>
+                </div>
+              )}
+              {confirmations.marketStrength && (
+                <div>
+                  <p className="text-muted-foreground">Score</p>
+                  <p className="font-medium">{confirmations.marketStrength.toFixed(0)}</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="text-xs space-y-1">
+              <p className="font-medium text-muted-foreground mb-1">Indicadores:</p>
+              <div className="flex flex-wrap gap-1">
+                {confirmations.didi && <Badge variant="outline" className="text-xs">Didi ✓</Badge>}
+                {confirmations.dmi && <Badge variant="outline" className="text-xs">DMI ✓</Badge>}
+                {confirmations.ema50 && <Badge variant="outline" className="text-xs">EMA50 ✓</Badge>}
+                {confirmations.rsi && <Badge variant="outline" className="text-xs">RSI ✓</Badge>}
+                {confirmations.macd && <Badge variant="outline" className="text-xs">MACD ✓</Badge>}
+                {confirmations.obv && <Badge variant="outline" className="text-xs">OBV ✓</Badge>}
+                {confirmations.volume && <Badge variant="outline" className="text-xs">Vol ✓</Badge>}
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
     </motion.div>
   );
