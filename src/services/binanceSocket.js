@@ -95,31 +95,29 @@ export class BinanceKlineStream {
         }
         
         const message = messageValidation.data;
+        const kline = message.k;
         
-        // Notificar listeners apenas quando o candle FECHA (x = true)
-        if (message.k.x) {
-          const kline = message.k;
-          
-          // Converter strings para números
-          const candleData = {
-            timestamp: kline.t,
-            open: parseFloat(kline.o),
-            high: parseFloat(kline.h),
-            low: parseFloat(kline.l),
-            close: parseFloat(kline.c),
-            volume: parseFloat(kline.v),
-            isClosed: kline.x
-          };
-          
-          // Validar candle completo com Zod
-          const candleValidation = candleDataSchema.safeParse(candleData);
-          
-          if (candleValidation.success) {
-            this.notifyListeners(candleValidation.data);
-          } else {
-            if (import.meta.env.DEV) {
-              console.error('[BinanceWS] Candle inválido:', candleValidation.error.issues);
-            }
+        // Converter strings para números
+        const candleData = {
+          timestamp: kline.t,
+          open: parseFloat(kline.o),
+          high: parseFloat(kline.h),
+          low: parseFloat(kline.l),
+          close: parseFloat(kline.c),
+          volume: parseFloat(kline.v),
+          isClosed: kline.x
+        };
+        
+        // Validar candle completo com Zod
+        const candleValidation = candleDataSchema.safeParse(candleData);
+        
+        if (candleValidation.success) {
+          // MÓDULO B: Notificar listeners SEMPRE (intrabar + candle fechado)
+          // Isso permite execução intrabar
+          this.notifyListeners(candleValidation.data);
+        } else {
+          if (import.meta.env.DEV) {
+            console.error('[BinanceWS] Candle inválido:', candleValidation.error.issues);
           }
         }
       } catch (error) {

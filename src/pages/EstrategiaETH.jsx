@@ -22,7 +22,11 @@ import {
   calculateFibonacciLevels,
   getAdaptiveFibonacciTargets,
   calculateTPSL,
-  validateRiskReward
+  validateRiskReward,
+  detectSwing,
+  computeLeg,
+  getAdaptiveFib,
+  calculateAdaptiveTPSL
 } from '@/utils/technicalIndicators';
 import {
   calculateOBV,
@@ -33,6 +37,12 @@ import {
   calculateBreakoutStrength,
   calculateMarketStrength
 } from '@/utils/advancedIndicators';
+import {
+  validateIntrabarBreakout,
+  validateIntrabarFilters,
+  logIntrabarExecution,
+  calculateDynamicBreakEven
+} from '@/utils/intrabarDetection';
 import StrategyMetrics from '@/components/strategy/StrategyMetrics';
 import TechnicalGauges from '@/components/strategy/TechnicalGauges';
 import CandlestickChart from '@/components/strategy/CandlestickChart';
@@ -60,6 +70,15 @@ const EstrategiaETH = () => {
   const [fibonacciLevels, setFibonacciLevels] = useState(null);
   const [signalStatus, setSignalStatus] = useState('wait'); // 'buy', 'sell', 'wait'
   const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
+  const [recentTicks, setRecentTicks] = useState([]); // MÓDULO B: Track últimos 3 ticks
+  const [intrabarCandle, setIntrabarCandle] = useState(null); // MÓDULO B: Candle em formação
+  const [parameters, setParameters] = useState({
+    scoreThreshold: 70,
+    minRR: 1.0,
+    adxMin: 27,
+    rsiOverbought: 70,
+    rsiOversold: 30
+  });
   
   const audioRef = useRef({
     buy: typeof Audio !== 'undefined' ? new Audio('/sounds/buy.mp3') : null,
@@ -82,8 +101,25 @@ const EstrategiaETH = () => {
       if (import.meta.env.DEV) {
         console.log('[EstrategiaETH] Candle validado:', validation.data);
       }
-      // Refetch data quando novo candle válido fecha
-      refetch();
+      
+      // MÓDULO B: Processar dados intrabar
+      const candle = validation.data;
+      
+      // Atualizar candle em formação
+      setIntrabarCandle(candle);
+      
+      // Atualizar histórico de ticks (últimos 3)
+      setRecentTicks(prev => {
+        const updated = [...prev, { high: candle.high, low: candle.low, close: candle.close }];
+        return updated.slice(-3); // Manter apenas últimos 3 ticks
+      });
+      
+      // Se candle fechou, limpar ticks e refetch
+      if (candle.isClosed) {
+        setRecentTicks([]);
+        setIntrabarCandle(null);
+        refetch();
+      }
     } else {
       toast.error('Dados de mercado inválidos recebidos');
       if (import.meta.env.DEV) {
@@ -116,6 +152,7 @@ const EstrategiaETH = () => {
     if (!data || data.length === 0) return;
 
     const currentPrice = data[data.length - 1].close;
+    const previousCandle = data.length >= 2 ? data[data.length - 2] : data[data.length - 1];
     
     // Verificar operação ativa
     if (activeOperation) {
@@ -128,6 +165,50 @@ const EstrategiaETH = () => {
       } else {
         hitTP = currentPrice <= activeOperation.takeProfit;
         hitSL = currentPrice >= activeOperation.stopLoss;
+      }
+
+      // ==================== MÓDULO B: BREAK-EVEN DINÂMICO ====================
+      // Calcular aceleração do OBV
+      const closes = data.map(d => d.close);
+      const volumes = data.map(d => d.volume);
+      const obv = calculateOBV(closes, volumes);
+      
+      const obvCurrent = obv[obv.length - 1];
+      const obvPrevious = obv[obv.length - 10] || obv[0];
+      const obvAcceleration = ((obvCurrent - obvPrevious) / Math.abs(obvPrevious)) * 100;
+      
+      // Aplicar break-even dinâmico se não atingiu TP/SL ainda
+      if (!hitTP && !hitSL) {
+        const breakEvenResult = calculateDynamicBreakEven(
+          activeOperation,
+          currentPrice,
+          obvAcceleration,
+          previousCandle
+        );
+        
+        if (breakEvenResult.breakEvenActivated || breakEvenResult.tpExtended) {
+          console.log('🔄 Atualizando operação com break-even dinâmico:', breakEvenResult);
+          
+          setActiveOperation(prev => ({
+            ...prev,
+            stopLoss: breakEvenResult.newSL,
+            takeProfit: breakEvenResult.newTP,
+            breakEvenActivated: breakEvenResult.breakEvenActivated,
+            tpExtended: breakEvenResult.tpExtended
+          }));
+          
+          // Toastar notificação
+          if (breakEvenResult.breakEvenActivated) {
+            toast.success('🔄 Break-even ativado! SL movido para proteção.', {
+              description: `Novo SL: ${breakEvenResult.newSL.toFixed(2)}`
+            });
+          }
+          if (breakEvenResult.tpExtended) {
+            toast.success('📈 TP estendido devido à aceleração do mercado!', {
+              description: `Novo TP: ${breakEvenResult.newTP.toFixed(2)}`
+            });
+          }
+        }
       }
 
       if (hitTP) {
@@ -327,55 +408,158 @@ const EstrategiaETH = () => {
       obvTrend
     });
 
-    // 9. Calcular Fibonacci adaptativo orientado pela direção
-    let fiboLevels = null;
-    let swingReference = null;
-    let direction = null;
-
-    if (buyBreakout && pivotLows.length > 0 && pivotHighs.length > 0) {
-      // Para compra: usar o swing high como referência de projeção
-      const lastPivotHigh = pivotHighs[pivotHighs.length - 1];
-      swingReference = lastPivotHigh.value;
-      direction = 'buy';
-      fiboLevels = calculateFibonacciLevels(currentPrice, swingReference, direction);
-    } else if (sellBreakout && pivotHighs.length > 0 && pivotLows.length > 0) {
-      // Para venda: usar o swing low como referência de projeção
-      const lastPivotLow = pivotLows[pivotLows.length - 1];
-      swingReference = lastPivotLow.value;
-      direction = 'sell';
-      fiboLevels = calculateFibonacciLevels(currentPrice, swingReference, direction);
+    // ==================== MÓDULO A: SWING DETECTION + FIBO ADAPTATIVO ====================
+    // 9. Detectar Swings com lookback maior (20) e menor (5)
+    const swings = detectSwing(highs, lows, 20, 5);
+    const { swingHigh, swingLow } = swings;
+    
+    // 9.1 Calcular pernada (leg) se houver swings válidos
+    let leg = null;
+    if (swingHigh && swingLow) {
+      leg = computeLeg(swingHigh, swingLow);
+      console.log('📐 Pernada calculada:', {
+        legSize: leg.legSize?.toFixed(2),
+        direction: leg.direction,
+        from: leg.from?.toFixed(2),
+        to: leg.to?.toFixed(2)
+      });
     }
-
-    // 10. Determinar TP e SL baseado na força do ADX
-    const adxStrength = currentDMI.adx;
-    const { tpLevel, slLevel } = getAdaptiveFibonacciTargets(adxStrength, direction);
-
-    // 11. Calcular TP/SL usando Fibonacci
+    
+    // 9.2 Calcular TP/SL com Fibonacci Adaptativo (baseado em ADX)
     let calculatedTP = null;
     let calculatedSL = null;
     let rrValidation = null;
-
-    if (fiboLevels && swingReference !== null && direction) {
-      const result = calculateTPSL(currentPrice, swingReference, adxStrength, direction);
+    let direction = null;
+    let fibUsed = null;
+    
+    const adxStrength = currentDMI.adx;
+    
+    if (buyBreakout && swingHigh && swingLow) {
+      direction = 'buy';
+      const result = calculateAdaptiveTPSL(
+        currentPrice,
+        swingHigh,
+        swingLow,
+        adxStrength,
+        direction
+      );
+      
       calculatedTP = result.tp;
       calculatedSL = result.sl;
+      fibUsed = result.fibUsed;
       
-      // Validar R:R mínimo de 1:1
-      rrValidation = validateRiskReward(currentPrice, calculatedTP, calculatedSL, 1.0);
+      if (calculatedTP && calculatedSL) {
+        rrValidation = validateRiskReward(currentPrice, calculatedTP, calculatedSL, parameters.minRR);
+        
+        console.log('🟢 COMPRA - TP/SL Adaptativos:', {
+          entrada: currentPrice.toFixed(2),
+          tp: calculatedTP.toFixed(2),
+          sl: calculatedSL.toFixed(2),
+          tpFib: fibUsed?.tpFib,
+          slFib: fibUsed?.slFib,
+          legSize: result.legSize?.toFixed(2),
+          rr: rrValidation?.ratio?.toFixed(2),
+          adx: adxStrength.toFixed(2)
+        });
+      }
+    } else if (sellBreakout && swingHigh && swingLow) {
+      direction = 'sell';
+      const result = calculateAdaptiveTPSL(
+        currentPrice,
+        swingHigh,
+        swingLow,
+        adxStrength,
+        direction
+      );
       
-      console.log(`📊 TP/SL ${direction.toUpperCase()}:`, {
-        entrada: currentPrice,
-        referencia: swingReference,
-        tp: calculatedTP,
-        sl: calculatedSL,
-        tpLevel: tpLevel,
-        slLevel: slLevel,
-        rr: rrValidation?.ratio?.toFixed(2),
-        adx: adxStrength
+      calculatedTP = result.tp;
+      calculatedSL = result.sl;
+      fibUsed = result.fibUsed;
+      
+      if (calculatedTP && calculatedSL) {
+        rrValidation = validateRiskReward(currentPrice, calculatedTP, calculatedSL, parameters.minRR);
+        
+        console.log('🔴 VENDA - TP/SL Adaptativos:', {
+          entrada: currentPrice.toFixed(2),
+          tp: calculatedTP.toFixed(2),
+          sl: calculatedSL.toFixed(2),
+          tpFib: fibUsed?.tpFib,
+          slFib: fibUsed?.slFib,
+          legSize: result.legSize?.toFixed(2),
+          rr: rrValidation?.ratio?.toFixed(2),
+          adx: adxStrength.toFixed(2)
+        });
+      }
+    }
+
+    // ==================== MÓDULO B: VALIDAÇÃO INTRABAR ====================
+    // 10. Validar rompimento intrabar se houver candle em formação
+    let intrabarBreakoutValid = null;
+    if (intrabarCandle && !intrabarCandle.isClosed) {
+      const atr15 = atr[atr.length - 1];
+      
+      if (buyBreakout) {
+        intrabarBreakoutValid = validateIntrabarBreakout(
+          intrabarCandle,
+          referenceCandle,
+          avgVolume,
+          atr15,
+          recentTicks,
+          'buy'
+        );
+        
+        if (!intrabarBreakoutValid.isValid) {
+          console.log('⚠️ Rompimento INTRABAR COMPRA invalidado:', intrabarBreakoutValid.reason);
+        } else {
+          console.log('✅ Rompimento INTRABAR COMPRA válido:', intrabarBreakoutValid);
+        }
+      } else if (sellBreakout) {
+        intrabarBreakoutValid = validateIntrabarBreakout(
+          intrabarCandle,
+          referenceCandle,
+          avgVolume,
+          atr15,
+          recentTicks,
+          'sell'
+        );
+        
+        if (!intrabarBreakoutValid.isValid) {
+          console.log('⚠️ Rompimento INTRABAR VENDA invalidado:', intrabarBreakoutValid.reason);
+        } else {
+          console.log('✅ Rompimento INTRABAR VENDA válido:', intrabarBreakoutValid);
+        }
+      }
+    }
+    
+    // 10.1 Validar todos os filtros do setup com score >= 70
+    let filtersValid = null;
+    if (direction && (buyBreakout || sellBreakout)) {
+      filtersValid = validateIntrabarFilters(
+        {
+          ema50Aligned: direction === 'buy' ? trendUp : trendDown,
+          adx: adxStrength,
+          macdGrowing: direction === 'buy' ? macdBullish : macdBearish,
+          macdHistogramGrowing: direction === 'buy' ? 
+            (currentMACD > prevMACD) : (currentMACD < prevMACD),
+          rsiValue: currentRSI,
+          obvConfirming: direction === 'buy' ? (obvConfirm === 'bullish') : (obvConfirm === 'bearish'),
+          volumeAboveAvg: volumeOk,
+          breakoutStrength: direction === 'buy' ? 
+            (breakoutStrengthBuy?.strength || 0) : (breakoutStrengthSell?.strength || 0)
+        },
+        direction,
+        parameters.scoreThreshold
+      );
+      
+      console.log(`📊 Filtros ${direction.toUpperCase()} - Score:`, {
+        score: filtersValid.score,
+        threshold: filtersValid.threshold,
+        isValid: filtersValid.isValid,
+        checks: filtersValid.checks
       });
     }
 
-    // 12. Salvar status das condições e Fibonacci (atualizado FASE 1)
+    // 12. Salvar status das condições (atualizado MÓDULOS A e B)
     setConditionsStatus({
       buy: {
         breakout: buyBreakout,
@@ -388,7 +572,10 @@ const EstrategiaETH = () => {
         macd: macdBullish,
         obv: obvConfirm === 'bullish',
         breakoutStrength: breakoutStrengthBuy?.strength || 0,
-        rrValid: rrValidation?.isValid || false
+        rrValid: rrValidation?.isValid || false,
+        intrabarValid: intrabarBreakoutValid?.isValid || false,
+        scoreValid: filtersValid?.isValid || false,
+        score: filtersValid?.score || 0
       },
       sell: {
         breakout: sellBreakout,
@@ -401,7 +588,10 @@ const EstrategiaETH = () => {
         macd: macdBearish,
         obv: obvConfirm === 'bearish',
         breakoutStrength: breakoutStrengthSell?.strength || 0,
-        rrValid: rrValidation?.isValid || false
+        rrValid: rrValidation?.isValid || false,
+        intrabarValid: intrabarBreakoutValid?.isValid || false,
+        scoreValid: filtersValid?.isValid || false,
+        score: filtersValid?.score || 0
       },
       currentPrice,
       ema50Value: ema50Confirm,
@@ -411,32 +601,34 @@ const EstrategiaETH = () => {
       currentVolume: triggerCandle.volume,
       referenceHigh: referenceCandle.high,
       referenceLow: referenceCandle.low,
-      fibonacci: fiboLevels,
-      tpLevel,
-      slLevel,
+      fibonacci: fibUsed,
       rrRatio: rrValidation?.ratio || 0,
       direction,
-      // Novos indicadores Fase 1
       rsi: currentRSI,
       macdValue: currentMACD,
       obvValue: obv[obv.length - 1],
       obvTrend,
       marketStrength: marketStrengthScore,
-      volumeProfile: volumeProfile.pocPrice
+      volumeProfile: volumeProfile.pocPrice,
+      // Módulo A dados
+      swingHigh: swingHigh?.value,
+      swingLow: swingLow?.value,
+      legSize: leg?.legSize,
+      legDirection: leg?.direction
     });
 
-    if (fiboLevels) {
-      setFibonacciLevels(fiboLevels);
-    }
-
-    // 13. Atualizar status do sinal para UI (melhorado FASE 1)
-    const signalQualityBuy = buyBreakout && didiConfirmBuy && dmiConfirmBuy && trendUp && 
-                             rsiOkForBuy && macdBullish && breakoutStrengthBuy?.isValid && 
-                             rrValidation?.isValid && marketStrengthScore >= 60;
+    // 13. Atualizar status do sinal para UI (MÓDULO B: usar score)
+    const signalQualityBuy = buyBreakout && 
+                              calculatedTP && calculatedSL && 
+                              rrValidation?.isValid &&
+                              filtersValid?.isValid && 
+                              filtersValid?.score >= parameters.scoreThreshold;
     
-    const signalQualitySell = sellBreakout && didiConfirmSell && dmiConfirmSell && trendDown && 
-                              rsiOkForSell && macdBearish && breakoutStrengthSell?.isValid && 
-                              rrValidation?.isValid && marketStrengthScore <= 40;
+    const signalQualitySell = sellBreakout && 
+                               calculatedTP && calculatedSL && 
+                               rrValidation?.isValid &&
+                               filtersValid?.isValid && 
+                               filtersValid?.score >= parameters.scoreThreshold;
 
     if (signalQualityBuy) {
       setSignalStatus('buy');
@@ -446,11 +638,158 @@ const EstrategiaETH = () => {
       setSignalStatus('wait');
     }
 
-    // 14. Gerar sinal com validações aprimoradas (FASE 1)
+    // 14. Gerar sinal com validações MÓDULOS A + B
     let signal = null;
 
-    if (signalQualityBuy && volatilityOk && volumeOk && 
-        fiboLevels && calculatedTP && calculatedSL) {
+    if (signalQualityBuy && calculatedTP && calculatedSL) {
+      const entryPrice = currentPrice;
+
+      // Validação: Para COMPRA, TP deve ser > entrada > SL
+      if (calculatedTP <= entryPrice || calculatedSL >= entryPrice) {
+        console.error('❌ ERRO: Níveis TP/SL inválidos para COMPRA:', {
+          entrada: entryPrice,
+          tp: calculatedTP,
+          sl: calculatedSL
+        });
+        return;
+      }
+
+      signal = {
+        type: 'COMPRA',
+        entryPrice,
+        stopLoss: calculatedSL,
+        takeProfit: calculatedTP,
+        timestamp: new Date().toLocaleString('pt-BR'),
+        confirmations: {
+          didi: didiConfirmBuy,
+          dmi: dmiConfirmBuy,
+          ema50: trendUp,
+          volatility: volatilityOk,
+          volume: volumeOk,
+          fibonacci: true,
+          riskReward: rrValidation.isValid,
+          rsi: rsiOkForBuy,
+          macd: macdBullish,
+          obv: obvConfirm === 'bullish',
+          breakoutStrength: breakoutStrengthBuy?.strength || 0,
+          marketStrength: marketStrengthScore,
+          score: filtersValid.score,
+          intrabar: intrabarBreakoutValid?.isValid || false
+        },
+        adx: currentDMI.adx.toFixed(2),
+        atr: atr[atr.length - 1].toFixed(2),
+        fibonacciUsed: fibUsed,
+        riskReward: rrValidation.ratio.toFixed(2),
+        direction: 'buy',
+        score: filtersValid.score
+      };
+
+      console.log('🟢 Sinal de COMPRA gerado:', {
+        entrada: entryPrice.toFixed(2),
+        tp: calculatedTP.toFixed(2),
+        sl: calculatedSL.toFixed(2),
+        rr: rrValidation.ratio.toFixed(2),
+        score: filtersValid.score
+      });
+
+      setLastSignal(signal);
+      setActiveOperation(signal);
+      showSignalNotification(signal, 'signal');
+      playSignalSound('buy');
+      
+      // MÓDULO B: Log avançado para auditoria
+      logIntrabarExecution({
+        tickActivation: recentTicks.length > 0 ? recentTicks[0] : null,
+        tickConfirmation: recentTicks.length >= 3 ? recentTicks[2] : null,
+        atrIntrabar: atr[atr.length - 1],
+        volumeProjected: intrabarBreakoutValid?.volumeProjected || triggerCandle.volume,
+        scoreIntrabar: filtersValid.score,
+        adxMoment: currentDMI.adx,
+        rrRatio: rrValidation.ratio,
+        fibUsed: fibUsed,
+        entryPrice,
+        tp: calculatedTP,
+        sl: calculatedSL,
+        direction: 'buy'
+      });
+
+    } else if (signalQualitySell && calculatedTP && calculatedSL) {
+      const entryPrice = currentPrice;
+
+      // Validação: Para VENDA, SL deve ser > entrada > TP
+      if (calculatedTP >= entryPrice || calculatedSL <= entryPrice) {
+        console.error('❌ ERRO: Níveis TP/SL inválidos para VENDA:', {
+          entrada: entryPrice,
+          tp: calculatedTP,
+          sl: calculatedSL
+        });
+        return;
+      }
+
+      signal = {
+        type: 'VENDA',
+        entryPrice,
+        stopLoss: calculatedSL,
+        takeProfit: calculatedTP,
+        timestamp: new Date().toLocaleString('pt-BR'),
+        confirmations: {
+          didi: didiConfirmSell,
+          dmi: dmiConfirmSell,
+          ema50: trendDown,
+          volatility: volatilityOk,
+          volume: volumeOk,
+          fibonacci: true,
+          riskReward: rrValidation.isValid,
+          rsi: rsiOkForSell,
+          macd: macdBearish,
+          obv: obvConfirm === 'bearish',
+          breakoutStrength: breakoutStrengthSell?.strength || 0,
+          marketStrength: marketStrengthScore,
+          score: filtersValid.score,
+          intrabar: intrabarBreakoutValid?.isValid || false
+        },
+        adx: currentDMI.adx.toFixed(2),
+        atr: atr[atr.length - 1].toFixed(2),
+        fibonacciUsed: fibUsed,
+        riskReward: rrValidation.ratio.toFixed(2),
+        direction: 'sell',
+        score: filtersValid.score
+      };
+
+      console.log('🔴 Sinal de VENDA gerado:', {
+        entrada: entryPrice.toFixed(2),
+        tp: calculatedTP.toFixed(2),
+        sl: calculatedSL.toFixed(2),
+        rr: rrValidation.ratio.toFixed(2),
+        score: filtersValid.score
+      });
+
+      setLastSignal(signal);
+      setActiveOperation(signal);
+      showSignalNotification(signal, 'signal');
+      playSignalSound('sell');
+      
+      // MÓDULO B: Log avançado para auditoria
+      logIntrabarExecution({
+        tickActivation: recentTicks.length > 0 ? recentTicks[0] : null,
+        tickConfirmation: recentTicks.length >= 3 ? recentTicks[2] : null,
+        atrIntrabar: atr[atr.length - 1],
+        volumeProjected: intrabarBreakoutValid?.volumeProjected || triggerCandle.volume,
+        scoreIntrabar: filtersValid.score,
+        adxMoment: currentDMI.adx,
+        rrRatio: rrValidation.ratio,
+        fibUsed: fibUsed,
+        entryPrice,
+        tp: calculatedTP,
+        sl: calculatedSL,
+        direction: 'sell'
+      });
+    }
+
+    if (signal) {
+      setOperationHistory(prev => [signal, ...prev].slice(0, 100));
+    }
+  };
       const entryPrice = triggerCandle.close;
 
       signal = {
