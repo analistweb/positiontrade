@@ -299,3 +299,243 @@ export const validateRiskReward = (entryPrice, tp, sl, minRR = 1.0) => {
     risk: risk
   };
 };
+
+// ==================== MÓDULO A — FIBO ADAPTATIVO + SWING DETECTION ====================
+
+/**
+ * 1) Detecção de Swings (swing high/low detection)
+ * @param {Array} highs - Array de máximas
+ * @param {Array} lows - Array de mínimas
+ * @param {number} lookbackMajor - Lookback para swings maiores (padrão: 20)
+ * @param {number} lookbackMinor - Lookback para swings menores (padrão: 5)
+ * @returns {Object} - Swing high e swing low válidos
+ */
+export const detectSwing = (highs, lows, lookbackMajor = 20, lookbackMinor = 5) => {
+  const findSwingHigh = (highs, lookback) => {
+    const swings = [];
+    for (let i = lookback; i < highs.length - lookback; i++) {
+      let isSwing = true;
+      const currentHigh = highs[i];
+      
+      // Verificar lookback anterior e posterior
+      for (let j = i - lookback; j < i + lookback; j++) {
+        if (j !== i && highs[j] >= currentHigh) {
+          isSwing = false;
+          break;
+        }
+      }
+      
+      if (isSwing) {
+        swings.push({ 
+          index: i, 
+          value: currentHigh,
+          distance: highs.length - 1 - i 
+        });
+      }
+    }
+    return swings;
+  };
+  
+  const findSwingLow = (lows, lookback) => {
+    const swings = [];
+    for (let i = lookback; i < lows.length - lookback; i++) {
+      let isSwing = true;
+      const currentLow = lows[i];
+      
+      // Verificar lookback anterior e posterior
+      for (let j = i - lookback; j < i + lookback; j++) {
+        if (j !== i && lows[j] <= currentLow) {
+          isSwing = false;
+          break;
+        }
+      }
+      
+      if (isSwing) {
+        swings.push({ 
+          index: i, 
+          value: currentLow,
+          distance: lows.length - 1 - i 
+        });
+      }
+    }
+    return swings;
+  };
+  
+  // Tentar encontrar swings maiores primeiro
+  let swingHighMajor = findSwingHigh(highs, lookbackMajor);
+  let swingLowMajor = findSwingLow(lows, lookbackMajor);
+  
+  // Se não encontrar swings maiores, usar swings menores
+  let swingHighMinor = findSwingHigh(highs, lookbackMinor);
+  let swingLowMinor = findSwingLow(lows, lookbackMinor);
+  
+  // Priorizar swing maior, se não houver usar menor
+  const validSwingHigh = swingHighMajor.length > 0 ? swingHighMajor[swingHighMajor.length - 1] : 
+                        (swingHighMinor.length > 0 ? swingHighMinor[swingHighMinor.length - 1] : null);
+                        
+  const validSwingLow = swingLowMajor.length > 0 ? swingLowMajor[swingLowMajor.length - 1] : 
+                       (swingLowMinor.length > 0 ? swingLowMinor[swingLowMinor.length - 1] : null);
+  
+  // Nunca usar o candle atual como swing
+  const currentIndex = highs.length - 1;
+  if (validSwingHigh && validSwingHigh.index === currentIndex) {
+    return { swingHigh: null, swingLow: validSwingLow };
+  }
+  if (validSwingLow && validSwingLow.index === currentIndex) {
+    return { swingHigh: validSwingHigh, swingLow: null };
+  }
+  
+  return {
+    swingHigh: validSwingHigh,
+    swingLow: validSwingLow
+  };
+};
+
+/**
+ * 2) Cálculo da Pernada (leg)
+ * @param {Object} lastSwing - Último swing detectado
+ * @param {Object} previousSwing - Swing anterior
+ * @returns {Object} - Pernada (leg) com tamanho e direção
+ */
+export const computeLeg = (lastSwing, previousSwing) => {
+  if (!lastSwing || !previousSwing) {
+    return { legSize: 0, direction: null };
+  }
+  
+  const legSize = Math.abs(lastSwing.value - previousSwing.value);
+  
+  // Determinar direção
+  let direction = null;
+  if (lastSwing.value > previousSwing.value) {
+    direction = 'bullish';
+  } else if (lastSwing.value < previousSwing.value) {
+    direction = 'bearish';
+  }
+  
+  return {
+    legSize,
+    direction,
+    from: previousSwing.value,
+    to: lastSwing.value
+  };
+};
+
+/**
+ * 3) FIBO ADAPTATIVO baseado em ADX
+ * @param {string} levelType - 'tp' ou 'sl'
+ * @param {number} adxValue - Valor do ADX
+ * @returns {number} - Nível de Fibonacci adaptativo
+ */
+export const getAdaptiveFib = (levelType, adxValue) => {
+  let fibLevel = 0.5; // padrão médio
+  
+  if (adxValue > 35) {
+    // Tendência forte
+    fibLevel = levelType === 'tp' ? 0.618 : 0.382;
+  } else if (adxValue >= 27 && adxValue <= 35) {
+    // Tendência média
+    fibLevel = 0.5;
+  } else if (adxValue >= 22 && adxValue < 27) {
+    // Tendência fraca
+    fibLevel = levelType === 'tp' ? 0.382 : 0.618;
+  }
+  
+  return fibLevel;
+};
+
+/**
+ * Cálculo de TP/SL com Fibonacci Adaptativo e Swings
+ * @param {number} entryPrice - Preço de entrada
+ * @param {Object} swingHigh - Swing high detectado
+ * @param {Object} swingLow - Swing low detectado
+ * @param {number} adx - Valor do ADX
+ * @param {string} direction - 'buy' ou 'sell'
+ * @returns {Object} - TP e SL calculados
+ */
+export const calculateAdaptiveTPSL = (entryPrice, swingHigh, swingLow, adx, direction) => {
+  if (!swingHigh || !swingLow) {
+    return { tp: null, sl: null, legSize: 0, fibUsed: null };
+  }
+  
+  // Calcular pernada (leg)
+  const leg = computeLeg(swingHigh, swingLow);
+  const legSize = leg.legSize;
+  
+  // Obter Fibonacci adaptativo
+  const tpFib = getAdaptiveFib('tp', adx);
+  const slFib = getAdaptiveFib('sl', adx);
+  
+  let tp = null;
+  let sl = null;
+  
+  if (direction === 'buy') {
+    // COMPRA: TP acima, SL abaixo
+    tp = swingHigh.value - (legSize * tpFib);
+    sl = swingLow.value + (legSize * slFib * 1.2);
+    
+    // Validar: TP > entrada > SL
+    if (tp <= entryPrice || sl >= entryPrice) {
+      console.warn('⚠️ COMPRA: TP/SL inválidos com Fibonacci adaptativo', {
+        entrada: entryPrice,
+        tp,
+        sl,
+        swingHigh: swingHigh.value,
+        swingLow: swingLow.value
+      });
+      return { tp: null, sl: null, legSize, fibUsed: { tpFib, slFib } };
+    }
+  } else if (direction === 'sell') {
+    // VENDA: TP abaixo, SL acima
+    tp = swingLow.value + (legSize * tpFib);
+    sl = swingHigh.value - (legSize * slFib * 1.2);
+    
+    // Validar: SL > entrada > TP
+    if (tp >= entryPrice || sl <= entryPrice) {
+      console.warn('⚠️ VENDA: TP/SL inválidos com Fibonacci adaptativo', {
+        entrada: entryPrice,
+        tp,
+        sl,
+        swingHigh: swingHigh.value,
+        swingLow: swingLow.value
+      });
+      return { tp: null, sl: null, legSize, fibUsed: { tpFib, slFib } };
+    }
+  }
+  
+  // Validar limites de SL (0.25% a 0.45%)
+  const slPercent = Math.abs((sl - entryPrice) / entryPrice);
+  if (slPercent < 0.0025 || slPercent > 0.0045) {
+    console.warn('⚠️ SL fora dos limites (0.25% - 0.45%)', {
+      slPercent: (slPercent * 100).toFixed(2) + '%',
+      entrada: entryPrice,
+      sl
+    });
+    return { tp: null, sl: null, legSize, fibUsed: { tpFib, slFib } };
+  }
+  
+  // Validar R:R mínimo >= 1.0 (ideal >= 1.3)
+  const rrValidation = validateRiskReward(entryPrice, tp, sl, 1.0);
+  if (!rrValidation.isValid) {
+    console.warn('⚠️ R:R abaixo do mínimo', {
+      rr: rrValidation.ratio.toFixed(2),
+      entrada: entryPrice,
+      tp,
+      sl
+    });
+    return { tp: null, sl: null, legSize, fibUsed: { tpFib, slFib } };
+  }
+  
+  console.log('✅ TP/SL Adaptativos calculados:', {
+    direction,
+    entrada: entryPrice,
+    tp,
+    sl,
+    legSize: legSize.toFixed(2),
+    tpFib,
+    slFib,
+    rr: rrValidation.ratio.toFixed(2),
+    adx
+  });
+  
+  return { tp, sl, legSize, fibUsed: { tpFib, slFib }, rrRatio: rrValidation.ratio };
+};
