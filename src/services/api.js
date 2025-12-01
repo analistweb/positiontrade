@@ -10,61 +10,25 @@ const CRYPTOPANIC_API_KEY = import.meta.env.VITE_CRYPTOPANIC_API_KEY;
 const FEAR_GREED_API = 'https://api.alternative.me/fng/';
 const COINGLASS_API = 'https://open-api.coinglass.com/public/v2';
 
-// Mock data for development/testing
-const mockLiquidationData = {
-  liquidations: [
-    {
-      exchange: "Binance",
-      amount: 1500000,
-      type: "long",
-      timestamp: Date.now()
-    },
-    {
-      exchange: "Bybit",
-      amount: 2000000,
-      type: "short",
-      timestamp: Date.now() - 300000
-    }
-  ],
-  totalLiquidated: 3500000,
-  longShortRate: 1.5
-};
+// ⚠️ AVISO: Todas as funções agora usam APENAS dados reais de APIs
+// Não há fallback para dados simulados - se a API falhar, o erro será propagado
 
-const mockSentimentData = {
-  overallSentiment: 65,
-  fearGreedIndex: 55,
-  socialMediaMentions: [
-    { platform: 'Twitter', sentiment: 70, volume: 1000 },
-    { platform: 'Reddit', sentiment: 60, volume: 800 },
-    { platform: 'Telegram', sentiment: 65, volume: 600 }
-  ]
-};
 
-const mockNewsData = [
-  {
-    title: "Bitcoin atinge nova máxima do ano",
-    source: { title: "CryptoNews" },
-    url: "https://example.com/news/1",
-    published_at: new Date().toISOString()
-  },
-  {
-    title: "Mercado cripto mostra sinais de recuperação",
-    source: { title: "CoinDesk" },
-    url: "https://example.com/news/2",
-    published_at: new Date().toISOString()
-  }
-];
 
 export const fetchLiquidationData = async () => {
-  try {
-    if (!COINGLASS_API_KEY) {
-      console.warn('COINGLASS_API_KEY não configurada, usando dados mock');
-      return mockLiquidationData;
-    }
+  if (!COINGLASS_API_KEY) {
+    throw new Error('COINGLASS_API_KEY não configurada. Configure a chave de API para usar dados reais de liquidação.');
+  }
 
+  try {
     const response = await axios.get(`${COINGLASS_API}/liquidation_history`, {
-      headers: { 'coinglassSecret': COINGLASS_API_KEY }
+      headers: { 'coinglassSecret': COINGLASS_API_KEY },
+      timeout: 10000
     });
+
+    if (!response.data || !response.data.data) {
+      throw new Error('Resposta inválida da API Coinglass');
+    }
 
     return {
       liquidations: response.data.data.slice(0, 10).map(liq => ({
@@ -77,42 +41,59 @@ export const fetchLiquidationData = async () => {
       longVsShort: response.data.longShortRate
     };
   } catch (error) {
-    console.error('Erro ao buscar dados de liquidação:', error);
-    return mockLiquidationData;
+    console.error('❌ Erro ao buscar dados REAIS de liquidação:', error.message);
+    throw new Error(`Falha ao obter dados reais de liquidação: ${error.message}`);
   }
 };
 
 export const fetchMarketSentiment = async () => {
   try {
-    const response = await axios.get(FEAR_GREED_API);
+    const response = await axios.get(FEAR_GREED_API, { timeout: 10000 });
+    
+    if (!response.data || !response.data.data || !response.data.data[0]) {
+      throw new Error('Resposta inválida da API Fear & Greed');
+    }
+
+    const fearGreedValue = parseInt(response.data.data[0].value);
+    
     return {
-      overallSentiment: parseInt(response.data.data[0].value),
-      fearGreedIndex: parseInt(response.data.data[0].value),
-      socialMediaMentions: mockSentimentData.socialMediaMentions // Usando dados mock para métricas sociais
+      overallSentiment: fearGreedValue,
+      fearGreedIndex: fearGreedValue,
+      classification: response.data.data[0].value_classification,
+      timestamp: response.data.data[0].timestamp,
+      // Nota: métricas de redes sociais requerem API adicional (Twitter API, Reddit API, etc)
+      // Por enquanto, retornando apenas Fear & Greed Index real
+      socialMediaMentions: []
     };
   } catch (error) {
-    console.error('Erro ao buscar dados de sentimento:', error);
-    return mockSentimentData;
+    console.error('❌ Erro ao buscar dados REAIS de sentimento:', error.message);
+    throw new Error(`Falha ao obter Fear & Greed Index: ${error.message}`);
   }
 };
 
 export const fetchMarketNews = async () => {
-  try {
-    if (!CRYPTOPANIC_API_KEY) {
-      console.warn('CRYPTOPANIC_API_KEY não configurada, usando dados mock');
-      return mockNewsData;
-    }
+  if (!CRYPTOPANIC_API_KEY) {
+    throw new Error('CRYPTOPANIC_API_KEY não configurada. Configure a chave de API para usar notícias reais de cripto.');
+  }
 
+  try {
     const response = await axios.get('https://cryptopanic.com/api/v1/posts/', {
       params: {
         auth_token: CRYPTOPANIC_API_KEY,
         kind: 'news',
-        filter: 'hot'
-      }
+        filter: 'hot',
+        currencies: 'BTC,ETH'
+      },
+      timeout: 10000
     });
+
+    if (!response.data || !response.data.results) {
+      throw new Error('Resposta inválida da API CryptoPanic');
+    }
+
     return response.data.results;
   } catch (error) {
-    console.error('Erro ao buscar notícias:', error);
-    return mockNewsData;
+    console.error('❌ Erro ao buscar notícias REAIS:', error.message);
+    throw new Error(`Falha ao obter notícias reais: ${error.message}`);
   }
 };
