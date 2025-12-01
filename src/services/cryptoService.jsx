@@ -82,10 +82,9 @@ export const fetchWhaleTransactions = async () => {
       }).catch(() => null)
     ]);
 
-    // Se não conseguir dados reais, usar simulados
+    // Verificar se conseguiu dados reais
     if (!btcData?.data?.tickers || !ethData?.data?.tickers) {
-      console.warn('Usando dados simulados para transações whale');
-      return generateMockWhaleTransactions();
+      throw new Error('Não foi possível obter dados reais de transações. Verifique a conexão com a API.');
     }
 
     // Combinar transações de BTC e ETH
@@ -96,31 +95,12 @@ export const fetchWhaleTransactions = async () => {
 
     return whaleTransactions;
   } catch (error) {
-    console.error('Erro ao buscar transações whale:', error);
-    return generateMockWhaleTransactions();
+    console.error('❌ Erro ao buscar transações REAIS:', error.message);
+    throw new Error(`Falha ao obter dados reais de transações: ${error.message}`);
   }
 };
 
-// Função auxiliar para gerar dados simulados
-const generateMockWhaleTransactions = () => {
-  const mockTransactions = [];
-  const cryptos = ['BTC', 'ETH'];
-  
-  for (let i = 0; i < 10; i++) {
-    mockTransactions.push({
-      timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString(),
-      type: Math.random() > 0.5 ? "Compra" : "Venda",
-      cryptoAmount: parseFloat((Math.random() * 100).toFixed(4)),
-      cryptoSymbol: cryptos[Math.floor(Math.random() * cryptos.length)],
-      volume: Math.random() * 10000000,
-      price: Math.random() * 50000,
-      exchange: 'Binance',
-      smartMoneyScore: Math.floor(Math.random() * 100)
-    });
-  }
-  
-  return mockTransactions.sort((a, b) => b.volume - a.volume);
-};
+// REMOVIDO: generateMockWhaleTransactions - apenas dados reais agora
 
 export const fetchTopFormationData = async () => {
   try {

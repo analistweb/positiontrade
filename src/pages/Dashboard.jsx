@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from "framer-motion";
 import { fetchBitcoinDominance } from '../services/analysis/sentimentService';
@@ -6,11 +6,23 @@ import MarketStats from '../components/dashboard/MarketStats';
 import CBBIIndicator from '../components/dashboard/CBBIIndicator';
 import MarketSentiment from '../components/dashboard/MarketSentiment';
 import MarketHeatmap from '../components/dashboard/MarketHeatmap';
+import SystemHealthCheck from '../components/common/SystemHealthCheck';
 import { DataSourceLegend, DataSourceBadge } from '../components/common/DataSourceBadge';
 import { toast } from "sonner";
-import { Activity, Globe, Brain, Flame } from "lucide-react";
+import { Activity, Globe, Brain, Flame, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const Dashboard = () => {
+  const [showHealthCheck, setShowHealthCheck] = useState(false);
+  
   const { data: bitcoinDominance, isLoading: dominanceLoading, error: dominanceError } = useQuery({
     queryKey: ['bitcoinDominance'],
     queryFn: fetchBitcoinDominance,
@@ -51,13 +63,35 @@ const Dashboard = () => {
         variants={itemVariants} 
         className="glass-morphism rounded-2xl p-8"
       >
-        <h1 className="text-4xl sm:text-5xl font-bold mb-4 bg-gradient-to-r from-primary via-purple-400 to-pink-400 bg-clip-text text-transparent">
-          Painel de Criptomoedas
-        </h1>
-        <p className="text-gray-400 text-base sm:text-lg mb-4">
-          Análise em tempo real do mercado com tecnologia avançada
-        </p>
-        <DataSourceLegend />
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl sm:text-5xl font-bold mb-4 bg-gradient-to-r from-primary via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              Painel de Criptomoedas
+            </h1>
+            <p className="text-gray-400 text-base sm:text-lg mb-4">
+              Análise em tempo real do mercado com tecnologia avançada
+            </p>
+            <DataSourceLegend />
+          </div>
+          
+          <Dialog open={showHealthCheck} onOpenChange={setShowHealthCheck}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Settings className="w-4 h-4" />
+                Verificar APIs
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Verificação de Integridade do Sistema</DialogTitle>
+                <DialogDescription>
+                  Teste todas as integrações de API para garantir que os dados são reais e em tempo real
+                </DialogDescription>
+              </DialogHeader>
+              <SystemHealthCheck />
+            </DialogContent>
+          </Dialog>
+        </div>
       </motion.div>
       
       <motion.div 
