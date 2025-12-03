@@ -1,4 +1,4 @@
-import { HomeIcon, TrendingUpIcon, WalletIcon, ActivityIcon, BarChartIcon, ZapIcon } from "lucide-react";
+import { HomeIcon, TrendingUpIcon, WalletIcon, ActivityIcon, BarChartIcon, ZapIcon, Radio } from "lucide-react";
 import Dashboard from "./pages/Dashboard.jsx";
 import Index from "./pages/Index.jsx";
 import AnalisesCompraVenda from "./pages/AnalisesCompraVenda.jsx";
@@ -6,6 +6,7 @@ import PosicaoCarteira from "./pages/PosicaoCarteira.jsx";
 import FormacaoTopo from "./pages/FormacaoTopo.jsx";
 import AnaliseTecnica from "./pages/AnaliseTecnica.jsx";
 import EstrategiaETH from "./pages/EstrategiaETH.jsx";
+import SinaisTrade from "./pages/SinaisTrade.jsx";
 
 export const navItems = [
   {
@@ -14,6 +15,13 @@ export const navItems = [
     icon: <HomeIcon className="h-4 w-4" />,
     page: <Index />,
     description: "Visão geral do mercado com principais indicadores, tendências e notícias em tempo real"
+  },
+  {
+    title: "Sinais de Trade",
+    to: "/sinais-trade",
+    icon: <Radio className="h-4 w-4" />,
+    page: <SinaisTrade />,
+    description: "Sinais em tempo real para BTC, ETH e outras criptomoedas com estratégia M15"
   },
   {
     title: "Análise de Compra/Venda",
