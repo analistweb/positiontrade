@@ -68,38 +68,8 @@ const MarketSentiment = () => {
       } catch (error) {
         const handledError = handleApiError(error, 'buscar dados de sentimento');
         toast.error(handledError.message);
-        
-        // Retorna dados mockados em caso de erro
-        return {
-          overallSentiment: 'neutral',
-          sentimentScore: 50,
-          indicators: [
-            {
-              name: 'Volume de Mercado 24h',
-              value: '30B USD',
-              status: 'neutral',
-              description: 'Volume total de negociação nas últimas 24 horas'
-            },
-            {
-              name: 'Menções em Redes Sociais',
-              value: '1M+',
-              status: 'neutral',
-              description: 'Total de seguidores no Twitter como indicador de interesse social'
-            },
-            {
-              name: 'Dominância de Mercado',
-              value: '45%',
-              status: 'neutral',
-              description: 'Percentual de dominância do Bitcoin no mercado'
-            },
-            {
-              name: 'Variação de Preço 24h',
-              value: '0%',
-              status: 'neutral',
-              description: 'Variação percentual do preço nas últimas 24 horas'
-            }
-          ]
-        };
+        // Propagar erro - sem fallback para dados simulados
+        throw new Error(`Falha ao obter dados reais de sentimento: ${handledError.message}`);
       }
     },
     refetchInterval: 300000 // 5 minutos

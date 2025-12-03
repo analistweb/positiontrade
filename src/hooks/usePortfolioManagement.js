@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 
 const STORAGE_KEY = 'portfolio_holdings';
 
-// Mock data inicial caso não tenha nada no localStorage
+// Dados de EXEMPLO para novos usuários (portfólio pessoal - editável pelo usuário)
+// Não são dados de mercado simulados - são holdings demonstrativos iniciais
 const INITIAL_PORTFOLIO = [
   {
     id: 'bitcoin',
