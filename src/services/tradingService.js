@@ -9,7 +9,7 @@ export const SUPPORTED_PAIRS = {
     name: 'Bitcoin',
     shortName: 'BTC',
     icon: '₿',
-    color: 'hsl(38, 92%, 50%)', // Laranja Bitcoin
+    color: 'hsl(38, 92%, 50%)',
     decimals: 2
   },
   ETHUSDT: {
@@ -17,7 +17,7 @@ export const SUPPORTED_PAIRS = {
     name: 'Ethereum',
     shortName: 'ETH',
     icon: 'Ξ',
-    color: 'hsl(230, 60%, 60%)', // Azul Ethereum
+    color: 'hsl(230, 60%, 60%)',
     decimals: 2
   },
   SOLUSDT: {
@@ -25,7 +25,7 @@ export const SUPPORTED_PAIRS = {
     name: 'Solana',
     shortName: 'SOL',
     icon: '◎',
-    color: 'hsl(280, 70%, 60%)', // Roxo Solana
+    color: 'hsl(280, 70%, 60%)',
     decimals: 2
   },
   BNBUSDT: {
@@ -33,8 +33,56 @@ export const SUPPORTED_PAIRS = {
     name: 'BNB',
     shortName: 'BNB',
     icon: '⬡',
-    color: 'hsl(45, 100%, 50%)', // Amarelo BNB
+    color: 'hsl(45, 100%, 50%)',
     decimals: 2
+  },
+  XRPUSDT: {
+    symbol: 'XRPUSDT',
+    name: 'XRP',
+    shortName: 'XRP',
+    icon: '✕',
+    color: 'hsl(210, 10%, 40%)',
+    decimals: 4
+  },
+  DOGEUSDT: {
+    symbol: 'DOGEUSDT',
+    name: 'Dogecoin',
+    shortName: 'DOGE',
+    icon: 'Ð',
+    color: 'hsl(40, 80%, 55%)',
+    decimals: 5
+  },
+  ADAUSDT: {
+    symbol: 'ADAUSDT',
+    name: 'Cardano',
+    shortName: 'ADA',
+    icon: '₳',
+    color: 'hsl(210, 80%, 50%)',
+    decimals: 4
+  },
+  DOTUSDT: {
+    symbol: 'DOTUSDT',
+    name: 'Polkadot',
+    shortName: 'DOT',
+    icon: '●',
+    color: 'hsl(330, 70%, 55%)',
+    decimals: 3
+  },
+  PAXGUSDT: {
+    symbol: 'PAXGUSDT',
+    name: 'PAX Gold',
+    shortName: 'PAXG',
+    icon: '🥇',
+    color: 'hsl(45, 90%, 50%)',
+    decimals: 2
+  },
+  USDTBRL: {
+    symbol: 'USDTBRL',
+    name: 'Tether',
+    shortName: 'USDT',
+    icon: '₮',
+    color: 'hsl(160, 60%, 45%)',
+    decimals: 4
   }
 };
 
