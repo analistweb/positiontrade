@@ -73,11 +73,11 @@ const EstrategiaETH = () => {
   const [recentTicks, setRecentTicks] = useState([]); // MÓDULO B: Track últimos 3 ticks
   const [intrabarCandle, setIntrabarCandle] = useState(null); // MÓDULO B: Candle em formação
   const [parameters, setParameters] = useState({
-    scoreThreshold: 70,
+    scoreThreshold: 60, // Reduzido de 70 para 60 para capturar mais sinais
     minRR: 1.0,
-    adxMin: 27,
-    rsiOverbought: 70,
-    rsiOversold: 30
+    adxMin: 25, // Reduzido de 27 para 25
+    rsiOverbought: 75, // Aumentado de 70 para 75
+    rsiOversold: 25 // Reduzido de 30 para 25
   });
   
   const audioRef = useRef({
@@ -362,10 +362,10 @@ const EstrategiaETH = () => {
     const avgVolume = volumes.slice(-20).reduce((a, b) => a + b, 0) / 20;
     const volumeOk = triggerCandle.volume >= avgVolume;
 
-    // 8.1 Validação de RSI (evitar extremos)
+    // 8.1 Validação de RSI (ampliado para capturar tendências fortes)
     const currentRSI = rsi[rsi.length - 1];
-    const rsiOkForBuy = currentRSI >= 40 && currentRSI <= 70; // Não sobrecomprado
-    const rsiOkForSell = currentRSI >= 30 && currentRSI <= 60; // Não sobrevendido
+    const rsiOkForBuy = currentRSI >= 30 && currentRSI <= 80; // Ampliado: antes 40-70
+    const rsiOkForSell = currentRSI >= 20 && currentRSI <= 70; // Ampliado: antes 30-60
 
     // 8.2 Confirmação MACD
     const currentMACD = macd.histogram[macd.histogram.length - 1];
