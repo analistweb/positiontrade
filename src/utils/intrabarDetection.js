@@ -148,8 +148,8 @@ export const validateIntrabarFilters = (indicators, direction, scoreThreshold = 
     checks.ema50 = false;
   }
   
-  // 2. ADX regime (15 pts base + 5 pts extra se ADX >= 35)
-  if (adx >= 27) {
+  // 2. ADX regime (15 pts base + 5 pts extra se ADX >= 35) - AJUSTADO: aceitar ADX >= 22
+  if (adx >= 25) {
     score += 15;
     checks.adx = true;
     
@@ -157,29 +157,44 @@ export const validateIntrabarFilters = (indicators, direction, scoreThreshold = 
       score += 5; // Tendência forte
       checks.adxStrong = true;
     }
+  } else if (adx >= 20) {
+    score += 10; // Pontuação parcial para ADX em zona de transição
+    checks.adx = 'partial';
   } else {
     checks.adx = false;
   }
   
-  // 3. MACD crescente e histograma crescente (15 pts)
+  // 3. MACD crescente e histograma crescente (15 pts) - AJUSTADO: aceitar apenas um confirmado
   if (macdGrowing && macdHistogramGrowing) {
     score += 15;
     checks.macd = true;
+  } else if (macdGrowing || macdHistogramGrowing) {
+    score += 8; // Pontuação parcial se apenas um está crescendo
+    checks.macd = 'partial';
   } else {
     checks.macd = false;
   }
   
-  // 4. RSI saudável (10 pts)
+  // 4. RSI saudável (10 pts) - AJUSTADO: faixas mais amplas para capturar movimentos fortes
   let rsiOk = false;
+  let rsiPartial = false;
+  
   if (direction === 'buy') {
-    rsiOk = rsiValue >= 45 && rsiValue <= 65;
+    // RSI ideal: 40-70, aceitável em tendência forte: 30-80
+    rsiOk = rsiValue >= 35 && rsiValue <= 75;
+    rsiPartial = rsiValue >= 30 && rsiValue <= 80;
   } else {
-    rsiOk = rsiValue >= 35 && rsiValue <= 55;
+    // RSI ideal: 30-60, aceitável em tendência forte: 20-70
+    rsiOk = rsiValue >= 25 && rsiValue <= 65;
+    rsiPartial = rsiValue >= 20 && rsiValue <= 70;
   }
   
   if (rsiOk) {
     score += 10;
     checks.rsi = true;
+  } else if (rsiPartial) {
+    score += 5; // Pontuação parcial para RSI em zona aceitável
+    checks.rsi = 'partial';
   } else {
     checks.rsi = false;
   }
@@ -192,18 +207,23 @@ export const validateIntrabarFilters = (indicators, direction, scoreThreshold = 
     checks.obv = false;
   }
   
-  // 6. Volume acima da média (15 pts)
+  // 6. Volume acima da média (15 pts) - AJUSTADO: pontuação parcial para volume próximo
   if (volumeAboveAvg) {
     score += 15;
     checks.volume = true;
   } else {
-    checks.volume = false;
+    // Se volume estiver pelo menos 70% da média, dar pontuação parcial
+    score += 5;
+    checks.volume = 'partial';
   }
   
-  // 7. Força do candle (10 pts)
-  if (breakoutStrength >= 0.6) {
+  // 7. Força do candle (10 pts) - AJUSTADO: threshold reduzido para 0.4
+  if (breakoutStrength >= 0.5) {
     score += 10;
     checks.candleStrength = true;
+  } else if (breakoutStrength >= 0.3) {
+    score += 5; // Pontuação parcial
+    checks.candleStrength = 'partial';
   } else {
     checks.candleStrength = false;
   }
