@@ -1,8 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -23,7 +22,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import CryptoSignalCard from '@/components/trading/CryptoSignalCard';
+import ConnectionStatus from '@/components/strategy/ConnectionStatus';
 import { SUPPORTED_PAIRS } from '@/services/tradingService';
+import { STRATEGY_CONFIG } from '@/config/strategyConfig';
 
 const SinaisTrade = () => {
   const [selectedPairs, setSelectedPairs] = useState(['BTCUSDT', 'ETHUSDT']);
@@ -88,7 +89,14 @@ const SinaisTrade = () => {
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Status de Conexão */}
+              <ConnectionStatus 
+                wsConnected={true}
+                apiStatus="ok"
+                lastUpdate={new Date()}
+              />
+              
               {/* Toggle Som */}
               <div className="flex items-center gap-2">
                 <Switch 
@@ -181,16 +189,19 @@ const SinaisTrade = () => {
                 </p>
                 <ul className="list-disc list-inside space-y-1 ml-2">
                   <li>Identificação do candle de menor corpo (consolidação)</li>
-                  <li>Rompimento com threshold de 0.05%</li>
+                  <li>Rompimento baseado em ATR (volatilidade-aware)</li>
                   <li>Confirmação Didi Index (agulhada)</li>
-                  <li>DMI com ADX &gt; 27 e crescente</li>
-                  <li>EMA50 como filtro de tendência</li>
-                  <li>Volume acima da média</li>
-                  <li>RSI em zona favorável</li>
-                  <li>MACD confirmando momentum</li>
-                  <li>Score de mercado mínimo: 70</li>
-                  <li>TP/SL com Fibonacci Adaptativo</li>
+                  <li>DMI com ADX adaptativo (≥25 normal, 20-25 parcial)</li>
+                  <li>EMA50 + HTF como filtro de tendência</li>
+                  <li>Volume normalizado por volatilidade</li>
+                  <li>RSI regime-aware (30-80 compra, 20-70 venda)</li>
+                  <li>MACD com momentum e divergência</li>
+                  <li>Score probabilístico: Forte ≥70%, Médio 50-69%</li>
+                  <li>TP/SL adaptativos por ADX e ATR</li>
                 </ul>
+                <p className="text-xs mt-2 text-muted-foreground">
+                  Engine v{STRATEGY_CONFIG.version}
+                </p>
               </CardContent>
             </Card>
           </div>
