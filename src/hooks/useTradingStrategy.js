@@ -2,27 +2,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { fetchKlineData, SUPPORTED_PAIRS } from '@/services/tradingService';
-import { 
-  calculateDidiIndex, 
-  calculateDMI, 
-  calculateEMA, 
-  calculateATR,
-  findPivotHigh,
-  findPivotLow,
-  validateRiskReward,
-  detectSwing,
-  calculateAdaptiveTPSL
-} from '@/utils/technicalIndicators';
-import {
-  calculateOBV,
-  calculateRSI,
-  calculateMACD,
-  calculateBreakoutStrength,
-  calculateMarketStrength
-} from '@/utils/advancedIndicators';
+import { calculateSignal, checkExitConditions, prepareIndicators } from '@/services/strategyEngine';
+import { calculateRiskLevels, checkTPSL, calculateDynamicBreakEven } from '@/services/strategyEngine/core/riskManagement';
+import { detectMarketRegime } from '@/services/strategyEngine/core/scoring';
+import { STRATEGY_CONFIG } from '@/config/strategyConfig';
+import { logger } from '@/utils/logger';
 
 /**
- * Hook genérico para estratégia de trading
+ * Hook genérico para estratégia de trading usando o novo Strategy Engine
  * @param {string} symbol - Par de trading (ex: 'BTCUSDT')
  * @param {object} options - Opções de configuração
  */
@@ -31,20 +18,19 @@ export const useTradingStrategy = (symbol, options = {}) => {
     interval = '15m',
     candleLimit = 100,
     refetchInterval = 5000,
-    parameters = {
-      scoreThreshold: 70,
-      minRR: 1.0,
-      adxMin: 27,
-      rsiOverbought: 70,
-      rsiOversold: 30
-    }
+    parameters = STRATEGY_CONFIG.scoring
   } = options;
 
   const [lastSignal, setLastSignal] = useState(null);
   const [conditionsStatus, setConditionsStatus] = useState(null);
   const [activeOperation, setActiveOperation] = useState(null);
   const [signalHistory, setSignalHistory] = useState([]);
-  const [signalStatus, setSignalStatus] = useState('wait'); // 'buy', 'sell', 'wait'
+  const [signalStatus, setSignalStatus] = useState('wait');
+  const [diagnosticData, setDiagnosticData] = useState(null);
+  const [confluenceScores, setConfluenceScores] = useState({ trend: 0, volume: 0, momentum: 0 });
+  const [marketRegime, setMarketRegime] = useState('unknown');
+  
+  const lastUpdateRef = useRef(Date.now());
   
   const pairConfig = SUPPORTED_PAIRS[symbol] || {
     symbol,
@@ -63,218 +49,161 @@ export const useTradingStrategy = (symbol, options = {}) => {
     staleTime: refetchInterval - 1000,
   });
 
-  // Análise da estratégia
+  // Análise da estratégia usando novo engine
   const analyzeStrategy = useCallback((data) => {
-    if (!data || data.length < 100) return null;
+    if (!data || data.length < 50) return null;
     if (activeOperation) return null;
 
-    const closes = data.map(d => d.close);
-    const highs = data.map(d => d.high);
-    const lows = data.map(d => d.low);
-    const opens = data.map(d => d.open);
-    const volumes = data.map(d => d.volume);
-
-    // Detectar pivôs
-    const pivotHighs = findPivotHigh(highs, 5, 2);
-    const pivotLows = findPivotLow(lows, 5, 2);
-
-    // Candle de referência (menor corpo)
-    const last5Candles = data.slice(-6, -1);
-    let smallestCandleIndex = 0;
-    let smallestBody = Infinity;
-
-    last5Candles.forEach((candle, idx) => {
-      const body = Math.abs(candle.close - candle.open);
-      if (body < smallestBody) {
-        smallestBody = body;
-        smallestCandleIndex = idx;
+    const startTime = performance.now();
+    
+    try {
+      // Preparar indicadores
+      const indicators = prepareIndicators(data);
+      
+      // Detectar regime de mercado
+      const regime = detectMarketRegime(indicators.adx, indicators.atr, data);
+      setMarketRegime(regime);
+      
+      // Calcular sinal usando engine central
+      const signalResult = calculateSignal(data, {
+        ...STRATEGY_CONFIG,
+        parameters
+      });
+      
+      // Atualizar scores de confluência
+      setConfluenceScores({
+        trend: signalResult.scores?.trend || 0,
+        volume: signalResult.scores?.volume || 0,
+        momentum: signalResult.scores?.momentum || 0
+      });
+      
+      // Atualizar status das condições
+      setConditionsStatus({
+        breakout: signalResult.breakout,
+        didi: signalResult.indicators?.didi,
+        dmi: {
+          buy: signalResult.direction === 'buy',
+          sell: signalResult.direction === 'sell',
+          adx: indicators.adx,
+          plusDI: indicators.plusDI,
+          minusDI: indicators.minusDI
+        },
+        trend: { 
+          up: signalResult.direction === 'buy', 
+          down: signalResult.direction === 'sell', 
+          ema50: indicators.ema50 
+        },
+        filters: { 
+          volatility: signalResult.filters?.volatilityOk, 
+          volume: signalResult.filters?.volumeOk 
+        },
+        rsi: { 
+          value: indicators.rsi, 
+          buyOk: signalResult.filters?.rsiOkForBuy, 
+          sellOk: signalResult.filters?.rsiOkForSell 
+        },
+        macd: { 
+          bullish: indicators.macdHistogram > 0, 
+          bearish: indicators.macdHistogram < 0, 
+          histogram: indicators.macdHistogram 
+        },
+        marketStrength: signalResult.totalScore,
+        fibonacci: signalResult.fibonacci,
+        currentPrice: data[data.length - 1].close,
+        referenceCandle: signalResult.referenceCandle
+      });
+      
+      // Dados de diagnóstico
+      setDiagnosticData({
+        scoreBreakdown: signalResult.scoreBreakdown,
+        indicators: {
+          breakoutValid: signalResult.breakout?.isValid,
+          trendAligned: signalResult.filters?.trendAligned,
+          candleStrength: signalResult.filters?.candleStrengthOk,
+          volumeConfirm: signalResult.filters?.volumeOk,
+          obvAligned: signalResult.indicators?.obvAligned,
+          macdConfirm: signalResult.indicators?.macdConfirm,
+          didiConfirm: signalResult.indicators?.didiConfirm,
+          rsi: indicators.rsi,
+          adx: indicators.adx,
+          vroc: indicators.vroc,
+          volumeRatio: signalResult.volumeRatio
+        },
+        regime,
+        configVersion: STRATEGY_CONFIG.version
+      });
+      
+      // Verificar se deve gerar sinal
+      if (signalResult.shouldSignal && signalResult.direction) {
+        const currentPrice = data[data.length - 1].close;
+        
+        // Calcular níveis de risco
+        const riskLevels = calculateRiskLevels(
+          currentPrice,
+          signalResult.fibonacci?.swingHigh,
+          signalResult.fibonacci?.swingLow,
+          indicators.adx,
+          indicators.atr,
+          signalResult.direction
+        );
+        
+        const signal = {
+          id: `SIG-${Date.now().toString(36).toUpperCase()}`,
+          type: signalResult.direction === 'buy' ? 'COMPRA' : 'VENDA',
+          symbol,
+          entryPrice: currentPrice,
+          takeProfit: riskLevels.takeProfit,
+          stopLoss: riskLevels.stopLoss,
+          timestamp: new Date().toLocaleString('pt-BR'),
+          strength: signalResult.totalScore,
+          rr: riskLevels.riskRewardRatio,
+          category: signalResult.category,
+          regime,
+          conditions: signalResult
+        };
+        
+        // Log do sinal
+        logger.signal(signal.type, {
+          symbol,
+          entry: currentPrice,
+          tp: riskLevels.takeProfit,
+          sl: riskLevels.stopLoss,
+          score: signalResult.totalScore,
+          regime
+        });
+        
+        setLastSignal(signal);
+        setSignalStatus(signalResult.direction);
+        setActiveOperation(signal);
+        setSignalHistory(prev => [signal, ...prev].slice(0, 50));
+        
+        // Log de latência
+        const latency = performance.now() - startTime;
+        logger.latency('analyzeStrategy', latency);
+        
+        return signal;
       }
-    });
-
-    const referenceCandle = last5Candles[smallestCandleIndex];
-    const triggerCandle = data[data.length - 1];
-
-    // Indicadores técnicos
-    const didiIndex = calculateDidiIndex(closes);
-    const dmi = calculateDMI(highs, lows, closes);
-    const atr = calculateATR(highs, lows, closes, 14);
-    const ema50 = calculateEMA(closes, 50);
-    const obv = calculateOBV(closes, volumes);
-    const rsi = calculateRSI(closes, 14);
-    const macd = calculateMACD(closes);
-
-    // Verificar rompimento
-    const breakoutThreshold = 0.0005;
-    const buyBreakout = triggerCandle.close > referenceCandle.high * (1 + breakoutThreshold);
-    const sellBreakout = triggerCandle.close < referenceCandle.low * (1 - breakoutThreshold);
-
-    // Validações Didi Index
-    const didiConfirmBuy = didiIndex.short[didiIndex.short.length - 1] > didiIndex.medium[didiIndex.medium.length - 1] &&
-                          didiIndex.short[didiIndex.short.length - 1] > didiIndex.long[didiIndex.long.length - 1];
-    
-    const didiConfirmSell = didiIndex.short[didiIndex.short.length - 1] < didiIndex.medium[didiIndex.medium.length - 1] &&
-                            didiIndex.short[didiIndex.short.length - 1] < didiIndex.long[didiIndex.long.length - 1];
-
-    // Validações DMI
-    const currentDMI = dmi[dmi.length - 1];
-    const prevDMI = dmi[dmi.length - 2];
-    const dmiConfirmBuy = currentDMI.plusDI > currentDMI.minusDI && 
-                          currentDMI.adx > parameters.adxMin && 
-                          currentDMI.adx > prevDMI.adx;
-    
-    const dmiConfirmSell = currentDMI.minusDI > currentDMI.plusDI && 
-                           currentDMI.adx > parameters.adxMin && 
-                           currentDMI.adx > prevDMI.adx;
-
-    // Tendência EMA50
-    const currentPrice = triggerCandle.close;
-    const ema50Confirm = ema50[ema50.length - 1];
-    const trendUp = currentPrice > ema50Confirm;
-    const trendDown = currentPrice < ema50Confirm;
-
-    // Filtros
-    const avgATR = atr.slice(-100).reduce((a, b) => a + b, 0) / 100;
-    const volatilityOk = atr[atr.length - 1] >= avgATR * 0.5;
-    
-    const avgVolume = volumes.slice(-20).reduce((a, b) => a + b, 0) / 20;
-    const volumeOk = triggerCandle.volume >= avgVolume;
-
-    // RSI
-    const currentRSI = rsi[rsi.length - 1];
-    const rsiOkForBuy = currentRSI >= 40 && currentRSI <= parameters.rsiOverbought;
-    const rsiOkForSell = currentRSI >= parameters.rsiOversold && currentRSI <= 60;
-
-    // MACD
-    const currentMACD = macd.histogram[macd.histogram.length - 1];
-    const prevMACD = macd.histogram[macd.histogram.length - 2];
-    const macdBullish = currentMACD > 0 && currentMACD > prevMACD;
-    const macdBearish = currentMACD < 0 && currentMACD < prevMACD;
-
-    // OBV Trend
-    const obvTrend = obv[obv.length - 1] > obv[obv.length - 5] ? 'up' : 'down';
-
-    // Market Strength Score
-    const marketStrengthScore = calculateMarketStrength({
-      rsi: currentRSI,
-      macdHistogram: currentMACD,
-      macdHistogramPrev: prevMACD,
-      volumeRatio: triggerCandle.volume / avgVolume,
-      obvTrend
-    });
-
-    // Swing Detection + Fibonacci Adaptativo
-    const swings = detectSwing(highs, lows, 20, 5);
-    const { swingHigh, swingLow } = swings;
-
-    let calculatedTP = null;
-    let calculatedSL = null;
-    let rrValidation = null;
-    let direction = null;
-    let fibUsed = null;
-    
-    const adxStrength = currentDMI.adx;
-    
-    if (buyBreakout && swingHigh && swingLow) {
-      direction = 'buy';
-      const result = calculateAdaptiveTPSL(currentPrice, swingHigh, swingLow, adxStrength, direction);
-      calculatedTP = result.tp;
-      calculatedSL = result.sl;
-      fibUsed = result.fibUsed;
       
-      if (calculatedTP && calculatedSL) {
-        rrValidation = validateRiskReward(currentPrice, calculatedTP, calculatedSL, parameters.minRR);
+      // Log de rejeição se houver breakout mas score insuficiente
+      if (signalResult.breakout?.isValid && !signalResult.shouldSignal) {
+        logger.rejection(signalResult.rejectionReason || 'Score insuficiente', {
+          score: signalResult.totalScore,
+          threshold: parameters.thresholds?.strong || 70,
+          regime
+        });
       }
-    } else if (sellBreakout && swingHigh && swingLow) {
-      direction = 'sell';
-      const result = calculateAdaptiveTPSL(currentPrice, swingHigh, swingLow, adxStrength, direction);
-      calculatedTP = result.tp;
-      calculatedSL = result.sl;
-      fibUsed = result.fibUsed;
       
-      if (calculatedTP && calculatedSL) {
-        rrValidation = validateRiskReward(currentPrice, calculatedTP, calculatedSL, parameters.minRR);
-      }
+      setSignalStatus('wait');
+      
+      // Log de latência
+      const latency = performance.now() - startTime;
+      logger.latency('analyzeStrategy', latency);
+      
+      return null;
+    } catch (err) {
+      logger.error('useTradingStrategy', 'Erro na análise', { error: err.message, symbol });
+      return null;
     }
-
-    // Construir status das condições
-    const conditions = {
-      breakout: { buy: buyBreakout, sell: sellBreakout },
-      didi: { buy: didiConfirmBuy, sell: didiConfirmSell },
-      dmi: { 
-        buy: dmiConfirmBuy, 
-        sell: dmiConfirmSell, 
-        adx: currentDMI.adx,
-        plusDI: currentDMI.plusDI,
-        minusDI: currentDMI.minusDI
-      },
-      trend: { up: trendUp, down: trendDown, ema50: ema50Confirm },
-      filters: { volatility: volatilityOk, volume: volumeOk },
-      rsi: { value: currentRSI, buyOk: rsiOkForBuy, sellOk: rsiOkForSell },
-      macd: { bullish: macdBullish, bearish: macdBearish, histogram: currentMACD },
-      marketStrength: marketStrengthScore,
-      fibonacci: { tp: calculatedTP, sl: calculatedSL, fibUsed, rrValidation },
-      currentPrice,
-      referenceCandle
-    };
-
-    setConditionsStatus(conditions);
-
-    // Verificar sinal de COMPRA
-    const buyConditionsMet = buyBreakout && didiConfirmBuy && dmiConfirmBuy && trendUp && 
-                            volatilityOk && volumeOk && rsiOkForBuy && 
-                            marketStrengthScore >= parameters.scoreThreshold &&
-                            calculatedTP && calculatedSL && rrValidation?.valid;
-
-    // Verificar sinal de VENDA
-    const sellConditionsMet = sellBreakout && didiConfirmSell && dmiConfirmSell && trendDown && 
-                             volatilityOk && volumeOk && rsiOkForSell && 
-                             marketStrengthScore >= parameters.scoreThreshold &&
-                             calculatedTP && calculatedSL && rrValidation?.valid;
-
-    if (buyConditionsMet) {
-      const signal = {
-        type: 'COMPRA',
-        symbol,
-        entryPrice: currentPrice,
-        takeProfit: calculatedTP,
-        stopLoss: calculatedSL,
-        timestamp: new Date().toLocaleString('pt-BR'),
-        strength: marketStrengthScore,
-        rr: rrValidation.ratio,
-        conditions
-      };
-      
-      setLastSignal(signal);
-      setSignalStatus('buy');
-      setActiveOperation(signal);
-      setSignalHistory(prev => [signal, ...prev].slice(0, 50));
-      
-      return signal;
-    }
-
-    if (sellConditionsMet) {
-      const signal = {
-        type: 'VENDA',
-        symbol,
-        entryPrice: currentPrice,
-        takeProfit: calculatedTP,
-        stopLoss: calculatedSL,
-        timestamp: new Date().toLocaleString('pt-BR'),
-        strength: marketStrengthScore,
-        rr: rrValidation.ratio,
-        conditions
-      };
-      
-      setLastSignal(signal);
-      setSignalStatus('sell');
-      setActiveOperation(signal);
-      setSignalHistory(prev => [signal, ...prev].slice(0, 50));
-      
-      return signal;
-    }
-
-    setSignalStatus('wait');
-    return null;
   }, [symbol, parameters, activeOperation]);
 
   // Verificar TP/SL da operação ativa
@@ -282,27 +211,17 @@ export const useTradingStrategy = (symbol, options = {}) => {
     if (!activeOperation || !data || data.length === 0) return;
 
     const currentPrice = data[data.length - 1].close;
-    let hitTP = false;
-    let hitSL = false;
-
-    if (activeOperation.type === 'COMPRA') {
-      hitTP = currentPrice >= activeOperation.takeProfit;
-      hitSL = currentPrice <= activeOperation.stopLoss;
-    } else {
-      hitTP = currentPrice <= activeOperation.takeProfit;
-      hitSL = currentPrice >= activeOperation.stopLoss;
-    }
-
-    if (hitTP) {
-      const profitPercent = activeOperation.type === 'COMPRA' 
-        ? ((activeOperation.takeProfit - activeOperation.entryPrice) / activeOperation.entryPrice * 100).toFixed(2)
-        : ((activeOperation.entryPrice - activeOperation.takeProfit) / activeOperation.entryPrice * 100).toFixed(2);
-
+    const previousCandle = data.length >= 2 ? data[data.length - 2] : null;
+    
+    // Verificar TP/SL
+    const result = checkTPSL(activeOperation, currentPrice);
+    
+    if (result.hit) {
       const closedSignal = {
         ...activeOperation,
         closedAt: new Date().toLocaleString('pt-BR'),
-        profit: profitPercent,
-        status: 'SUCESSO'
+        profit: result.profit,
+        status: result.type === 'tp' ? 'SUCESSO' : 'STOP LOSS'
       };
 
       setSignalHistory(prev => {
@@ -315,34 +234,37 @@ export const useTradingStrategy = (symbol, options = {}) => {
       setActiveOperation(null);
       setSignalStatus('wait');
       
-      toast.success(`${pairConfig.shortName}: Take Profit atingido! +${profitPercent}%`);
-      return { type: 'tp', signal: closedSignal };
+      if (result.type === 'tp') {
+        toast.success(`${pairConfig.shortName}: Take Profit atingido! +${result.profit}%`);
+        logger.info('TradeResult', 'TP atingido', { symbol, profit: result.profit });
+      } else {
+        toast.error(`${pairConfig.shortName}: Stop Loss atingido. ${result.profit}%`);
+        logger.info('TradeResult', 'SL atingido', { symbol, loss: result.profit });
+      }
+      
+      return { type: result.type, signal: closedSignal };
     }
-
-    if (hitSL) {
-      const lossPercent = activeOperation.type === 'COMPRA' 
-        ? ((activeOperation.stopLoss - activeOperation.entryPrice) / activeOperation.entryPrice * 100).toFixed(2)
-        : ((activeOperation.entryPrice - activeOperation.stopLoss) / activeOperation.entryPrice * 100).toFixed(2);
-
-      const closedSignal = {
-        ...activeOperation,
-        closedAt: new Date().toLocaleString('pt-BR'),
-        profit: lossPercent,
-        status: 'STOP LOSS'
-      };
-
-      setSignalHistory(prev => {
-        const updated = [...prev];
-        const idx = updated.findIndex(s => s.timestamp === activeOperation.timestamp);
-        if (idx >= 0) updated[idx] = closedSignal;
-        return updated;
-      });
+    
+    // Verificar break-even dinâmico
+    if (previousCandle) {
+      const breakEvenResult = calculateDynamicBreakEven(
+        activeOperation,
+        currentPrice,
+        0, // OBV acceleration - simplificado
+        previousCandle
+      );
       
-      setActiveOperation(null);
-      setSignalStatus('wait');
-      
-      toast.error(`${pairConfig.shortName}: Stop Loss atingido. ${lossPercent}%`);
-      return { type: 'sl', signal: closedSignal };
+      if (breakEvenResult.breakEvenActivated && !activeOperation.breakEvenActivated) {
+        setActiveOperation(prev => ({
+          ...prev,
+          stopLoss: breakEvenResult.newSL,
+          breakEvenActivated: true
+        }));
+        
+        toast.success('🔄 Break-even ativado!', {
+          description: `Novo SL: ${breakEvenResult.newSL.toFixed(2)}`
+        });
+      }
     }
 
     return null;
@@ -351,6 +273,7 @@ export const useTradingStrategy = (symbol, options = {}) => {
   // Efeito para análise quando dados mudam
   useEffect(() => {
     if (marketData && marketData.length > 0) {
+      lastUpdateRef.current = Date.now();
       checkActiveOperation(marketData);
       analyzeStrategy(marketData);
     }
@@ -359,11 +282,12 @@ export const useTradingStrategy = (symbol, options = {}) => {
   // Função para cancelar operação manualmente
   const cancelOperation = useCallback(() => {
     if (activeOperation) {
+      logger.info('Trade', 'Operação cancelada manualmente', { symbol, signal: activeOperation.id });
       setActiveOperation(null);
       setSignalStatus('wait');
       toast.info(`${pairConfig.shortName}: Operação cancelada manualmente`);
     }
-  }, [activeOperation, pairConfig]);
+  }, [activeOperation, pairConfig, symbol]);
 
   return {
     // Data
@@ -378,6 +302,12 @@ export const useTradingStrategy = (symbol, options = {}) => {
     conditionsStatus,
     activeOperation,
     signalHistory,
+    
+    // New Engine Data
+    diagnosticData,
+    confluenceScores,
+    marketRegime,
+    lastUpdate: lastUpdateRef.current,
     
     // Actions
     refetch,

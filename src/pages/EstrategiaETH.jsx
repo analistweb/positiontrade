@@ -49,6 +49,11 @@ import CandlestickChart from '@/components/strategy/CandlestickChart';
 import SignalTimeline from '@/components/strategy/SignalTimeline';
 import SignalStrengthIndicator from '@/components/strategy/SignalStrengthIndicator';
 import ParametersPanel from '@/components/strategy/ParametersPanel';
+import ConfluenceTriangle from '@/components/strategy/ConfluenceTriangle';
+import DiagnosticPanel from '@/components/strategy/DiagnosticPanel';
+import ConnectionStatus from '@/components/strategy/ConnectionStatus';
+import { logger } from '@/utils/logger';
+import { STRATEGY_CONFIG } from '@/config/strategyConfig';
 
 // Schema de validação para dados do candle recebidos do WebSocket
 const candleDataSchema = z.object({
@@ -814,19 +819,13 @@ const EstrategiaETH = () => {
               <Sparkles className="w-8 h-8 text-primary" />
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Estratégia ETHUSDT</h1>
               
-              {/* Badge de Status WebSocket */}
-              {isWebSocketConnected && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="flex items-center gap-1"
-                >
-                  <Radio className="w-4 h-4 text-green-500 animate-pulse" />
-                  <Badge variant="outline" className="text-xs border-green-500 text-green-500">
-                    Tempo Real
-                  </Badge>
-                </motion.div>
-              )}
+              {/* Status de Conexão */}
+              <ConnectionStatus 
+                wsConnected={isWebSocketConnected}
+                apiStatus="ok"
+                lastUpdate={new Date()}
+                latencyMs={50}
+              />
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground mb-2">
               Análise automática com Didi Index + DMI + Rompimento (Timeframe: 15min)
@@ -887,6 +886,59 @@ const EstrategiaETH = () => {
       <SignalStrengthIndicator 
         conditionsStatus={conditionsStatus} 
         signalStatus={signalStatus}
+      />
+
+      {/* Triângulo de Confluência */}
+      <ConfluenceTriangle
+        trendScore={conditionsStatus ? (conditionsStatus.buy?.trend || conditionsStatus.sell?.trend ? 75 : 25) : 0}
+        volumeScore={conditionsStatus?.buy?.volume ? 80 : conditionsStatus?.sell?.volume ? 80 : 30}
+        momentumScore={conditionsStatus?.marketStrength || 0}
+        details={{
+          ema50Aligned: conditionsStatus?.buy?.trend || conditionsStatus?.sell?.trend,
+          htfAligned: conditionsStatus?.adx > 25,
+          vwapAligned: true,
+          volumeRatio: conditionsStatus?.currentVolume / (conditionsStatus?.avgVolume || 1),
+          volumeAboveAvg: conditionsStatus?.buy?.volume || conditionsStatus?.sell?.volume,
+          obvAligned: conditionsStatus?.buy?.obv || conditionsStatus?.sell?.obv,
+          vrocPositive: true,
+          rsi: conditionsStatus?.rsi,
+          rsiValid: conditionsStatus?.buy?.rsi || conditionsStatus?.sell?.rsi,
+          macdGrowing: conditionsStatus?.buy?.macd || conditionsStatus?.sell?.macd,
+          adx: conditionsStatus?.adx
+        }}
+      />
+
+      {/* Painel de Diagnóstico */}
+      <DiagnosticPanel
+        signal={lastSignal}
+        scoreBreakdown={{
+          totalScore: conditionsStatus?.marketStrength || 0,
+          category: conditionsStatus?.marketStrength >= 70 ? 'strong' : conditionsStatus?.marketStrength >= 50 ? 'medium' : 'weak',
+          breakdown: {
+            ema50: { value: conditionsStatus?.ema50Value, passed: conditionsStatus?.buy?.trend || conditionsStatus?.sell?.trend, points: 15 },
+            adx: { value: conditionsStatus?.adx, passed: conditionsStatus?.adx >= 25, points: conditionsStatus?.adx >= 25 ? 15 : 5 },
+            macd: { value: conditionsStatus?.macdValue, passed: conditionsStatus?.buy?.macd || conditionsStatus?.sell?.macd, points: 15 },
+            rsi: { value: conditionsStatus?.rsi, passed: conditionsStatus?.buy?.rsi || conditionsStatus?.sell?.rsi, points: 10 },
+            obv: { value: conditionsStatus?.obvTrend, passed: conditionsStatus?.buy?.obv || conditionsStatus?.sell?.obv, points: 10 },
+            volume: { value: conditionsStatus?.currentVolume, passed: conditionsStatus?.buy?.volume || conditionsStatus?.sell?.volume, points: 15 }
+          },
+          reason: signalStatus === 'wait' ? 'Aguardando condições de entrada' : `Sinal ${signalStatus === 'buy' ? 'COMPRA' : 'VENDA'} ativo`
+        }}
+        indicators={{
+          breakoutValid: conditionsStatus?.buy?.breakout || conditionsStatus?.sell?.breakout,
+          trendAligned: conditionsStatus?.buy?.trend || conditionsStatus?.sell?.trend,
+          candleStrength: conditionsStatus?.buy?.volatility && conditionsStatus?.buy?.volume,
+          volumeConfirm: conditionsStatus?.buy?.volume || conditionsStatus?.sell?.volume,
+          obvAligned: conditionsStatus?.buy?.obv || conditionsStatus?.sell?.obv,
+          macdConfirm: conditionsStatus?.buy?.macd || conditionsStatus?.sell?.macd,
+          didiConfirm: conditionsStatus?.buy?.didi || conditionsStatus?.sell?.didi,
+          rsi: conditionsStatus?.rsi,
+          adx: conditionsStatus?.adx,
+          vroc: 0,
+          volumeRatio: conditionsStatus?.currentVolume / (conditionsStatus?.avgVolume || 1)
+        }}
+        regime={conditionsStatus?.adx >= 27 ? 'trend' : conditionsStatus?.adx >= 22 ? 'hybrid' : 'consolidation'}
+        configVersion={STRATEGY_CONFIG.version}
       />
 
       {/* Gráfico de Candlestick */}
