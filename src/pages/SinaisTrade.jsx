@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import CryptoSignalCard from '@/components/trading/CryptoSignalCard';
 import ConnectionStatus from '@/components/strategy/ConnectionStatus';
 import { SUPPORTED_PAIRS } from '@/services/tradingService';
-import { STRATEGY_CONFIG } from '@/config/strategyConfig';
+import { defaultStrategyConfig as STRATEGY_CONFIG } from '@/config/strategyConfig';
 
 const SinaisTrade = () => {
   const [selectedPairs, setSelectedPairs] = useState(['BTCUSDT', 'ETHUSDT']);
