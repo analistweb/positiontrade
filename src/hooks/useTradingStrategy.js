@@ -5,7 +5,7 @@ import { fetchKlineData, SUPPORTED_PAIRS } from '@/services/tradingService';
 import { calculateSignal, checkExitConditions, prepareIndicators } from '@/services/strategyEngine';
 import { calculateRiskLevels, checkTPSL, calculateDynamicBreakEven } from '@/services/strategyEngine/core/riskManagement';
 import { detectMarketRegime } from '@/services/strategyEngine/core/scoring';
-import { STRATEGY_CONFIG } from '@/config/strategyConfig';
+import { defaultStrategyConfig as STRATEGY_CONFIG } from '@/config/strategyConfig';
 import { logger } from '@/utils/logger';
 
 /**
