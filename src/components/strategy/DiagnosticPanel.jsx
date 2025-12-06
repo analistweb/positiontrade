@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { STRATEGY_CONFIG } from '@/config/strategyConfig';
+import { defaultStrategyConfig as STRATEGY_CONFIG } from '@/config/strategyConfig';
 
 /**
  * Painel Inteligente de Diagnóstico
