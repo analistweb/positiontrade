@@ -53,7 +53,7 @@ import ConfluenceTriangle from '@/components/strategy/ConfluenceTriangle';
 import DiagnosticPanel from '@/components/strategy/DiagnosticPanel';
 import ConnectionStatus from '@/components/strategy/ConnectionStatus';
 import { logger } from '@/utils/logger';
-import { STRATEGY_CONFIG } from '@/config/strategyConfig';
+import { defaultStrategyConfig as STRATEGY_CONFIG } from '@/config/strategyConfig';
 
 // Schema de validação para dados do candle recebidos do WebSocket
 const candleDataSchema = z.object({
