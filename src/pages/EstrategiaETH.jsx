@@ -908,36 +908,11 @@ const EstrategiaETH = () => {
         }}
       />
 
-      {/* Painel de Diagnóstico */}
+      {/* Painel de Diagnóstico do Score */}
       <DiagnosticPanel
         signal={lastSignal}
-        scoreBreakdown={{
-          totalScore: conditionsStatus?.marketStrength || 0,
-          category: conditionsStatus?.marketStrength >= 70 ? 'strong' : conditionsStatus?.marketStrength >= 50 ? 'medium' : 'weak',
-          breakdown: {
-            ema50: { value: conditionsStatus?.ema50Value, passed: conditionsStatus?.buy?.trend || conditionsStatus?.sell?.trend, points: 15 },
-            adx: { value: conditionsStatus?.adx, passed: conditionsStatus?.adx >= 25, points: conditionsStatus?.adx >= 25 ? 15 : 5 },
-            macd: { value: conditionsStatus?.macdValue, passed: conditionsStatus?.buy?.macd || conditionsStatus?.sell?.macd, points: 15 },
-            rsi: { value: conditionsStatus?.rsi, passed: conditionsStatus?.buy?.rsi || conditionsStatus?.sell?.rsi, points: 10 },
-            obv: { value: conditionsStatus?.obvTrend, passed: conditionsStatus?.buy?.obv || conditionsStatus?.sell?.obv, points: 10 },
-            volume: { value: conditionsStatus?.currentVolume, passed: conditionsStatus?.buy?.volume || conditionsStatus?.sell?.volume, points: 15 }
-          },
-          reason: signalStatus === 'wait' ? 'Aguardando condições de entrada' : `Sinal ${signalStatus === 'buy' ? 'COMPRA' : 'VENDA'} ativo`
-        }}
-        indicators={{
-          breakoutValid: conditionsStatus?.buy?.breakout || conditionsStatus?.sell?.breakout,
-          trendAligned: conditionsStatus?.buy?.trend || conditionsStatus?.sell?.trend,
-          candleStrength: conditionsStatus?.buy?.volatility && conditionsStatus?.buy?.volume,
-          volumeConfirm: conditionsStatus?.buy?.volume || conditionsStatus?.sell?.volume,
-          obvAligned: conditionsStatus?.buy?.obv || conditionsStatus?.sell?.obv,
-          macdConfirm: conditionsStatus?.buy?.macd || conditionsStatus?.sell?.macd,
-          didiConfirm: conditionsStatus?.buy?.didi || conditionsStatus?.sell?.didi,
-          rsi: conditionsStatus?.rsi,
-          adx: conditionsStatus?.adx,
-          vroc: 0,
-          volumeRatio: conditionsStatus?.currentVolume / (conditionsStatus?.avgVolume || 1)
-        }}
-        regime={conditionsStatus?.adx >= 27 ? 'trend' : conditionsStatus?.adx >= 22 ? 'hybrid' : 'consolidation'}
+        conditionsStatus={conditionsStatus}
+        parameters={parameters}
         configVersion={STRATEGY_CONFIG.version}
       />
 
