@@ -8,6 +8,7 @@ import MarketSentiment from '../components/dashboard/MarketSentiment';
 import MarketHeatmap from '../components/dashboard/MarketHeatmap';
 import SystemHealthCheck from '../components/common/SystemHealthCheck';
 import { DataSourceLegend, DataSourceBadge } from '../components/common/DataSourceBadge';
+import { MarketNewsSection } from '../features/market-news';
 import { toast } from "sonner";
 import { Activity, Globe, Brain, Flame, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -149,6 +150,10 @@ const Dashboard = () => {
           <DataSourceBadge isRealData={true} size="sm" />
         </div>
         <MarketSentiment />
+      </motion.div>
+
+      <motion.div variants={itemVariants}>
+        <MarketNewsSection />
       </motion.div>
       
       <motion.div 
