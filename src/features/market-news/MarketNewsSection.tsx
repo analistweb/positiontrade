@@ -1,0 +1,167 @@
+/**
+ * Market News Section Component
+ * Pure UI component - no business logic
+ * 
+ * Displays news that impact Bitcoin from macroeconomic perspective
+ */
+
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Newspaper, ExternalLink, TrendingUp, AlertTriangle, Minus } from 'lucide-react';
+import { useMarketNews } from './useMarketNews';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { ClassifiedNewsItem } from './types';
+
+// Impact level badge colors using semantic tokens
+const impactStyles = {
+  high: {
+    bg: 'bg-destructive/10',
+    text: 'text-destructive',
+    border: 'border-destructive/30',
+    icon: TrendingUp,
+    label: 'Alto Impacto',
+  },
+  medium: {
+    bg: 'bg-warning/10',
+    text: 'text-warning',
+    border: 'border-warning/30',
+    icon: AlertTriangle,
+    label: 'Médio Impacto',
+  },
+  low: {
+    bg: 'bg-muted/10',
+    text: 'text-muted-foreground',
+    border: 'border-muted/30',
+    icon: Minus,
+    label: 'Baixo Impacto',
+  },
+};
+
+interface NewsItemCardProps {
+  news: ClassifiedNewsItem;
+  index: number;
+}
+
+function NewsItemCard({ news, index }: NewsItemCardProps) {
+  const style = impactStyles[news.impactLevel];
+  const ImpactIcon = style.icon;
+  
+  const formattedDate = new Date(news.publishedAt).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const handleClick = () => {
+    if (news.url) {
+      window.open(news.url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.1 }}
+      onClick={handleClick}
+      className={`
+        group p-4 rounded-lg border transition-all cursor-pointer
+        bg-card/50 hover:bg-card/80
+        border-border/30 hover:border-primary/30
+        ${news.url ? 'cursor-pointer' : 'cursor-default'}
+      `}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`
+              inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium
+              ${style.bg} ${style.text} ${style.border} border
+            `}>
+              <ImpactIcon className="w-3 h-3" />
+              {style.label}
+            </span>
+          </div>
+          
+          <h3 className="font-medium text-foreground leading-tight mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+            {news.title}
+          </h3>
+          
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="font-medium">{news.source}</span>
+            <span>•</span>
+            <time dateTime={news.publishedAt}>{formattedDate}</time>
+          </div>
+        </div>
+        
+        {news.url && (
+          <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+        )}
+      </div>
+    </motion.article>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-3">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="p-4 rounded-lg border border-border/30 bg-card/50">
+          <Skeleton className="h-4 w-24 mb-3" />
+          <Skeleton className="h-5 w-full mb-2" />
+          <Skeleton className="h-5 w-3/4 mb-3" />
+          <Skeleton className="h-3 w-32" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="text-center py-8 text-muted-foreground">
+      <Newspaper className="w-10 h-10 mx-auto mb-3 opacity-50" />
+      <p className="text-sm">Nenhuma notícia relevante no momento</p>
+    </div>
+  );
+}
+
+export function MarketNewsSection() {
+  const { status, data } = useMarketNews();
+
+  // Error state - don't render section at all (doesn't break Home)
+  if (status === 'error') {
+    return null;
+  }
+
+  return (
+    <section className="glass-morphism rounded-2xl p-6 border border-border/30 hover:border-primary/30 transition-all">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-3 bg-amber-500/10 rounded-xl">
+          <Newspaper className="w-6 h-6 text-amber-400" />
+        </div>
+        <div>
+          <h2 className="text-xl sm:text-2xl font-semibold text-foreground">
+            Notícias que Impactam o Bitcoin
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Fatores macroeconômicos e geopolíticos
+          </p>
+        </div>
+      </div>
+
+      {status === 'loading' && <LoadingSkeleton />}
+      
+      {status === 'empty' && <EmptyState />}
+      
+      {status === 'success' && (
+        <div className="space-y-3">
+          {data.map((news, index) => (
+            <NewsItemCard key={news.id} news={news} index={index} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
