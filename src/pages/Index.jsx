@@ -23,6 +23,7 @@ import { DataSourceBadge } from '../components/common/DataSourceBadge';
 import LivePriceCard from '../components/dashboard/LivePriceCard';
 import FearGreedIndex from '../components/dashboard/FearGreedIndex';
 import WhaleActivityPreview from '../components/dashboard/WhaleActivityPreview';
+import { MarketNewsSection } from '../features/market-news';
 import { toast } from "sonner";
 
 const Index = () => {
@@ -201,6 +202,11 @@ const Index = () => {
                 </div>
               </CardContent>
             </Card>
+          </motion.div>
+
+          {/* Market News Section */}
+          <motion.div variants={itemVariants} className="mb-8">
+            <MarketNewsSection />
           </motion.div>
 
           {/* Quick Links */}
