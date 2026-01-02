@@ -52,6 +52,7 @@ import ParametersPanel from '@/components/strategy/ParametersPanel';
 import ConfluenceTriangle from '@/components/strategy/ConfluenceTriangle';
 import DiagnosticPanel from '@/components/strategy/DiagnosticPanel';
 import ConnectionStatus from '@/components/strategy/ConnectionStatus';
+import BacktestPanel from '@/components/strategy/BacktestPanel';
 import { logger } from '@/utils/logger';
 import { defaultStrategyConfig as STRATEGY_CONFIG } from '@/config/strategyConfig';
 
@@ -915,6 +916,9 @@ const EstrategiaETH = () => {
         parameters={parameters}
         configVersion={STRATEGY_CONFIG.version}
       />
+
+      {/* Painel de Backtest e Monte Carlo */}
+      <BacktestPanel symbol="ETHUSDT" />
 
       {/* Gráfico de Candlestick */}
       <CandlestickChart marketData={marketData} lastSignal={lastSignal} />
