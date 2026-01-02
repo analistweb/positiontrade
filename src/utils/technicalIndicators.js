@@ -469,9 +469,17 @@ export const calculateAdaptiveTPSL = (entryPrice, swingHigh, swingLow, adx, dire
   let sl = null;
   
   if (direction === 'buy') {
-    // COMPRA: TP acima, SL abaixo
-    tp = swingHigh.value - (legSize * tpFib);
-    sl = swingLow.value + (legSize * slFib * 1.2);
+    // COMPRA: TP acima da entrada, SL abaixo da entrada
+    // TP = entrada + extensão de Fibonacci baseada na pernada
+    // SL = entrada - retração de Fibonacci baseada na pernada
+    tp = entryPrice + (legSize * tpFib);
+    sl = entryPrice - (legSize * slFib);
+    
+    // Garantir SL mínimo baseado no swingLow menos buffer
+    const slFromSwing = swingLow.value - (legSize * 0.1);
+    if (sl > slFromSwing) {
+      sl = Math.max(slFromSwing, entryPrice - (legSize * slFib * 1.5));
+    }
     
     // Validar: TP > entrada > SL
     if (tp <= entryPrice || sl >= entryPrice) {
@@ -485,9 +493,17 @@ export const calculateAdaptiveTPSL = (entryPrice, swingHigh, swingLow, adx, dire
       return { tp: null, sl: null, legSize, fibUsed: { tpFib, slFib } };
     }
   } else if (direction === 'sell') {
-    // VENDA: TP abaixo, SL acima
-    tp = swingLow.value + (legSize * tpFib);
-    sl = swingHigh.value - (legSize * slFib * 1.2);
+    // VENDA: TP abaixo da entrada, SL acima da entrada
+    // TP = entrada - extensão de Fibonacci baseada na pernada
+    // SL = entrada + retração de Fibonacci baseada na pernada
+    tp = entryPrice - (legSize * tpFib);
+    sl = entryPrice + (legSize * slFib);
+    
+    // Garantir SL máximo baseado no swingHigh mais buffer
+    const slFromSwing = swingHigh.value + (legSize * 0.1);
+    if (sl < slFromSwing) {
+      sl = Math.min(slFromSwing, entryPrice + (legSize * slFib * 1.5));
+    }
     
     // Validar: SL > entrada > TP
     if (tp >= entryPrice || sl <= entryPrice) {
@@ -502,10 +518,10 @@ export const calculateAdaptiveTPSL = (entryPrice, swingHigh, swingLow, adx, dire
     }
   }
   
-  // Validar limites de SL (0.25% a 0.45%)
+  // Validar limites de SL (0.15% a 1.5% - expandido para permitir mais trades)
   const slPercent = Math.abs((sl - entryPrice) / entryPrice);
-  if (slPercent < 0.0025 || slPercent > 0.0045) {
-    console.warn('⚠️ SL fora dos limites (0.25% - 0.45%)', {
+  if (slPercent < 0.0015 || slPercent > 0.015) {
+    console.warn('⚠️ SL fora dos limites (0.15% - 1.5%)', {
       slPercent: (slPercent * 100).toFixed(2) + '%',
       entrada: entryPrice,
       sl
