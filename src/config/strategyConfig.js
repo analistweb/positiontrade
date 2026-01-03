@@ -1,30 +1,32 @@
 /**
- * CONFIGURAÇÃO VERSIONADA DA ESTRATÉGIA
- * Todos os parâmetros calibráveis em um único local
- * Versão: 2.0.0
+ * CONFIGURAÇÃO VERSIONADA DA ESTRATÉGIA ETHUSDT 15m
+ * Sistema de versionamento para A/B testing e validação estatística
+ * Versão: 3.0.0
  */
 
-export const STRATEGY_VERSION = '2.0.0';
+export const STRATEGY_VERSION = '3.0.0';
 
-export const defaultStrategyConfig = {
-  version: STRATEGY_VERSION,
+// ============================================
+// BASELINE v1.0 (CONGELADO - NÃO MODIFICAR)
+// Referência para métricas: PF, Expectativa, DD, Win Rate
+// ============================================
+export const STRATEGY_V1_0_BASELINE = Object.freeze({
+  version: '1.0.0',
+  frozen: true,
+  description: 'Baseline original com todos os indicadores - REFERÊNCIA',
   
-  // ========== HIERARQUIA DE INDICADORES ==========
   indicators: {
-    // Nível 1 - Obrigatórios (nunca bloqueiam, mas são essenciais)
     level1: {
       breakout: { weight: 20, required: true },
       trendDirection: { weight: 15, required: true },
       candleStrength: { weight: 10, required: true }
     },
-    // Nível 2 - Confirmações fortes
     level2: {
       volume: { weight: 15, required: false },
       obv: { weight: 10, required: false },
       macd: { weight: 15, required: false },
       didi: { weight: 5, required: false }
     },
-    // Nível 3 - Situacionais (ajustam probabilidade)
     level3: {
       rsi: { weight: 5, required: false },
       adx: { weight: 5, required: false },
@@ -32,62 +34,36 @@ export const defaultStrategyConfig = {
     }
   },
   
-  // ========== SCORING PROBABILÍSTICO ==========
   scoring: {
-    thresholds: {
-      strong: 70,    // >= 70% = Sinal Forte
-      medium: 50,    // 50-69% = Sinal Médio
-      weak: 30,      // 30-49% = Sinal Fraco (só em modo alta forte)
-      rejected: 0    // < 30% = Rejeitado
-    },
-    // Score mínimo por regime de mercado
-    minScoreByRegime: {
-      trend: 50,        // Em tendência, aceita médio
-      consolidation: 70, // Em consolidação, exige forte
-      strongRally: 45   // Em alta forte, mais permissivo
-    }
+    thresholds: { strong: 70, medium: 50, weak: 30, rejected: 0 },
+    minScoreByRegime: { trend: 50, consolidation: 70, strongRally: 45 }
   },
   
-  // ========== BREAKOUT COM ATR ==========
   breakout: {
-    // Substituir 0.05% fixo por múltiplo de ATR
-    atrMultiplier: {
-      strong: 0.5,    // Breakout forte: >= 0.5 ATR
-      moderate: 0.3,  // Breakout moderado: >= 0.3 ATR
-      weak: 0.15      // Breakout fraco: >= 0.15 ATR
-    },
-    // Categorias de breakout
+    atrMultiplier: { strong: 0.5, moderate: 0.3, weak: 0.15 },
     categories: {
       strong: { minScore: 80, allowEntry: true },
       moderate: { minScore: 60, allowEntry: true, requireVolumeConfirm: true },
       partial: { minScore: 45, allowEntry: false, allowInStrongRally: true }
     },
-    // Filtros de exaustão
     exhaustion: {
-      maxWickRatio: 0.5,     // Wick contra <= 50% do corpo
-      minBodyRatio: 0.6,     // Corpo >= 60% do range
-      maxDistanceFromVWAP: 1.5 // Max 1.5 ATR de distância da EMA/VWAP
+      maxWickRatio: 0.5,
+      minBodyRatio: 0.6,
+      maxDistanceFromVWAP: 1.5
     }
   },
   
-  // ========== RSI FLEXÍVEL ==========
   rsi: {
     period: 14,
-    ranges: {
-      buy: { min: 30, max: 80 },
-      sell: { min: 20, max: 70 }
-    },
-    // Penalização por zona extrema (não bloqueia)
+    ranges: { buy: { min: 30, max: 80 }, sell: { min: 20, max: 70 } },
     penaltyZones: {
       overbought: { threshold: 75, penalty: 5 },
       oversold: { threshold: 25, penalty: 5 }
     },
-    // Midline para regime de tendência
     midline: 50,
-    midlineBuffer: 10 // 40-60 zona neutra
+    midlineBuffer: 10
   },
   
-  // ========== ADX ADAPTATIVO ==========
   adx: {
     period: 14,
     regimes: {
@@ -96,160 +72,495 @@ export const defaultStrategyConfig = {
       weakTrend: { min: 20, scoreBonus: 0, reduceConfirmWeight: true },
       chop: { max: 20, blockContinuation: true, allowMeanReversion: true }
     },
-    // Gating: ADX < 20 bloqueia trades de continuação
-    gating: {
-      minForContinuation: 20,
-      minForFullWeight: 25
-    }
+    gating: { minForContinuation: 20, minForFullWeight: 25 }
   },
   
-  // ========== TENDÊNCIA EMA + HTF ==========
   trend: {
-    ema: {
-      fast: 9,
-      medium: 21,
-      slow: 50
-    },
-    // Exigir acordo de pelo menos 2 de 3
+    ema: { fast: 9, medium: 21, slow: 50 },
     minAgreement: 2,
-    // Slope da EMA para confirmar direção
     slopeMinPeriods: 3,
-    slopeMinChange: 0.001 // 0.1% mudança mínima
+    slopeMinChange: 0.001
   },
   
-  // ========== CANDLE DE FORÇA ==========
   candleStrength: {
-    minBodyToATR: 0.7,        // Body >= 70% do ATR
-    minTrueRangeToATR: 1.0,   // True Range >= 100% do ATR
-    closingPosition: 0.33,    // Fechamento no terço superior/inferior
-    maxWickAgainstRatio: 0.35 // Wick contra <= 35% do body
+    minBodyToATR: 0.7,
+    minTrueRangeToATR: 1.0,
+    closingPosition: 0.33,
+    maxWickAgainstRatio: 0.35
   },
   
-  // ========== FIBONACCI ADAPTATIVO ==========
   fibonacci: {
-    // Lookback fixo para evitar repaint
     pivotLookback: { major: 20, minor: 5 },
-    // Níveis por força do ADX
     levelsByADX: {
-      strong: { tp: 0.618, sl: 0.382 },    // ADX > 40
-      moderate: { tp: 0.5, sl: 0.5 },      // ADX 30-40
-      weak: { tp: 0.382, sl: 0.618 }       // ADX 25-30
+      strong: { tp: 0.618, sl: 0.382 },
+      moderate: { tp: 0.5, sl: 0.5 },
+      weak: { tp: 0.382, sl: 0.618 }
     },
-    // Nunca atualizar pivôs até próximo confirmado
     lockUntilNextPivot: true
   },
   
-  // ========== GESTÃO DE RISCO ==========
   risk: {
-    // SL/TP baseados em ATR e pernada
     slMultiplierByADX: {
-      strong: { atr: 0.5, legFib: 0.5 },   // ADX > 40
-      moderate: { atr: 0.7, legFib: 0.618 }, // ADX 30-40
-      weak: { atr: 1.0, legFib: 0.786 }    // ADX 25-30
+      strong: { atr: 0.5, legFib: 0.5 },
+      moderate: { atr: 0.7, legFib: 0.618 },
+      weak: { atr: 1.0, legFib: 0.786 }
     },
     tpMultiplierByADX: {
-      strong: { atr: 1.5, legFib: 0.618 }, // ADX > 40
-      moderate: { atr: 1.2, legFib: 0.5 }, // ADX 30-40
-      weak: { atr: 1.0, legFib: 0.382 }    // ADX 25-30
+      strong: { atr: 1.5, legFib: 0.618 },
+      moderate: { atr: 1.2, legFib: 0.5 },
+      weak: { atr: 1.0, legFib: 0.382 }
     },
-    // Limites de R:R
     minRiskReward: 1.0,
     idealRiskReward: 1.3,
-    // Range de SL em % do preço
     slRange: { min: 0.25, max: 0.45 },
-    // Position sizing
-    maxRiskPerTrade: 0.02, // 2% do capital
-    // Break-even dinâmico
-    breakEven: {
-      activateAt: 0.6,     // 60% do caminho para TP
-      moveToLevel: 'previousCandleLow' // Mover SL para low/high anterior
-    }
+    maxRiskPerTrade: 0.02,
+    breakEven: { activateAt: 0.6, moveToLevel: 'previousCandleLow' }
   },
   
-  // ========== REENTRADAS ==========
   reentry: {
     enabled: true,
-    // Cooldown em candles antes de permitir reentrada
     cooldownCandles: 2,
-    // Pullback máximo para considerar reentrada válida
-    maxPullback: 0.382, // Fib 38.2%
-    // Exigir volume sustentado
+    maxPullback: 0.382,
     requireSustainedVolume: true,
-    // Max adds por posição
     maxAdds: 1,
-    // Score deve melhorar para adicionar
     requireScoreImprovement: true
   },
   
-  // ========== MODO ALTA FORTE ==========
   strongRally: {
     enabled: true,
-    // Detecção automática
-    detection: {
-      minPriceChange: 0.03,      // 3% em 4h
-      minVolumeMultiplier: 1.5,  // 1.5x volume médio
-      minADX: 30
-    },
-    // Parâmetros relaxados
+    detection: { minPriceChange: 0.03, minVolumeMultiplier: 1.5, minADX: 30 },
     relaxedParams: {
       rsiRange: { buy: { min: 25, max: 85 }, sell: { min: 15, max: 75 } },
       minScore: 45,
       acceptPartialBreakout: true,
       volumeMinMultiplier: 0.8
     },
-    // Guardas de exaustão mantidos
     exhaustionGuards: {
-      maxDistanceFromEMA: 2.0,   // 2 ATR da EMA
+      maxDistanceFromEMA: 2.0,
       maxWickRatio: 0.6,
       checkOBVDivergence: true
     }
   },
   
-  // ========== VOLUME ==========
   volume: {
     avgPeriod: 20,
-    // Thresholds normalizados
-    thresholds: {
-      strong: 1.5,     // >= 1.5x média
-      normal: 1.0,     // >= 1.0x média
-      weak: 0.7,       // >= 0.7x média (parcial)
-      insufficient: 0  // < 0.7x média
-    }
+    thresholds: { strong: 1.5, normal: 1.0, weak: 0.7, insufficient: 0 }
   },
   
-  // ========== MACD ==========
   macd: {
     fast: 12,
     slow: 26,
     signal: 9,
-    // Aceitar MACD positivo OU cruzando
     acceptCrossingOnly: true,
-    // Preferir histograma crescente
     preferGrowingHistogram: true,
-    // Penalizar divergência persistente
     divergencePenalty: 10
   },
   
-  // ========== JANELAS DE TEMPO ==========
   timeFilters: {
-    enabled: false, // Desabilitado por padrão (crypto 24/7)
-    // Evitar primeiros/últimos minutos do candle
-    avoidCandleEdges: {
-      enabled: true,
-      minutesFromStart: 2,
-      minutesFromEnd: 1
+    enabled: false,
+    avoidCandleEdges: { enabled: true, minutesFromStart: 2, minutesFromEnd: 1 }
+  },
+  
+  diagnostics: {
+    enabled: true,
+    logLevel: 'info',
+    persistToStorage: true,
+    maxStoredLogs: 500,
+    includeInputHash: true,
+    includeFullMetrics: true
+  },
+  
+  // Métricas do baseline (a serem preenchidas após backtest)
+  baselineMetrics: {
+    profitFactor: null,
+    expectancy: null,
+    maxDrawdown: null,
+    winRate: null,
+    sharpeRatio: null,
+    sortinoRatio: null
+  }
+});
+
+// ============================================
+// v1.1 - NÚCLEO SIMPLIFICADO (Pullback + ATR Fixo)
+// Remove RSI, MACD, OBV, Score de mercado
+// Mantém: EMA50, ADX, Volume, Pivots
+// ============================================
+export const STRATEGY_V1_1 = {
+  version: '1.1.0',
+  description: 'Núcleo simplificado: EMA50 + ADX + Volume + Pivots + ATR fixo',
+  
+  // ===== ENTRADA SIMPLIFICADA =====
+  entry: {
+    // Indicadores REMOVIDOS (Fase 1)
+    useRSI: false,
+    useMACD: false,
+    useOBV: false,
+    useMarketScore: false,
+    useDidi: false,
+    
+    // Núcleo mantido
+    emaLength: 50,
+    emaSlopeThreshold: 0.0005,     // Inclinação mínima da EMA
+    emaSlopeLookback: 5,           // Candles para calcular slope
+    
+    adxMin: 25,                    // ADX mínimo para entrada
+    adxTrendStrong: 30,            // ADX para tendência forte
+    
+    // Validação de Pullback (30-60% da pernada)
+    pullbackMin: 0.30,
+    pullbackMax: 0.60,
+    
+    // Volume mínimo = média
+    volumeMultiplier: 1.0,
+    volumeAvgPeriod: 20,
+    
+    // Pivots estruturais
+    pivotLookback: 5,
+    minLegSize: 0.002,             // 0.2% mínimo de pernada
+  },
+  
+  // ===== GESTÃO DE RISCO ATR FIXA =====
+  risk: {
+    // SL/TP fixos baseados em ATR
+    slMultiplier: 1.35,            // SL = 1.35 * ATR (média de 1.2-1.5)
+    tpMultiplier: 2.75,            // TP = 2.75 * ATR (média de 2.5-3.0)
+    
+    // Limites de SL em % do preço
+    slMinPercent: 0.3,             // Mínimo 0.3%
+    slMaxPercent: 1.5,             // Máximo 1.5%
+    
+    // Risco por trade
+    riskPerTrade: 0.005,           // 0.5% máximo por trade
+    
+    // Não usar TP/SL dinâmicos
+    useDynamicTPSL: false,
+    
+    // Saída parcial em 1R
+    partialExitEnabled: true,
+    partialExitAt: 1.0,            // Em 1R
+    partialExitPercent: 0.35,      // 35% da posição
+    
+    // Break-even em 1.5R
+    breakEvenEnabled: true,
+    moveToBreakevenAt: 1.5,
+  },
+  
+  // ===== FILTRO DE REGIME DE MERCADO =====
+  regime: {
+    enabled: true,
+    adxMinRegime: 20,              // ADX mínimo para permitir trade
+    emaSlopeMin: 0.0003,           // Inclinação mínima da EMA50
+    maxDistanceFromEMA: 1.5,       // Máximo 1.5 * ATR de distância
+  },
+  
+  // ===== PARÂMETROS DE INDICADORES (simplificados) =====
+  trend: {
+    ema: { fast: 9, medium: 21, slow: 50 },
+    slopeMinPeriods: 5,
+    slopeMinChange: 0.0005
+  },
+  
+  fibonacci: {
+    pivotLookback: { major: 20, minor: 5 },
+    levelsByADX: {
+      strong: { tp: 0.618, sl: 0.382 },
+      moderate: { tp: 0.5, sl: 0.5 },
+      weak: { tp: 0.382, sl: 0.618 }
     }
   },
   
-  // ========== LOGGING E DIAGNÓSTICO ==========
+  volume: {
+    avgPeriod: 20,
+    thresholds: { strong: 1.5, normal: 1.0, weak: 0.7, insufficient: 0 }
+  },
+  
+  breakout: {
+    atrMultiplier: { strong: 0.5, moderate: 0.3, weak: 0.15 },
+    exhaustion: {
+      maxWickRatio: 0.5,
+      minBodyRatio: 0.5,
+      maxDistanceFromVWAP: 1.5
+    }
+  },
+  
+  candleStrength: {
+    minBodyToATR: 0.5,
+    minTrueRangeToATR: 0.8,
+    closingPosition: 0.33,
+    maxWickAgainstRatio: 0.4
+  },
+  
   diagnostics: {
     enabled: true,
-    logLevel: 'info', // 'debug', 'info', 'warn', 'error'
+    logLevel: 'info',
+    includeInputHash: true,
+    includeFullMetrics: true
+  }
+};
+
+// ============================================
+// v1.2 - v1.1 + Filtro ADX Aprimorado
+// ============================================
+export const STRATEGY_V1_2 = {
+  ...STRATEGY_V1_1,
+  version: '1.2.0',
+  description: 'v1.1 + Filtro ADX aprimorado (ADX rising)',
+  
+  entry: {
+    ...STRATEGY_V1_1.entry,
+    adxMin: 22,
+    adxTrendStrong: 28,
+    adxRising: true,               // ADX deve estar subindo
+    adxRisingLookback: 3,          // Candles para verificar
+  },
+};
+
+// ============================================
+// v1.3 - v1.2 + Saída Parcial em 1R
+// ============================================
+export const STRATEGY_V1_3 = {
+  ...STRATEGY_V1_2,
+  version: '1.3.0',
+  description: 'v1.2 + Saída parcial agressiva em 1R',
+  
+  risk: {
+    ...STRATEGY_V1_2.risk,
+    partialExitAt: 1.0,
+    partialExitPercent: 0.40,      // 40% da posição
+  },
+};
+
+// ============================================
+// v1.4 - v1.3 + RSI como Filtro de Extremos
+// ============================================
+export const STRATEGY_V1_4 = {
+  ...STRATEGY_V1_3,
+  version: '1.4.0',
+  description: 'v1.3 + RSI para descartar extremos',
+  
+  entry: {
+    ...STRATEGY_V1_3.entry,
+    useRSI: true,
+    rsiAsFilter: true,             // Apenas como filtro, não como condição
+    rsiOverbought: 75,             // Bloqueia compra se RSI > 75
+    rsiOversold: 25,               // Bloqueia venda se RSI < 25
+    rsiPeriod: 14,
+  },
+};
+
+// ============================================
+// CRITÉRIOS DE APROVAÇÃO ESTATÍSTICA
+// ============================================
+export const APPROVAL_CRITERIA = Object.freeze({
+  // Métricas mínimas
+  minProfitFactor: 1.3,
+  minSharpe: 0.5,
+  minSortino: 0.7,
+  
+  // Risco
+  maxWorstCase5Percent: -0.25,     // Pior cenário 5% não pode ser < -25%
+  maxDrawdown: 0.30,               // Max drawdown 30%
+  
+  // Probabilidades
+  minProfitProbability: 0.60,      // 60% chance de lucro
+  maxRuinProbability: 0.05,        // Máximo 5% chance de ruína
+  
+  // Dados mínimos
+  minTrades: 30,
+  
+  // Monte Carlo
+  monteCarloPermutations: 1000,
+  confidenceLevel: 0.95,
+  
+  // Walk-forward
+  walkForwardWindows: 3,           // 3 janelas de validação
+  minWinRatePerWindow: 0.40,       // 40% min por janela
+});
+
+// ============================================
+// VERSÃO ATIVA
+// ============================================
+export const ACTIVE_VERSION = 'v1.1';
+
+export const getActiveConfig = () => {
+  const versions = {
+    'v1.0': STRATEGY_V1_0_BASELINE,
+    'v1.1': STRATEGY_V1_1,
+    'v1.2': STRATEGY_V1_2,
+    'v1.3': STRATEGY_V1_3,
+    'v1.4': STRATEGY_V1_4,
+  };
+  
+  return versions[ACTIVE_VERSION] || STRATEGY_V1_1;
+};
+
+export const getAllVersions = () => [
+  { id: 'v1.0', config: STRATEGY_V1_0_BASELINE, frozen: true, label: 'Baseline (Congelado)' },
+  { id: 'v1.1', config: STRATEGY_V1_1, frozen: false, label: 'Núcleo Simplificado' },
+  { id: 'v1.2', config: STRATEGY_V1_2, frozen: false, label: '+ ADX Rising' },
+  { id: 'v1.3', config: STRATEGY_V1_3, frozen: false, label: '+ Parcial 1R' },
+  { id: 'v1.4', config: STRATEGY_V1_4, frozen: false, label: '+ RSI Filtro' },
+];
+
+// ============================================
+// CONFIGURAÇÃO LEGADA (compatibilidade)
+// ============================================
+export const defaultStrategyConfig = {
+  version: STRATEGY_VERSION,
+  
+  indicators: {
+    level1: {
+      breakout: { weight: 20, required: true },
+      trendDirection: { weight: 15, required: true },
+      candleStrength: { weight: 10, required: true }
+    },
+    level2: {
+      volume: { weight: 15, required: false },
+      obv: { weight: 10, required: false },
+      macd: { weight: 15, required: false },
+      didi: { weight: 5, required: false }
+    },
+    level3: {
+      rsi: { weight: 5, required: false },
+      adx: { weight: 5, required: false },
+      vroc: { weight: 0, required: false }
+    }
+  },
+  
+  scoring: {
+    thresholds: { strong: 70, medium: 50, weak: 30, rejected: 0 },
+    minScoreByRegime: { trend: 50, consolidation: 70, strongRally: 45 }
+  },
+  
+  breakout: {
+    atrMultiplier: { strong: 0.5, moderate: 0.3, weak: 0.15 },
+    categories: {
+      strong: { minScore: 80, allowEntry: true },
+      moderate: { minScore: 60, allowEntry: true, requireVolumeConfirm: true },
+      partial: { minScore: 45, allowEntry: false, allowInStrongRally: true }
+    },
+    exhaustion: {
+      maxWickRatio: 0.5,
+      minBodyRatio: 0.6,
+      maxDistanceFromVWAP: 1.5
+    }
+  },
+  
+  rsi: {
+    period: 14,
+    ranges: { buy: { min: 30, max: 80 }, sell: { min: 20, max: 70 } },
+    penaltyZones: {
+      overbought: { threshold: 75, penalty: 5 },
+      oversold: { threshold: 25, penalty: 5 }
+    },
+    midline: 50,
+    midlineBuffer: 10
+  },
+  
+  adx: {
+    period: 14,
+    regimes: {
+      strongTrend: { min: 35, scoreBonus: 10 },
+      normalTrend: { min: 25, scoreBonus: 5 },
+      weakTrend: { min: 20, scoreBonus: 0, reduceConfirmWeight: true },
+      chop: { max: 20, blockContinuation: true, allowMeanReversion: true }
+    },
+    gating: { minForContinuation: 20, minForFullWeight: 25 }
+  },
+  
+  trend: {
+    ema: { fast: 9, medium: 21, slow: 50 },
+    minAgreement: 2,
+    slopeMinPeriods: 3,
+    slopeMinChange: 0.001
+  },
+  
+  candleStrength: {
+    minBodyToATR: 0.7,
+    minTrueRangeToATR: 1.0,
+    closingPosition: 0.33,
+    maxWickAgainstRatio: 0.35
+  },
+  
+  fibonacci: {
+    pivotLookback: { major: 20, minor: 5 },
+    levelsByADX: {
+      strong: { tp: 0.618, sl: 0.382 },
+      moderate: { tp: 0.5, sl: 0.5 },
+      weak: { tp: 0.382, sl: 0.618 }
+    },
+    lockUntilNextPivot: true
+  },
+  
+  risk: {
+    slMultiplierByADX: {
+      strong: { atr: 0.5, legFib: 0.5 },
+      moderate: { atr: 0.7, legFib: 0.618 },
+      weak: { atr: 1.0, legFib: 0.786 }
+    },
+    tpMultiplierByADX: {
+      strong: { atr: 1.5, legFib: 0.618 },
+      moderate: { atr: 1.2, legFib: 0.5 },
+      weak: { atr: 1.0, legFib: 0.382 }
+    },
+    minRiskReward: 1.0,
+    idealRiskReward: 1.3,
+    slRange: { min: 0.15, max: 1.5 },
+    maxRiskPerTrade: 0.02,
+    breakEven: { activateAt: 0.6, moveToLevel: 'previousCandleLow' }
+  },
+  
+  reentry: {
+    enabled: true,
+    cooldownCandles: 2,
+    maxPullback: 0.382,
+    requireSustainedVolume: true,
+    maxAdds: 1,
+    requireScoreImprovement: true
+  },
+  
+  strongRally: {
+    enabled: true,
+    detection: { minPriceChange: 0.03, minVolumeMultiplier: 1.5, minADX: 30 },
+    relaxedParams: {
+      rsiRange: { buy: { min: 25, max: 85 }, sell: { min: 15, max: 75 } },
+      minScore: 45,
+      acceptPartialBreakout: true,
+      volumeMinMultiplier: 0.8
+    },
+    exhaustionGuards: {
+      maxDistanceFromEMA: 2.0,
+      maxWickRatio: 0.6,
+      checkOBVDivergence: true
+    }
+  },
+  
+  volume: {
+    avgPeriod: 20,
+    thresholds: { strong: 1.5, normal: 1.0, weak: 0.7, insufficient: 0 }
+  },
+  
+  macd: {
+    fast: 12,
+    slow: 26,
+    signal: 9,
+    acceptCrossingOnly: true,
+    preferGrowingHistogram: true,
+    divergencePenalty: 10
+  },
+  
+  timeFilters: {
+    enabled: false,
+    avoidCandleEdges: { enabled: true, minutesFromStart: 2, minutesFromEnd: 1 }
+  },
+  
+  diagnostics: {
+    enabled: true,
+    logLevel: 'info',
     persistToStorage: true,
     maxStoredLogs: 500,
-    // Incluir hash do input para reprodutibilidade
     includeInputHash: true,
-    // Incluir todas as métricas no sinal
     includeFullMetrics: true
   }
 };
@@ -258,16 +569,16 @@ export const defaultStrategyConfig = {
  * Configurações específicas por ativo
  */
 export const assetConfigs = {
-  BTCUSDT: {
-    name: 'Bitcoin',
-    volatilityProfile: 'medium',
+  ETHUSDT: {
+    name: 'Ethereum',
+    volatilityProfile: 'medium-high',
     expectedVolume: 'high',
     atrMultiplier: 1.0,
     customParams: {}
   },
-  ETHUSDT: {
-    name: 'Ethereum',
-    volatilityProfile: 'medium-high',
+  BTCUSDT: {
+    name: 'Bitcoin',
+    volatilityProfile: 'medium',
     expectedVolume: 'high',
     atrMultiplier: 1.0,
     customParams: {}
@@ -276,7 +587,7 @@ export const assetConfigs = {
     name: 'Solana',
     volatilityProfile: 'high',
     expectedVolume: 'medium',
-    atrMultiplier: 1.2, // Mais volátil
+    atrMultiplier: 1.2,
     customParams: {
       breakout: { atrMultiplier: { strong: 0.6 } }
     }
@@ -287,55 +598,6 @@ export const assetConfigs = {
     expectedVolume: 'medium',
     atrMultiplier: 1.0,
     customParams: {}
-  },
-  XRPUSDT: {
-    name: 'XRP',
-    volatilityProfile: 'high',
-    expectedVolume: 'medium',
-    atrMultiplier: 1.3,
-    customParams: {}
-  },
-  DOGEUSDT: {
-    name: 'Dogecoin',
-    volatilityProfile: 'very-high',
-    expectedVolume: 'variable',
-    atrMultiplier: 1.5,
-    customParams: {
-      scoring: { thresholds: { strong: 75 } } // Mais conservador para memes
-    }
-  },
-  ADAUSDT: {
-    name: 'Cardano',
-    volatilityProfile: 'high',
-    expectedVolume: 'medium',
-    atrMultiplier: 1.2,
-    customParams: {}
-  },
-  DOTUSDT: {
-    name: 'Polkadot',
-    volatilityProfile: 'high',
-    expectedVolume: 'medium',
-    atrMultiplier: 1.2,
-    customParams: {}
-  },
-  PAXGUSDT: {
-    name: 'PAX Gold',
-    volatilityProfile: 'low',
-    expectedVolume: 'low',
-    atrMultiplier: 0.7, // Menos volátil (ouro)
-    customParams: {
-      breakout: { atrMultiplier: { strong: 0.3 } }
-    }
-  },
-  USDTUSDC: {
-    name: 'USDT/USDC',
-    volatilityProfile: 'minimal',
-    expectedVolume: 'variable',
-    atrMultiplier: 0.5,
-    customParams: {
-      // Stablecoin - estratégia diferente
-      enabled: false
-    }
   }
 };
 
@@ -346,11 +608,9 @@ export const getConfigForAsset = (symbol, customOverrides = {}) => {
   const baseConfig = { ...defaultStrategyConfig };
   const assetConfig = assetConfigs[symbol] || {};
   
-  // Deep merge das configurações
   const merged = deepMerge(baseConfig, assetConfig.customParams || {});
   const final = deepMerge(merged, customOverrides);
   
-  // Adicionar metadata do ativo
   final.asset = {
     symbol,
     name: assetConfig.name || symbol,
@@ -361,9 +621,6 @@ export const getConfigForAsset = (symbol, customOverrides = {}) => {
   return final;
 };
 
-/**
- * Deep merge helper
- */
 const deepMerge = (target, source) => {
   const output = { ...target };
   
