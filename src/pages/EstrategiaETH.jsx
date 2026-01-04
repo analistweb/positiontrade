@@ -5,7 +5,24 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
-import { ArrowUpCircle, ArrowDownCircle, AlertTriangle, RefreshCw, Sparkles, Radio } from 'lucide-react';
+import { 
+  ArrowUpCircle, 
+  ArrowDownCircle, 
+  AlertTriangle, 
+  RefreshCw, 
+  Sparkles, 
+  Radio,
+  GitBranch,
+  Zap,
+  BarChart3,
+  Target,
+  Shield,
+  TrendingUp,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Activity
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -54,7 +71,7 @@ import DiagnosticPanel from '@/components/strategy/DiagnosticPanel';
 import ConnectionStatus from '@/components/strategy/ConnectionStatus';
 import BacktestPanel from '@/components/strategy/BacktestPanel';
 import { logger } from '@/utils/logger';
-import { defaultStrategyConfig as STRATEGY_CONFIG } from '@/config/strategyConfig';
+import { defaultStrategyConfig as STRATEGY_CONFIG, getAllVersions, ACTIVE_VERSION, APPROVAL_CRITERIA } from '@/config/strategyConfig';
 
 // Schema de validação para dados do candle recebidos do WebSocket
 const candleDataSchema = z.object({
@@ -806,73 +823,131 @@ const EstrategiaETH = () => {
   if (error) return <ErrorDisplay message="Erro ao carregar dados de mercado" />;
 
   return (
-    <div className="container mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 pb-20">
-      {/* Header com gradiente e animação */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-background border border-primary/20 p-6 sm:p-8"
-      >
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -mr-32 -mt-32" />
-        <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-          <div className="w-full sm:w-auto">
-            <div className="flex items-center gap-3 mb-2">
-              <Sparkles className="w-8 h-8 text-primary" />
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">Estratégia ETHUSDT</h1>
-              
-              {/* Status de Conexão */}
-              <ConnectionStatus 
-                wsConnected={isWebSocketConnected}
-                apiStatus="ok"
-                lastUpdate={new Date()}
-                latencyMs={50}
-              />
-            </div>
-            <p className="text-xs sm:text-sm text-muted-foreground mb-2">
-              Análise automática com Didi Index + DMI + Rompimento (Timeframe: 15min)
-            </p>
-            
-            {/* Badge de Sinal Atual */}
-            <div className="flex items-center gap-2 mt-2">
-              {signalStatus === 'buy' && (
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: "spring", duration: 0.5 }}
+    <div className="min-h-screen bg-background pb-20">
+      {/* Hero Header with Strategy Version */}
+      <div className="strategy-hero border-b border-border/50 mb-6">
+        <div className="strategy-hero-glow" />
+        <div className="relative container mx-auto px-4 py-6 md:py-8">
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+            {/* Left Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <motion.div 
+                  className="relative"
+                  animate={{ scale: [1, 1.02, 1] }}
+                  transition={{ duration: 3, repeat: Infinity }}
                 >
-                  <Badge className="bg-green-500 text-white hover:bg-green-600 text-sm px-3 py-1">
-                    🟢 Sinal de Compra Ativo
-                  </Badge>
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-muted flex items-center justify-center shadow-lg shadow-primary/20">
+                    <Sparkles className="w-8 h-8 text-primary-foreground" />
+                  </div>
+                  {signalStatus !== 'wait' && (
+                    <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-background flex items-center justify-center ${
+                      signalStatus === 'buy' ? 'bg-success' : 'bg-danger'
+                    }`}>
+                      {signalStatus === 'buy' ? (
+                        <ArrowUpCircle className="w-3 h-3 text-success-foreground" />
+                      ) : (
+                        <ArrowDownCircle className="w-3 h-3 text-danger-foreground" />
+                      )}
+                    </div>
+                  )}
                 </motion.div>
-              )}
-              {signalStatus === 'sell' && (
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: "spring", duration: 0.5 }}
-                >
-                  <Badge className="bg-red-500 text-white hover:bg-red-600 text-sm px-3 py-1">
-                    🔴 Sinal de Venda Ativo
-                  </Badge>
-                </motion.div>
-              )}
-              {signalStatus === 'wait' && (
-                <Badge variant="outline" className="text-sm px-3 py-1 border-muted-foreground/30">
-                  ⚪ Aguardando Condições
+                
+                <div>
+                  <div className="flex items-center gap-3 mb-1">
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Estratégia ETHUSDT</h1>
+                    <ConnectionStatus 
+                      wsConnected={isWebSocketConnected}
+                      apiStatus="ok"
+                      lastUpdate={new Date()}
+                      latencyMs={50}
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Análise automática com Didi Index + DMI + Rompimento
+                  </p>
+                </div>
+              </div>
+
+              {/* Version & Status Badges */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge className="version-badge version-badge-active gap-1.5">
+                  <GitBranch className="w-3 h-3" />
+                  Engine {ACTIVE_VERSION}
                 </Badge>
-              )}
+                <Badge variant="outline" className="gap-1.5">
+                  <Clock className="w-3 h-3" />
+                  M15
+                </Badge>
+                <Badge variant="outline" className="gap-1.5">
+                  <BarChart3 className="w-3 h-3" />
+                  ETHUSDT
+                </Badge>
+                
+                {/* Signal Status Badge */}
+                {signalStatus === 'buy' && (
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", duration: 0.5 }}
+                  >
+                    <Badge className="bg-success text-success-foreground gap-1 animate-pulse">
+                      <ArrowUpCircle className="w-3 h-3" />
+                      Sinal de Compra Ativo
+                    </Badge>
+                  </motion.div>
+                )}
+                {signalStatus === 'sell' && (
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", duration: 0.5 }}
+                  >
+                    <Badge className="bg-danger text-danger-foreground gap-1 animate-pulse">
+                      <ArrowDownCircle className="w-3 h-3" />
+                      Sinal de Venda Ativo
+                    </Badge>
+                  </motion.div>
+                )}
+                {signalStatus === 'wait' && (
+                  <Badge variant="secondary" className="gap-1">
+                    <Activity className="w-3 h-3" />
+                    Aguardando Condições
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Right Section - Quick Stats & Actions */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              {/* Quick Stats Cards */}
+              <div className="flex items-center gap-3">
+                <div className="metric-card flex flex-col items-center px-4 py-2 min-w-[80px]">
+                  <span className="text-xs text-muted-foreground mb-1">Sinais</span>
+                  <span className="font-bold text-lg">{operationHistory.length}</span>
+                </div>
+                <div className="metric-card flex flex-col items-center px-4 py-2 min-w-[80px]">
+                  <span className="text-xs text-muted-foreground mb-1">Win Rate</span>
+                  <span className="font-bold text-lg text-success">
+                    {successfulSignals.filter(s => s.status === 'SUCESSO').length > 0 
+                      ? Math.round((successfulSignals.filter(s => s.status === 'SUCESSO').length / successfulSignals.length) * 100) 
+                      : 0}%
+                  </span>
+                </div>
+              </div>
+              
+              <Button 
+                onClick={handleRefresh} 
+                variant="outline" 
+                className="gap-2 hover:bg-primary/10 hover:border-primary transition-all"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Atualizar
+              </Button>
             </div>
           </div>
-          <Button 
-            onClick={handleRefresh} 
-            variant="outline" 
-            className="self-end sm:self-auto hover:bg-primary/10 hover:border-primary"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Atualizar
-          </Button>
         </div>
-      </motion.div>
+      </div>
 
       {/* Métricas de Performance */}
       <StrategyMetrics 
@@ -929,66 +1004,97 @@ const EstrategiaETH = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
         >
-          <Card className={`border-2 ${lastSignal.type === 'COMPRA' ? 'border-green-500' : 'border-red-500'} ${activeOperation ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="flex items-center justify-between gap-2 text-lg sm:text-xl">
-                <div className="flex items-center gap-2">
-                  {lastSignal.type === 'COMPRA' ? (
-                    <ArrowUpCircle className="text-green-500 w-5 h-5 sm:w-6 sm:h-6" />
-                  ) : (
-                    <ArrowDownCircle className="text-red-500 w-5 h-5 sm:w-6 sm:h-6" />
-                  )}
-                  Sinal de {lastSignal.type}
+          <Card className={`signal-card overflow-hidden ${
+            lastSignal.type === 'COMPRA' ? 'signal-card-buy' : 'signal-card-sell'
+          } ${activeOperation ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}>
+            <CardHeader className="p-4 sm:p-6 border-b border-border/30">
+              <CardTitle className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    lastSignal.type === 'COMPRA' 
+                      ? 'bg-success/20 text-success' 
+                      : 'bg-danger/20 text-danger'
+                  }`}>
+                    {lastSignal.type === 'COMPRA' ? (
+                      <ArrowUpCircle className="w-5 h-5" />
+                    ) : (
+                      <ArrowDownCircle className="w-5 h-5" />
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-lg font-bold">Sinal de {lastSignal.type}</span>
+                    <p className="text-xs text-muted-foreground font-normal">
+                      Score: {lastSignal.score}% • R:R {lastSignal.riskReward}
+                    </p>
+                  </div>
                 </div>
                 {activeOperation && (
-                  <Badge variant="default" className="animate-pulse">
-                    🔒 Operação Ativa
+                  <Badge className="bg-primary/20 text-primary border border-primary/30 gap-1">
+                    <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    Operação Ativa
                   </Badge>
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div>
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Entrada</p>
-                  <p className="text-base sm:text-lg md:text-xl font-bold">${lastSignal.entryPrice.toFixed(2)}</p>
+            <CardContent className="p-4 sm:p-6 space-y-4">
+              {/* Price Grid */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="metric-card">
+                  <p className="text-xs text-muted-foreground mb-1">Entrada</p>
+                  <p className="metric-value">${lastSignal.entryPrice.toFixed(2)}</p>
                 </div>
-                <div>
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Stop Loss (Fibo {lastSignal.fibonacciSL})</p>
-                  <p className="text-base sm:text-lg md:text-xl font-bold text-red-500">${lastSignal.stopLoss.toFixed(2)}</p>
+                <div className="metric-card">
+                  <p className="text-xs text-danger flex items-center gap-1 mb-1">
+                    <Shield className="w-3 h-3" /> Stop Loss
+                  </p>
+                  <p className="metric-value-danger">${lastSignal.stopLoss.toFixed(2)}</p>
                 </div>
-                <div>
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Take Profit (Fibo {lastSignal.fibonacciTP})</p>
-                  <p className="text-base sm:text-lg md:text-xl font-bold text-green-500">${lastSignal.takeProfit.toFixed(2)}</p>
+                <div className="metric-card">
+                  <p className="text-xs text-success flex items-center gap-1 mb-1">
+                    <Target className="w-3 h-3" /> Take Profit
+                  </p>
+                  <p className="metric-value-success">${lastSignal.takeProfit.toFixed(2)}</p>
                 </div>
-                <div className="col-span-2 lg:col-span-1">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Risco:Retorno</p>
-                  <p className="text-base sm:text-lg md:text-xl font-bold text-primary">1:{lastSignal.riskReward}</p>
+                <div className="metric-card col-span-2 lg:col-span-1">
+                  <p className="text-xs text-muted-foreground mb-1">Risco:Retorno</p>
+                  <p className="text-2xl font-bold text-primary">1:{lastSignal.riskReward}</p>
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                <Badge variant={lastSignal.confirmations.didi ? "default" : "destructive"} className="text-xs">
-                  Didi {lastSignal.confirmations.didi ? '✅' : '❌'}
+              {/* Confirmations */}
+              <div className="flex flex-wrap gap-2">
+                <Badge variant={lastSignal.confirmations.didi ? "default" : "secondary"} className="gap-1">
+                  {lastSignal.confirmations.didi ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                  Didi
                 </Badge>
-                <Badge variant={lastSignal.confirmations.dmi ? "default" : "destructive"} className="text-xs">
-                  DMI {lastSignal.confirmations.dmi ? '✅' : '❌'}
+                <Badge variant={lastSignal.confirmations.dmi ? "default" : "secondary"} className="gap-1">
+                  {lastSignal.confirmations.dmi ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                  DMI
                 </Badge>
-                <Badge variant={lastSignal.confirmations.ema50 ? "default" : "destructive"} className="text-xs">
-                  EMA50 {lastSignal.confirmations.ema50 ? '✅' : '❌'}
+                <Badge variant={lastSignal.confirmations.ema50 ? "default" : "secondary"} className="gap-1">
+                  {lastSignal.confirmations.ema50 ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                  EMA50
                 </Badge>
-                <Badge variant={lastSignal.confirmations.fibonacci ? "default" : "destructive"} className="text-xs">
-                  Fibonacci {lastSignal.confirmations.fibonacci ? '✅' : '❌'}
+                <Badge variant={lastSignal.confirmations.fibonacci ? "default" : "secondary"} className="gap-1">
+                  {lastSignal.confirmations.fibonacci ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                  Fibonacci
                 </Badge>
-                <Badge variant="outline" className="text-xs">ADX: {lastSignal.adx}</Badge>
-                <Badge variant="outline" className="text-xs">ATR: {lastSignal.atr}</Badge>
+                <Badge variant="outline" className="gap-1">
+                  <TrendingUp className="w-3 h-3" />
+                  ADX: {lastSignal.adx}
+                </Badge>
+                <Badge variant="outline" className="gap-1">
+                  <Activity className="w-3 h-3" />
+                  ATR: {lastSignal.atr}
+                </Badge>
               </div>
 
-              <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground bg-primary/5 p-2 rounded">
-                <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                <span className="leading-tight">
+              {/* Info Banner */}
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border/50">
+                <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0" />
+                <span className="text-xs text-muted-foreground">
                   {activeOperation 
-                    ? "🔒 Aguardando TP ou SL para liberar nova entrada" 
+                    ? "Aguardando TP ou SL para liberar nova entrada" 
                     : "Fibonacci adaptativo baseado na força do ADX"}
                 </span>
               </div>
@@ -1018,102 +1124,90 @@ const EstrategiaETH = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          <Card className="border-border/50">
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+          <Card className="overflow-hidden">
+            <CardHeader className="p-4 sm:p-6 border-b border-border/30 bg-muted/30">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Activity className="w-4 h-4 text-primary" />
                 Status Detalhado das Condições
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 pt-0">
-              {/* Condições de Compra */}
-              <div>
-                <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
-                  <ArrowUpCircle className="text-green-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                  Condições para COMPRA
-                </h3>
-                <div className="grid gap-1.5 sm:gap-2">
-                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                    <span className="pr-2">Rompimento de Alta</span>
-                    <Badge variant={conditionsStatus.buy.breakout ? "default" : "outline"} className="text-xs flex-shrink-0">
-                      {conditionsStatus.buy.breakout ? "✅ OK" : "❌ Não"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                    <span className="pr-2">Didi Index (Agulhada Alta)</span>
-                    <Badge variant={conditionsStatus.buy.didi ? "default" : "outline"} className="text-xs flex-shrink-0">
-                      {conditionsStatus.buy.didi ? "✅ OK" : "❌ Não"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                    <span className="pr-2">DMI (+DI &gt; -DI, ADX &gt; 25)</span>
-                    <Badge variant={conditionsStatus.buy.dmi ? "default" : "outline"} className="text-xs flex-shrink-0">
-                      {conditionsStatus.buy.dmi ? "✅ OK" : "❌ Não"} (ADX: {conditionsStatus.adx.toFixed(1)})
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                    <span className="pr-2">Tendência (Preço &gt; EMA50)</span>
-                    <Badge variant={conditionsStatus.buy.trend ? "default" : "outline"} className="text-xs flex-shrink-0">
-                      {conditionsStatus.buy.trend ? "✅ OK" : "❌ Não"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                    <span className="pr-2">Volatilidade Adequada</span>
-                    <Badge variant={conditionsStatus.buy.volatility ? "default" : "outline"} className="text-xs flex-shrink-0">
-                      {conditionsStatus.buy.volatility ? "✅ OK" : "❌ Baixa"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                    <span className="pr-2">Volume Adequado</span>
-                    <Badge variant={conditionsStatus.buy.volume ? "default" : "outline"} className="text-xs flex-shrink-0">
-                      {conditionsStatus.buy.volume ? "✅ OK" : "❌ Baixo"}
-                    </Badge>
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Condições de Compra */}
+                <div className="space-y-3">
+                  <h3 className="font-semibold flex items-center gap-2 text-sm">
+                    <div className="w-6 h-6 rounded-lg bg-success/20 flex items-center justify-center">
+                      <ArrowUpCircle className="w-4 h-4 text-success" />
+                    </div>
+                    Condições para COMPRA
+                  </h3>
+                  <div className="space-y-2">
+                    {[
+                      { label: 'Rompimento de Alta', value: conditionsStatus.buy.breakout },
+                      { label: 'Didi Index (Agulhada)', value: conditionsStatus.buy.didi },
+                      { label: 'DMI (+DI > -DI)', value: conditionsStatus.buy.dmi, extra: `ADX: ${conditionsStatus.adx.toFixed(1)}` },
+                      { label: 'Tendência (Preço > EMA50)', value: conditionsStatus.buy.trend },
+                      { label: 'Volatilidade Adequada', value: conditionsStatus.buy.volatility },
+                      { label: 'Volume Adequado', value: conditionsStatus.buy.volume },
+                    ].map((item, idx) => (
+                      <div 
+                        key={idx}
+                        className={`flex items-center justify-between p-2.5 rounded-lg border text-xs transition-all ${
+                          item.value 
+                            ? 'bg-success/5 border-success/20' 
+                            : 'bg-muted/30 border-border/50'
+                        }`}
+                      >
+                        <span className="text-foreground-muted">{item.label}</span>
+                        <div className="flex items-center gap-2">
+                          {item.extra && <span className="text-muted-foreground">{item.extra}</span>}
+                          {item.value ? (
+                            <CheckCircle2 className="w-4 h-4 text-success" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
 
-              {/* Condições de Venda */}
-              <div>
-                <h3 className="font-semibold mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
-                  <ArrowDownCircle className="text-red-500 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-                  Condições para VENDA
-                </h3>
-                <div className="grid gap-1.5 sm:gap-2">
-                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                    <span className="pr-2">Rompimento de Baixa</span>
-                    <Badge variant={conditionsStatus.sell.breakout ? "default" : "outline"} className="text-xs flex-shrink-0">
-                      {conditionsStatus.sell.breakout ? "✅ OK" : "❌ Não"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                    <span className="pr-2">Didi Index (Agulhada Baixa)</span>
-                    <Badge variant={conditionsStatus.sell.didi ? "default" : "outline"} className="text-xs flex-shrink-0">
-                      {conditionsStatus.sell.didi ? "✅ OK" : "❌ Não"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                    <span className="pr-2">DMI (-DI &gt; +DI, ADX &gt; 25)</span>
-                    <Badge variant={conditionsStatus.sell.dmi ? "default" : "outline"} className="text-xs flex-shrink-0">
-                      {conditionsStatus.sell.dmi ? "✅ OK" : "❌ Não"} (ADX: {conditionsStatus.adx.toFixed(1)})
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                    <span className="pr-2">Tendência (Preço &lt; EMA50)</span>
-                    <Badge variant={conditionsStatus.sell.trend ? "default" : "outline"} className="text-xs flex-shrink-0">
-                      {conditionsStatus.sell.trend ? "✅ OK" : "❌ Não"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                    <span className="pr-2">Volatilidade Adequada</span>
-                    <Badge variant={conditionsStatus.sell.volatility ? "default" : "outline"} className="text-xs flex-shrink-0">
-                      {conditionsStatus.sell.volatility ? "✅ OK" : "❌ Baixa"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 sm:p-2.5 rounded border text-xs sm:text-sm">
-                    <span className="pr-2">Volume Adequado</span>
-                    <Badge variant={conditionsStatus.sell.volume ? "default" : "outline"} className="text-xs flex-shrink-0">
-                      {conditionsStatus.sell.volume ? "✅ OK" : "❌ Baixo"}
-                    </Badge>
+                {/* Condições de Venda */}
+                <div className="space-y-3">
+                  <h3 className="font-semibold flex items-center gap-2 text-sm">
+                    <div className="w-6 h-6 rounded-lg bg-danger/20 flex items-center justify-center">
+                      <ArrowDownCircle className="w-4 h-4 text-danger" />
+                    </div>
+                    Condições para VENDA
+                  </h3>
+                  <div className="space-y-2">
+                    {[
+                      { label: 'Rompimento de Baixa', value: conditionsStatus.sell.breakout },
+                      { label: 'Didi Index (Agulhada)', value: conditionsStatus.sell.didi },
+                      { label: 'DMI (-DI > +DI)', value: conditionsStatus.sell.dmi, extra: `ADX: ${conditionsStatus.adx.toFixed(1)}` },
+                      { label: 'Tendência (Preço < EMA50)', value: conditionsStatus.sell.trend },
+                      { label: 'Volatilidade Adequada', value: conditionsStatus.sell.volatility },
+                      { label: 'Volume Adequado', value: conditionsStatus.sell.volume },
+                    ].map((item, idx) => (
+                      <div 
+                        key={idx}
+                        className={`flex items-center justify-between p-2.5 rounded-lg border text-xs transition-all ${
+                          item.value 
+                            ? 'bg-danger/5 border-danger/20' 
+                            : 'bg-muted/30 border-border/50'
+                        }`}
+                      >
+                        <span className="text-foreground-muted">{item.label}</span>
+                        <div className="flex items-center gap-2">
+                          {item.extra && <span className="text-muted-foreground">{item.extra}</span>}
+                          {item.value ? (
+                            <CheckCircle2 className="w-4 h-4 text-danger" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -1123,43 +1217,108 @@ const EstrategiaETH = () => {
       )}
 
       {/* Descrição da Estratégia */}
-      <Card className="border-border/50">
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-base sm:text-lg">Sobre a Estratégia</CardTitle>
+      <Card className="overflow-hidden">
+        <CardHeader className="p-4 sm:p-6 border-b border-border/30 bg-gradient-to-r from-primary/5 to-transparent">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Zap className="w-4 h-4 text-primary" />
+            Sobre a Estratégia
+            <Badge className="version-badge version-badge-active ml-2">
+              v{STRATEGY_CONFIG.version}
+            </Badge>
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 sm:space-y-3 text-xs sm:text-sm p-4 sm:p-6 pt-0">
-          <p><strong>Timeframe:</strong> 15 minutos</p>
-          <p><strong>Ativo:</strong> ETHUSDT</p>
-          <p><strong>Indicadores Principais:</strong> Didi Index, DMI (ADX), EMA50, ATR, Fibonacci Adaptativo</p>
-          <p><strong>Indicadores Avançados (FASE 1):</strong> RSI, MACD, OBV, Volume Profile, VROC, Força de Mercado</p>
-          <p><strong>Lógica de Entrada:</strong> Identifica pivôs (máximas/mínimas significativas) e rompimento do candle de referência com múltiplas confirmações técnicas.</p>
-          <p><strong>Confirmações Necessárias:</strong>
-            <br/>• Rompimento validado (0.05%)
-            <br/>• Didi Index alinhado (agulhada)
-            <br/>• DMI favorável (ADX &gt; 25)
-            <br/>• Tendência EMA50 confirmada
-            <br/>• RSI em zona adequada (40-70 compra, 30-60 venda)
-            <br/>• MACD com momentum positivo
-            <br/>• OBV confirmando tendência
-            <br/>• Volume acima da média
-            <br/>• Força de breakout &gt; 60%
-            <br/>• Score de mercado &gt; 60 (compra) ou &lt; 40 (venda)
-          </p>
-          <p><strong>Fibonacci Adaptativo:</strong> Detecta pernadas de movimento e aplica níveis de Fibonacci para TP e SL dinâmicos.</p>
-          <p><strong>Gestão Inteligente:</strong> TP e SL ajustados pela força do ADX:
-            <br/>• ADX &gt; 40: TP agressivo (Fibo 0.618), SL apertado (0.5)
-            <br/>• ADX 30-40: TP moderado (Fibo 0.5), SL moderado (0.618)
-            <br/>• ADX 25-30: TP conservador (Fibo 0.382), SL largo (0.786)
-          </p>
-          <p><strong>Bloqueio de Entrada:</strong> Não permite novas operações até que TP ou SL sejam atingidos.</p>
-          <p className="mt-3 pt-3 border-t border-border/50"><strong>FASE 2 Implementada:</strong>
-            <br/>✅ Indicador visual de força do sinal
-            <br/>✅ Sistema de notificações em tempo real
-            <br/>✅ Painel de personalização de parâmetros
-            <br/>✅ Timeline aprimorado com detalhes expandidos
-          </p>
+        <CardContent className="p-4 sm:p-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Core Info */}
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-primary" />
+                  Configuração
+                </h4>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 rounded-lg bg-muted/50">
+                    <span className="text-muted-foreground">Timeframe</span>
+                    <p className="font-semibold">15 minutos</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-muted/50">
+                    <span className="text-muted-foreground">Ativo</span>
+                    <p className="font-semibold">ETHUSDT</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold text-sm mb-2">Indicadores Principais</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {['Didi Index', 'DMI (ADX)', 'EMA50', 'ATR', 'Fibonacci'].map(ind => (
+                    <Badge key={ind} variant="secondary" className="text-xs">{ind}</Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-sm mb-2">Indicadores Avançados</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {['RSI', 'MACD', 'OBV', 'Volume Profile', 'VROC'].map(ind => (
+                    <Badge key={ind} variant="outline" className="text-xs">{ind}</Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Gestão de Risco */}
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-warning" />
+                  Gestão de Risco (ATR Fixo)
+                </h4>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between items-center p-2 rounded-lg bg-danger/10 border border-danger/20">
+                    <span>Stop Loss</span>
+                    <span className="font-semibold">1.35 × ATR</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 rounded-lg bg-success/10 border border-success/20">
+                    <span>Take Profit</span>
+                    <span className="font-semibold">2.75 × ATR</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 rounded-lg bg-muted/50">
+                    <span>Risco/Trade</span>
+                    <span className="font-semibold">≤ 0.5%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-success" />
+                  Recursos Implementados
+                </h4>
+                <div className="space-y-1.5 text-xs text-muted-foreground">
+                  <p className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3 h-3 text-success" />
+                    Indicador visual de força do sinal
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3 h-3 text-success" />
+                    Sistema de notificações em tempo real
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3 h-3 text-success" />
+                    Painel de personalização de parâmetros
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3 h-3 text-success" />
+                    Backtest com Monte Carlo
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 };

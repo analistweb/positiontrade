@@ -74,6 +74,25 @@
     --neutral: 215 20% 50%;
     --neutral-foreground: 215 20% 95%;
     
+    /* Strategy Version Colors */
+    --version-baseline: 270 80% 55%;
+    --version-active: 142 76% 45%;
+    --version-testing: 38 92% 50%;
+    --version-frozen: 215 20% 40%;
+    
+    /* Score Indicator Colors */
+    --score-excellent: 142 76% 40%;
+    --score-good: 142 50% 45%;
+    --score-moderate: 38 92% 50%;
+    --score-weak: 0 72% 51%;
+    
+    /* Chart Colors */
+    --chart-bullish: 142 76% 40%;
+    --chart-bearish: 0 72% 50%;
+    --chart-volume: 217.2 91.2% 50%;
+    --chart-ema: 38 92% 55%;
+    --chart-pivot: 270 80% 60%;
+    
     /* ========================================
        🎭 STATE COLORS
        ======================================== */
@@ -317,6 +336,178 @@
   
   .price-down {
     @apply text-danger font-semibold;
+  }
+  
+  /* ========================================
+     📈 STRATEGY VERSION BADGES
+     ======================================== */
+  .version-badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold;
+    @apply border backdrop-blur-sm transition-all duration-200;
+  }
+  
+  .version-badge-active {
+    @apply bg-success/20 text-success border-success/40;
+    box-shadow: 0 0 12px hsl(var(--success) / 0.3);
+  }
+  
+  .version-badge-baseline {
+    @apply bg-purple-500/20 text-purple-400 border-purple-400/40;
+  }
+  
+  .version-badge-testing {
+    @apply bg-warning/20 text-warning border-warning/40;
+  }
+  
+  .version-badge-frozen {
+    @apply bg-muted text-muted-foreground border-border;
+  }
+  
+  /* ========================================
+     📊 SCORE INDICATOR
+     ======================================== */
+  .score-ring {
+    @apply relative inline-flex items-center justify-center;
+  }
+  
+  .score-ring::before {
+    content: '';
+    @apply absolute inset-0 rounded-full;
+    background: conic-gradient(
+      hsl(var(--score-excellent)) var(--score-percent, 0%),
+      hsl(var(--muted)) var(--score-percent, 0%)
+    );
+    mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #fff calc(100% - 4px));
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #fff calc(100% - 4px));
+  }
+  
+  /* ========================================
+     🎯 STRATEGY HERO SECTION
+     ======================================== */
+  .strategy-hero {
+    @apply relative overflow-hidden rounded-2xl border;
+    background: linear-gradient(135deg, 
+      hsl(var(--card)) 0%, 
+      hsl(var(--background-elevated)) 50%,
+      hsl(var(--card)) 100%
+    );
+  }
+  
+  .strategy-hero::before {
+    content: '';
+    @apply absolute inset-0 opacity-30;
+    background: radial-gradient(circle at 20% 20%, hsl(var(--primary) / 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, hsl(var(--success) / 0.2) 0%, transparent 50%);
+  }
+  
+  .strategy-hero-glow {
+    @apply absolute top-0 right-0 w-96 h-96 rounded-full blur-3xl opacity-20;
+    background: hsl(var(--primary));
+    animation: hero-glow 8s ease-in-out infinite;
+  }
+  
+  @keyframes hero-glow {
+    0%, 100% { transform: translate(30%, -30%) scale(1); opacity: 0.2; }
+    50% { transform: translate(20%, -20%) scale(1.1); opacity: 0.3; }
+  }
+  
+  /* ========================================
+     📱 SIGNAL CARDS
+     ======================================== */
+  .signal-card {
+    @apply relative overflow-hidden rounded-xl border transition-all duration-300;
+    background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--background-elevated)) 100%);
+  }
+  
+  .signal-card:hover {
+    @apply border-primary/50;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px -5px hsl(var(--primary) / 0.2);
+  }
+  
+  .signal-card-buy {
+    @apply border-success/30;
+    background: linear-gradient(145deg, 
+      hsl(var(--card)) 0%, 
+      hsl(var(--success) / 0.05) 100%
+    );
+  }
+  
+  .signal-card-buy:hover {
+    @apply border-success/60;
+    box-shadow: 0 8px 25px -5px hsl(var(--success) / 0.25);
+  }
+  
+  .signal-card-sell {
+    @apply border-danger/30;
+    background: linear-gradient(145deg, 
+      hsl(var(--card)) 0%, 
+      hsl(var(--danger) / 0.05) 100%
+    );
+  }
+  
+  .signal-card-sell:hover {
+    @apply border-danger/60;
+    box-shadow: 0 8px 25px -5px hsl(var(--danger) / 0.25);
+  }
+  
+  /* ========================================
+     🎬 PULSE RING ANIMATION
+     ======================================== */
+  .pulse-ring {
+    @apply absolute inset-0 rounded-full;
+    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(0.95);
+      opacity: 0.8;
+    }
+    50% {
+      transform: scale(1.05);
+      opacity: 0.4;
+    }
+    100% {
+      transform: scale(0.95);
+      opacity: 0.8;
+    }
+  }
+  
+  /* ========================================
+     📊 METRIC CARDS
+     ======================================== */
+  .metric-card {
+    @apply relative rounded-xl p-4 border transition-all duration-200;
+    background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--background-elevated)) 100%);
+  }
+  
+  .metric-card:hover {
+    @apply border-border-hover;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+  
+  .metric-value {
+    @apply text-2xl font-bold tracking-tight;
+    background: linear-gradient(135deg, hsl(var(--foreground)) 0%, hsl(var(--foreground-muted)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .metric-value-success {
+    background: linear-gradient(135deg, hsl(var(--success)) 0%, hsl(var(--success-muted)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .metric-value-danger {
+    background: linear-gradient(135deg, hsl(var(--danger)) 0%, hsl(var(--danger-muted)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
   
   /* ========================================
