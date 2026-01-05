@@ -57,11 +57,23 @@ export const useTradingStrategy = (symbol, options = {}) => {
     const startTime = performance.now();
     
     try {
-      // Preparar indicadores
-      const indicators = prepareIndicators(data);
+      // Preparar indicadores com configuração
+      const indicators = prepareIndicators(data, STRATEGY_CONFIG);
       
       // Detectar regime de mercado
-      const regime = detectMarketRegime(indicators.adx, indicators.atr, data);
+      // Calcula mudança de preço das últimas 4 horas (16 candles de 15min)
+      const priceChange4h = data.length >= 16 
+        ? (data[data.length - 1].close - data[data.length - 16].close) / data[data.length - 16].close 
+        : 0;
+      const volumeRatio = indicators.volume?.ratio || 1;
+      
+      const regimeIndicators = {
+        adx: indicators.adx?.adx || indicators.adx || 0,
+        priceChange4h,
+        volumeRatio
+      };
+      
+      const regime = detectMarketRegime(regimeIndicators, STRATEGY_CONFIG);
       setMarketRegime(regime);
       
       // Calcular sinal usando engine central
@@ -78,39 +90,71 @@ export const useTradingStrategy = (symbol, options = {}) => {
       });
       
       // Atualizar status das condições
+      const adxValue = indicators.adx?.adx ?? indicators.adx ?? 0;
+      const plusDI = indicators.adx?.plusDI ?? 0;
+      const minusDI = indicators.adx?.minusDI ?? 0;
+      const rsiValue = indicators.rsi?.current ?? indicators.rsi ?? 50;
+      const macdHistogram = indicators.macd?.histogram ?? 0;
+      const ema50Value = indicators.emas?.ema50?.[indicators.emas.ema50.length - 1] ?? 0;
+      
       setConditionsStatus({
         breakout: signalResult.breakout,
         didi: signalResult.indicators?.didi,
         dmi: {
           buy: signalResult.direction === 'buy',
           sell: signalResult.direction === 'sell',
-          adx: indicators.adx,
-          plusDI: indicators.plusDI,
-          minusDI: indicators.minusDI
+          adx: adxValue,
+          plusDI: plusDI,
+          minusDI: minusDI
         },
         trend: { 
           up: signalResult.direction === 'buy', 
           down: signalResult.direction === 'sell', 
-          ema50: indicators.ema50 
+          ema50: ema50Value 
         },
         filters: { 
           volatility: signalResult.filters?.volatilityOk, 
           volume: signalResult.filters?.volumeOk 
         },
         rsi: { 
-          value: indicators.rsi, 
+          value: rsiValue, 
           buyOk: signalResult.filters?.rsiOkForBuy, 
           sellOk: signalResult.filters?.rsiOkForSell 
         },
         macd: { 
-          bullish: indicators.macdHistogram > 0, 
-          bearish: indicators.macdHistogram < 0, 
-          histogram: indicators.macdHistogram 
+          bullish: macdHistogram > 0, 
+          bearish: macdHistogram < 0, 
+          histogram: macdHistogram 
         },
+        adx: adxValue,
+        currentVolume: indicators.volume?.current ?? 0,
+        avgVolume: indicators.volume?.avg ?? 1,
         marketStrength: signalResult.totalScore,
         fibonacci: signalResult.fibonacci,
         currentPrice: data[data.length - 1].close,
-        referenceCandle: signalResult.referenceCandle
+        referenceCandle: signalResult.referenceCandle,
+        buy: {
+          trend: signalResult.direction === 'buy' && signalResult.filters?.trendAligned,
+          volume: signalResult.direction === 'buy' && signalResult.filters?.volumeOk,
+          breakout: signalResult.direction === 'buy' && signalResult.breakout?.isValid,
+          didi: signalResult.direction === 'buy' && signalResult.indicators?.didiConfirm,
+          dmi: signalResult.direction === 'buy' && plusDI > minusDI,
+          volatility: signalResult.filters?.volatilityOk,
+          rsi: signalResult.filters?.rsiOkForBuy,
+          macd: macdHistogram > 0,
+          obv: signalResult.indicators?.obvAligned
+        },
+        sell: {
+          trend: signalResult.direction === 'sell' && signalResult.filters?.trendAligned,
+          volume: signalResult.direction === 'sell' && signalResult.filters?.volumeOk,
+          breakout: signalResult.direction === 'sell' && signalResult.breakout?.isValid,
+          didi: signalResult.direction === 'sell' && signalResult.indicators?.didiConfirm,
+          dmi: signalResult.direction === 'sell' && minusDI > plusDI,
+          volatility: signalResult.filters?.volatilityOk,
+          rsi: signalResult.filters?.rsiOkForSell,
+          macd: macdHistogram < 0,
+          obv: signalResult.indicators?.obvAligned
+        }
       });
       
       // Dados de diagnóstico
@@ -124,10 +168,10 @@ export const useTradingStrategy = (symbol, options = {}) => {
           obvAligned: signalResult.indicators?.obvAligned,
           macdConfirm: signalResult.indicators?.macdConfirm,
           didiConfirm: signalResult.indicators?.didiConfirm,
-          rsi: indicators.rsi,
-          adx: indicators.adx,
-          vroc: indicators.vroc,
-          volumeRatio: signalResult.volumeRatio
+          rsi: rsiValue,
+          adx: adxValue,
+          vroc: indicators.vroc?.current ?? 0,
+          volumeRatio: indicators.volume?.ratio ?? 1
         },
         regime,
         configVersion: STRATEGY_CONFIG.version
@@ -138,12 +182,13 @@ export const useTradingStrategy = (symbol, options = {}) => {
         const currentPrice = data[data.length - 1].close;
         
         // Calcular níveis de risco
+        const atrValue = indicators.atr?.current ?? indicators.atr ?? 0;
         const riskLevels = calculateRiskLevels(
           currentPrice,
           signalResult.fibonacci?.swingHigh,
           signalResult.fibonacci?.swingLow,
-          indicators.adx,
-          indicators.atr,
+          adxValue,
+          atrValue,
           signalResult.direction
         );
         
