@@ -1318,7 +1318,6 @@ const EstrategiaETH = () => {
           </div>
         </CardContent>
       </Card>
-      </div>
     </div>
   );
 };
