@@ -57,196 +57,152 @@ export const useTradingStrategy = (symbol, options = {}) => {
     const startTime = performance.now();
     
     try {
-      // Preparar indicadores com configuração
+      // Preparar indicadores (usados para UI/diagnóstico)
       const indicators = prepareIndicators(data, STRATEGY_CONFIG);
-      
-      // Detectar regime de mercado
-      // Calcula mudança de preço das últimas 4 horas (16 candles de 15min)
-      const priceChange4h = data.length >= 16 
-        ? (data[data.length - 1].close - data[data.length - 16].close) / data[data.length - 16].close 
+
+      // Detectar regime de mercado (mesma heurística em todas as páginas)
+      // Mudança de preço das últimas 4 horas (16 candles de 15min)
+      const priceChange4h = data.length >= 16
+        ? (data[data.length - 1].close - data[data.length - 16].close) / data[data.length - 16].close
         : 0;
       const volumeRatio = indicators.volume?.ratio || 1;
-      
+
       const regimeIndicators = {
         adx: indicators.adx?.adx || indicators.adx || 0,
         priceChange4h,
         volumeRatio
       };
-      
+
       const regime = detectMarketRegime(regimeIndicators, STRATEGY_CONFIG);
       setMarketRegime(regime);
-      
-      // Calcular sinal usando engine central
-      const signalResult = calculateSignal(data, symbol, {
+
+      // Calcular sinal no engine determinístico
+      const engineResult = calculateSignal(data, symbol, {
         ...STRATEGY_CONFIG,
         parameters
       });
-      
-      // Atualizar scores de confluência
-      setConfluenceScores({
-        trend: signalResult.scores?.trend || 0,
-        volume: signalResult.scores?.volume || 0,
-        momentum: signalResult.scores?.momentum || 0
-      });
-      
-      // Atualizar status das condições
+
+      // ===== Mapear resultado do engine para o UI =====
       const adxValue = indicators.adx?.adx ?? indicators.adx ?? 0;
       const plusDI = indicators.adx?.plusDI ?? 0;
       const minusDI = indicators.adx?.minusDI ?? 0;
-      const rsiValue = indicators.rsi?.current ?? indicators.rsi ?? 50;
-      const macdHistogram = indicators.macd?.histogram ?? 0;
+      const rsiValue = engineResult?.indicators?.rsi ?? indicators.rsi?.current ?? indicators.rsi ?? 50;
+      const macdHistogram = engineResult?.indicators?.macdHistogram ?? indicators.macd?.histogram ?? 0;
       const ema50Value = indicators.emas?.ema50?.[indicators.emas.ema50.length - 1] ?? 0;
-      
+      const engineScore = engineResult?.scoring?.percentage ?? engineResult?.signal?.strength ?? 0;
+      const direction = engineResult?.signal?.direction;
+
+      // Confluence (se não houver cálculo explícito no engine, manter em 0)
+      setConfluenceScores({ trend: 0, volume: 0, momentum: 0 });
+
       setConditionsStatus({
-        breakout: signalResult.breakout,
-        didi: signalResult.indicators?.didi,
+        breakout: engineResult?.breakout,
+        didi: indicators.didi,
         dmi: {
-          buy: signalResult.direction === 'buy',
-          sell: signalResult.direction === 'sell',
+          buy: direction === 'buy',
+          sell: direction === 'sell',
           adx: adxValue,
-          plusDI: plusDI,
-          minusDI: minusDI
+          plusDI,
+          minusDI
         },
-        trend: { 
-          up: signalResult.direction === 'buy', 
-          down: signalResult.direction === 'sell', 
-          ema50: ema50Value 
+        trend: {
+          up: direction === 'buy',
+          down: direction === 'sell',
+          ema50: ema50Value
         },
-        filters: { 
-          volatility: signalResult.filters?.volatilityOk, 
-          volume: signalResult.filters?.volumeOk 
+        filters: {
+          // Mantemos esses campos para o card não quebrar; a validação real é do engine.
+          volatility: true,
+          volume: (engineResult?.indicators?.volumeRatio ?? indicators.volume?.ratio ?? 0) >= 1
         },
-        rsi: { 
-          value: rsiValue, 
-          buyOk: signalResult.filters?.rsiOkForBuy, 
-          sellOk: signalResult.filters?.rsiOkForSell 
+        rsi: {
+          value: rsiValue,
+          buyOk: true,
+          sellOk: true
         },
-        macd: { 
-          bullish: macdHistogram > 0, 
-          bearish: macdHistogram < 0, 
-          histogram: macdHistogram 
+        macd: {
+          bullish: macdHistogram > 0,
+          bearish: macdHistogram < 0,
+          histogram: macdHistogram
         },
         adx: adxValue,
         currentVolume: indicators.volume?.current ?? 0,
         avgVolume: indicators.volume?.avg ?? 1,
-        marketStrength: signalResult.totalScore,
-        fibonacci: signalResult.fibonacci,
+        marketStrength: engineScore,
         currentPrice: data[data.length - 1].close,
-        referenceCandle: signalResult.referenceCandle,
-        buy: {
-          trend: signalResult.direction === 'buy' && signalResult.filters?.trendAligned,
-          volume: signalResult.direction === 'buy' && signalResult.filters?.volumeOk,
-          breakout: signalResult.direction === 'buy' && signalResult.breakout?.isValid,
-          didi: signalResult.direction === 'buy' && signalResult.indicators?.didiConfirm,
-          dmi: signalResult.direction === 'buy' && plusDI > minusDI,
-          volatility: signalResult.filters?.volatilityOk,
-          rsi: signalResult.filters?.rsiOkForBuy,
-          macd: macdHistogram > 0,
-          obv: signalResult.indicators?.obvAligned
-        },
-        sell: {
-          trend: signalResult.direction === 'sell' && signalResult.filters?.trendAligned,
-          volume: signalResult.direction === 'sell' && signalResult.filters?.volumeOk,
-          breakout: signalResult.direction === 'sell' && signalResult.breakout?.isValid,
-          didi: signalResult.direction === 'sell' && signalResult.indicators?.didiConfirm,
-          dmi: signalResult.direction === 'sell' && minusDI > plusDI,
-          volatility: signalResult.filters?.volatilityOk,
-          rsi: signalResult.filters?.rsiOkForSell,
-          macd: macdHistogram < 0,
-          obv: signalResult.indicators?.obvAligned
-        }
+        referenceCandle: engineResult?.diagnostics?.referenceCandle
       });
-      
-      // Dados de diagnóstico
+
       setDiagnosticData({
-        scoreBreakdown: signalResult.scoreBreakdown,
+        scoreBreakdown: engineResult?.scoring?.breakdown,
         indicators: {
-          breakoutValid: signalResult.breakout?.isValid,
-          trendAligned: signalResult.filters?.trendAligned,
-          candleStrength: signalResult.filters?.candleStrengthOk,
-          volumeConfirm: signalResult.filters?.volumeOk,
-          obvAligned: signalResult.indicators?.obvAligned,
-          macdConfirm: signalResult.indicators?.macdConfirm,
-          didiConfirm: signalResult.indicators?.didiConfirm,
+          breakoutValid: engineResult?.breakout?.isValid,
+          volumeConfirm: (engineResult?.indicators?.volumeRatio ?? indicators.volume?.ratio ?? 0) >= 1,
           rsi: rsiValue,
           adx: adxValue,
           vroc: indicators.vroc?.current ?? 0,
-          volumeRatio: indicators.volume?.ratio ?? 1
+          volumeRatio: engineResult?.indicators?.volumeRatio ?? indicators.volume?.ratio ?? 1
         },
-        regime,
-        configVersion: STRATEGY_CONFIG.version
+        regime: engineResult?.signal?.regime ?? regime,
+        configVersion: engineResult?.configVersion ?? STRATEGY_CONFIG.version
       });
-      
-      // Verificar se deve gerar sinal
-      if (signalResult.shouldSignal && signalResult.direction) {
-        const currentPrice = data[data.length - 1].close;
-        
-        // Calcular níveis de risco
-        const atrValue = indicators.atr?.current ?? indicators.atr ?? 0;
-        const riskLevels = calculateRiskLevels(
-          currentPrice,
-          signalResult.fibonacci?.swingHigh,
-          signalResult.fibonacci?.swingLow,
-          adxValue,
-          atrValue,
-          signalResult.direction
-        );
-        
+
+      // ===== Se o engine aprovou, emitir sinal =====
+      if (engineResult?.hasSignal && engineResult?.signal) {
+        const engineSignal = engineResult.signal;
+
         const signal = {
           id: `SIG-${Date.now().toString(36).toUpperCase()}`,
-          type: signalResult.direction === 'buy' ? 'COMPRA' : 'VENDA',
-          symbol,
-          entryPrice: currentPrice,
-          takeProfit: riskLevels.takeProfit,
-          stopLoss: riskLevels.stopLoss,
+          type: engineSignal.type,
+          symbol: engineSignal.symbol || symbol,
+          entryPrice: engineSignal.entryPrice,
+          takeProfit: engineSignal.takeProfit,
+          stopLoss: engineSignal.stopLoss,
           timestamp: new Date().toLocaleString('pt-BR'),
-          strength: signalResult.totalScore,
-          rr: riskLevels.riskRewardRatio,
-          category: signalResult.category,
-          regime,
-          conditions: signalResult
+          strength: engineSignal.strength ?? engineScore,
+          rr: engineSignal.riskReward,
+          category: engineSignal.category,
+          regime: engineSignal.regime,
+          conditions: engineResult
         };
-        
-        // Log do sinal
+
         logger.signal(signal.type, {
           symbol,
-          entry: currentPrice,
-          tp: riskLevels.takeProfit,
-          sl: riskLevels.stopLoss,
-          score: signalResult.totalScore,
-          regime
+          entry: signal.entryPrice,
+          tp: signal.takeProfit,
+          sl: signal.stopLoss,
+          score: signal.strength,
+          regime: signal.regime
         });
-        
+
         setLastSignal(signal);
-        setSignalStatus(signalResult.direction);
+        setSignalStatus(engineSignal.direction);
         setActiveOperation(signal);
         setSignalHistory(prev => [signal, ...prev].slice(0, 50));
-        
-        // Log de latência
+
         const latency = performance.now() - startTime;
         logger.latency('analyzeStrategy', latency);
-        
+
         return signal;
       }
-      
-      // Log de rejeição se houver breakout mas score insuficiente
-      if (signalResult.breakout?.isValid && !signalResult.shouldSignal) {
-        logger.rejection(signalResult.rejectionReason || 'Score insuficiente', {
-          score: signalResult.totalScore,
-          threshold: parameters.thresholds?.strong || 70,
+
+      // Log de rejeição (quando houver breakout válido mas não aprovar)
+      if (engineResult?.breakout?.isValid && !engineResult?.hasSignal) {
+        logger.rejection(engineResult?.reason || 'Sinal não aprovado pelo engine', {
+          score: engineScore,
           regime
         });
       }
-      
+
       setSignalStatus('wait');
-      
-      // Log de latência
+
       const latency = performance.now() - startTime;
       logger.latency('analyzeStrategy', latency);
-      
+
       return null;
     } catch (err) {
-      logger.error('useTradingStrategy', 'Erro na análise', { error: err.message, symbol });
+      setSignalStatus('wait');
+      logger.error('useTradingStrategy', 'Erro na análise', { error: err?.message || String(err), symbol });
       return null;
     }
   }, [symbol, parameters, activeOperation]);
