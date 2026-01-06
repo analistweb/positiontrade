@@ -77,7 +77,7 @@ export const useTradingStrategy = (symbol, options = {}) => {
       setMarketRegime(regime);
       
       // Calcular sinal usando engine central
-      const signalResult = calculateSignal(data, {
+      const signalResult = calculateSignal(data, symbol, {
         ...STRATEGY_CONFIG,
         parameters
       });
