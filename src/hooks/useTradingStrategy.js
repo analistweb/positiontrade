@@ -248,28 +248,37 @@ export const useTradingStrategy = (symbol, options = {}) => {
     
     // Verificar break-even dinâmico
     if (previousCandle) {
-      const breakEvenResult = calculateDynamicBreakEven(
-        activeOperation,
-        currentPrice,
-        0, // OBV acceleration - simplificado
-        previousCandle
-      );
-      
-      if (breakEvenResult.breakEvenActivated && !activeOperation.breakEvenActivated) {
-        setActiveOperation(prev => ({
-          ...prev,
-          stopLoss: breakEvenResult.newSL,
-          breakEvenActivated: true
-        }));
-        
-        toast.success('🔄 Break-even ativado!', {
-          description: `Novo SL: ${breakEvenResult.newSL.toFixed(2)}`
+      try {
+        // Assinatura: (operation, currentPrice, previousCandle, obvAcceleration, config)
+        const breakEvenResult = calculateDynamicBreakEven(
+          activeOperation,
+          currentPrice,
+          previousCandle,
+          0, // OBV acceleration - simplificado
+          STRATEGY_CONFIG
+        );
+
+        if (breakEvenResult.breakEvenActivated && !activeOperation.breakEvenActivated) {
+          setActiveOperation(prev => ({
+            ...prev,
+            stopLoss: breakEvenResult.newSL,
+            breakEvenActivated: true
+          }));
+
+          toast.success('🔄 Break-even ativado!', {
+            description: `Novo SL: ${breakEvenResult.newSL.toFixed(2)}`
+          });
+        }
+      } catch (e) {
+        logger.error('useTradingStrategy', 'Erro no break-even dinâmico', {
+          error: e?.message || String(e),
+          symbol
         });
       }
     }
 
     return null;
-  }, [activeOperation, pairConfig]);
+  }, [activeOperation, pairConfig, symbol]);
 
   // Efeito para análise quando dados mudam
   useEffect(() => {
