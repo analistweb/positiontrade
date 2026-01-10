@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,12 +31,19 @@ const CryptoSignalCard = ({ symbol, onSignal }) => {
     cancelOperation
   } = useTradingStrategy(symbol);
 
-  // Callback quando há novo sinal
-  React.useEffect(() => {
-    if (lastSignal && onSignal) {
-      onSignal(lastSignal);
+  // Ref para rastrear o último signalId já notificado e evitar loops infinitos
+  const lastNotifiedSignalIdRef = useRef(null);
+
+  // Callback quando há novo sinal - só dispara se o signalId for diferente do anterior
+  useEffect(() => {
+    if (lastSignal && onSignal && lastSignal.signalId) {
+      // Só notifica se for um sinal realmente novo (signalId diferente)
+      if (lastSignal.signalId !== lastNotifiedSignalIdRef.current) {
+        lastNotifiedSignalIdRef.current = lastSignal.signalId;
+        onSignal(lastSignal);
+      }
     }
-  }, [lastSignal, onSignal]);
+  }, [lastSignal?.signalId, onSignal]);
 
   if (isLoading) {
     return (
