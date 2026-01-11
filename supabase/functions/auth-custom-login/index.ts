@@ -6,6 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Email validation regex
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_EMAIL_LENGTH = 255;
+const MAX_PASSWORD_LENGTH = 128;
+
 /**
  * POST /auth/login
  * Entrada: { email: string, password: string }
@@ -19,9 +24,19 @@ serve(async (req) => {
 
   try {
     // ENTRADA: Validação do payload
-    const { email, password } = await req.json();
+    const body = await req.json();
+    const email = typeof body?.email === 'string' ? body.email.trim() : '';
+    const password = typeof body?.password === 'string' ? body.password : '';
     
-    if (!email || !password) {
+    // Input validation
+    if (!email || !EMAIL_REGEX.test(email) || email.length > MAX_EMAIL_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: 'Credenciais incompletas' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    if (!password || password.length > MAX_PASSWORD_LENGTH) {
       return new Response(
         JSON.stringify({ error: 'Credenciais incompletas' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -68,7 +83,7 @@ serve(async (req) => {
     if (authError || !authData.user) {
       await supabaseAdmin.from('audit_events').insert({
         event_type: 'login_failed',
-        metadata: { email, reason: 'Credenciais inválidas' },
+        metadata: { reason: 'Credenciais inválidas' },
         result: 'failure'
       });
 
@@ -88,7 +103,7 @@ serve(async (req) => {
       await supabaseAdmin.from('audit_events').insert({
         event_type: 'login_failed',
         user_id: authData.user.id,
-        metadata: { email, reason: 'Perfil não encontrado' },
+        metadata: { reason: 'Perfil não encontrado' },
         result: 'failure'
       });
 
@@ -103,7 +118,7 @@ serve(async (req) => {
       await supabaseAdmin.from('audit_events').insert({
         event_type: 'login_denied',
         user_id: authData.user.id,
-        metadata: { email, status: profile.status },
+        metadata: { status: profile.status },
         result: 'denied'
       });
 
@@ -125,7 +140,7 @@ serve(async (req) => {
     await supabaseAdmin.from('audit_events').insert({
       event_type: 'login_success',
       user_id: authData.user.id,
-      metadata: { email, roles },
+      metadata: { roles },
       result: 'success'
     });
 
@@ -147,7 +162,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Erro em /auth/login:', error);
+    console.error('Erro em /auth/login');
     return new Response(
       JSON.stringify({ error: 'Erro interno do servidor' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

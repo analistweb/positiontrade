@@ -20,7 +20,7 @@ serve(async (req) => {
   try {
     // Extrai token do header Authorization
     const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return new Response(
         JSON.stringify({ error: 'Não autorizado' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -40,12 +40,38 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
 
     if (userError || !user) {
-      console.error('Erro ao obter usuário:', userError);
+      console.error('Erro ao obter usuário');
       return new Response(
         JSON.stringify({ isAdmin: false, error: 'Token inválido' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Rate limiting: 100 verifications/hour per user
+    const rateLimitId = `admin-verify:${user.id}`;
+    const { data: recentAttempts } = await supabaseAdmin
+      .from('rate_limit_attempts')
+      .select('*')
+      .eq('identifier', rateLimitId)
+      .gte('attempted_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
+
+    if (recentAttempts && recentAttempts.length >= 100) {
+      return new Response(
+        JSON.stringify({ isAdmin: false, error: 'Limite de verificações excedido' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Register attempt
+    await supabaseAdmin.from('rate_limit_attempts').insert({
+      identifier: rateLimitId,
+      attempted_at: new Date().toISOString()
+    });
 
     // Usa função has_role() para verificar admin SERVER-SIDE
     const { data: isAdmin, error: roleError } = await supabaseClient.rpc('has_role', {
@@ -54,7 +80,7 @@ serve(async (req) => {
     });
 
     if (roleError) {
-      console.error('Erro ao verificar role:', roleError);
+      console.error('Erro ao verificar role');
       return new Response(
         JSON.stringify({ isAdmin: false }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -63,11 +89,6 @@ serve(async (req) => {
 
     // Log de auditoria para verificações de admin
     if (isAdmin) {
-      const supabaseAdmin = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      );
-
       await supabaseAdmin.from('audit_events').insert({
         event_type: 'admin_verification',
         user_id: user.id,
@@ -82,7 +103,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Erro em /admin-verify-role:', error);
+    console.error('Erro em /admin-verify-role');
     return new Response(
       JSON.stringify({ isAdmin: false, error: 'Erro interno' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

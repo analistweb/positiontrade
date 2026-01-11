@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Valid status values
+const VALID_STATUSES = ['pending', 'active', 'blocked'] as const;
+
 /**
  * GET /admin/users?status=pending&page=1&limit=10
  * Entrada: query params { status?, page?, limit? }
@@ -58,18 +61,48 @@ serve(async (req) => {
       );
     }
 
-    // ENTRADA: Parse de query params
-    const url = new URL(req.url);
-    const status = url.searchParams.get('status') || 'pending';
-    const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '10');
-    const offset = (page - 1) * limit;
-
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
+
+    // Rate limiting: 100 requests/hour per admin
+    const rateLimitId = `admin-action:${user.id}`;
+    const { data: recentAttempts } = await supabaseAdmin
+      .from('rate_limit_attempts')
+      .select('*')
+      .eq('identifier', rateLimitId)
+      .gte('attempted_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
+
+    if (recentAttempts && recentAttempts.length >= 100) {
+      return new Response(
+        JSON.stringify({ error: 'Limite de requisições excedido. Aguarde 1 hora.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Register attempt
+    await supabaseAdmin.from('rate_limit_attempts').insert({
+      identifier: rateLimitId,
+      attempted_at: new Date().toISOString()
+    });
+
+    // ENTRADA: Parse e validação de query params
+    const url = new URL(req.url);
+    const statusParam = url.searchParams.get('status') || 'pending';
+    const pageParam = url.searchParams.get('page') || '1';
+    const limitParam = url.searchParams.get('limit') || '10';
+
+    // Validate status
+    const status = VALID_STATUSES.includes(statusParam as typeof VALID_STATUSES[number]) 
+      ? statusParam 
+      : 'pending';
+
+    // Validate pagination params (prevent DoS)
+    const page = Math.max(1, Math.min(1000, parseInt(pageParam) || 1));
+    const limit = Math.max(1, Math.min(100, parseInt(limitParam) || 10));
+    const offset = (page - 1) * limit;
 
     // PROCESSAMENTO: Busca usuários filtrados
     const { data: profiles, error: profilesError, count } = await supabaseAdmin
@@ -80,7 +113,7 @@ serve(async (req) => {
       .range(offset, offset + limit - 1);
 
     if (profilesError) {
-      console.error('Erro ao buscar perfis:', profilesError);
+      console.error('Erro ao buscar perfis');
       return new Response(
         JSON.stringify({ error: 'Erro ao buscar usuários' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -88,7 +121,6 @@ serve(async (req) => {
     }
 
     // Busca dados de email dos usuários
-    const userIds = profiles?.map(p => p.user_id) || [];
     const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
     
     const usersWithEmail = profiles?.map(profile => {
@@ -123,7 +155,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Erro em /admin/users:', error);
+    console.error('Erro em /admin/users');
     return new Response(
       JSON.stringify({ error: 'Erro interno do servidor' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

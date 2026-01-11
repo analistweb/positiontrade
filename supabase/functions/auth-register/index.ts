@@ -6,6 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Email validation regex
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_EMAIL_LENGTH = 255;
+
 /**
  * POST /auth/register
  * Entrada: { email: string }
@@ -19,9 +23,11 @@ serve(async (req) => {
 
   try {
     // ENTRADA: Validação do payload
-    const { email } = await req.json();
+    const body = await req.json();
+    const email = typeof body?.email === 'string' ? body.email.trim() : '';
     
-    if (!email || !email.includes('@')) {
+    // Comprehensive email validation
+    if (!email || !EMAIL_REGEX.test(email) || email.length > MAX_EMAIL_LENGTH) {
       return new Response(
         JSON.stringify({ error: 'Email inválido' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -34,6 +40,31 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
+
+    // Rate limiting: 3 accounts/hour per IP (check BEFORE user operations)
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                     req.headers.get('x-real-ip') || 
+                     'unknown';
+    const rateLimitId = `register:${clientIp}`;
+    
+    const { data: recentAttempts } = await supabaseAdmin
+      .from('rate_limit_attempts')
+      .select('*')
+      .eq('identifier', rateLimitId)
+      .gte('attempted_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
+
+    if (recentAttempts && recentAttempts.length >= 3) {
+      return new Response(
+        JSON.stringify({ error: 'Muitas tentativas. Tente novamente em 1 hora.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Register attempt
+    await supabaseAdmin.from('rate_limit_attempts').insert({
+      identifier: rateLimitId,
+      attempted_at: new Date().toISOString()
+    });
 
     // PROCESSAMENTO: Verifica se usuário já existe
     const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
@@ -57,7 +88,7 @@ serve(async (req) => {
     });
 
     if (createError) {
-      console.error('Erro ao criar usuário:', createError);
+      console.error('Erro ao criar usuário');
       return new Response(
         JSON.stringify({ error: 'Erro ao processar cadastro' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -78,7 +109,7 @@ serve(async (req) => {
       });
 
     if (tokenError) {
-      console.error('Erro ao criar token:', tokenError);
+      console.error('Erro ao criar token');
       // Rollback: deletar usuário criado
       await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
       return new Response(
@@ -88,39 +119,15 @@ serve(async (req) => {
     }
 
     // TODO: Enviar email com link de verificação
-    // const verificationLink = `${Deno.env.get('APP_URL')}/verify-email?token=${verificationToken}`;
-    console.log(`Token de verificação gerado para ${email}: ${verificationToken}`);
+    console.log(`Token de verificação gerado para usuário`);
     console.log(`Link seria: /verify-email?token=${verificationToken}`);
 
     // Log de auditoria
     await supabaseAdmin.from('audit_events').insert({
       event_type: 'registration_initiated',
       user_id: newUser.user.id,
-      metadata: { email },
+      metadata: {},
       result: 'success'
-    });
-
-    // Check rate limit: 3 contas/hora por IP
-    const clientIp = req.headers.get('x-forwarded-for') || 'unknown';
-    const rateLimitId = `register:${clientIp}`;
-    
-    const { data: recentAttempts } = await supabaseAdmin
-      .from('rate_limit_attempts')
-      .select('*')
-      .eq('identifier', rateLimitId)
-      .gte('attempted_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
-
-    if (recentAttempts && recentAttempts.length >= 3) {
-      return new Response(
-        JSON.stringify({ error: 'Muitas tentativas. Tente novamente em 1 hora.' }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Registra tentativa
-    await supabaseAdmin.from('rate_limit_attempts').insert({
-      identifier: rateLimitId,
-      attempted_at: new Date().toISOString()
     });
 
     // SAÍDA: Resposta neutra por segurança (SEM _dev_token)
@@ -132,7 +139,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Erro em /auth/register:', error);
+    console.error('Erro em /auth/register');
     return new Response(
       JSON.stringify({ error: 'Erro interno do servidor' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
