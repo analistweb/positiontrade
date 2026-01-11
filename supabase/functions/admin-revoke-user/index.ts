@@ -6,6 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_REASON_LENGTH = 500;
+
 /**
  * POST /admin/users/:id/revoke
  * Entrada: { user_id: string, reason?: string }
@@ -57,21 +61,47 @@ serve(async (req) => {
       );
     }
 
-    // ENTRADA: Validação do payload
-    const { user_id, reason } = await req.json();
-    
-    if (!user_id) {
-      return new Response(
-        JSON.stringify({ error: 'ID de usuário não fornecido' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
+
+    // Rate limiting: 100 actions/hour per admin
+    const rateLimitId = `admin-action:${admin.id}`;
+    const { data: recentAttempts } = await supabaseAdmin
+      .from('rate_limit_attempts')
+      .select('*')
+      .eq('identifier', rateLimitId)
+      .gte('attempted_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
+
+    if (recentAttempts && recentAttempts.length >= 100) {
+      return new Response(
+        JSON.stringify({ error: 'Limite de ações excedido. Aguarde 1 hora.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Register attempt
+    await supabaseAdmin.from('rate_limit_attempts').insert({
+      identifier: rateLimitId,
+      attempted_at: new Date().toISOString()
+    });
+
+    // ENTRADA: Validação do payload
+    const body = await req.json();
+    const user_id = typeof body?.user_id === 'string' ? body.user_id.trim() : '';
+    const reason = typeof body?.reason === 'string' 
+      ? body.reason.trim().substring(0, MAX_REASON_LENGTH) 
+      : 'Não especificado';
+    
+    // Validate user_id format
+    if (!user_id || !UUID_REGEX.test(user_id)) {
+      return new Response(
+        JSON.stringify({ error: 'ID de usuário inválido' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // PROCESSAMENTO: Altera status para 'blocked'
     const { error: updateError } = await supabaseAdmin
@@ -80,7 +110,7 @@ serve(async (req) => {
       .eq('user_id', user_id);
 
     if (updateError) {
-      console.error('Erro ao atualizar perfil:', updateError);
+      console.error('Erro ao atualizar perfil');
       return new Response(
         JSON.stringify({ error: 'Erro ao revogar acesso' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -96,7 +126,7 @@ serve(async (req) => {
       .is('revoked_at', null);
 
     if (revokeError) {
-      console.error('Erro ao revogar tokens:', revokeError);
+      console.error('Erro ao revogar tokens');
     }
 
     // Log de auditoria
@@ -104,7 +134,7 @@ serve(async (req) => {
       event_type: 'user_revoked',
       user_id,
       actor_id: admin.id,
-      metadata: { reason: reason || 'Não especificado' },
+      metadata: { reason },
       result: 'success'
     });
 
@@ -118,7 +148,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Erro em /admin/users/:id/revoke:', error);
+    console.error('Erro em /admin/users/:id/revoke');
     return new Response(
       JSON.stringify({ error: 'Erro interno do servidor' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

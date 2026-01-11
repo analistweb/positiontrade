@@ -19,14 +19,43 @@ serve(async (req) => {
 
   try {
     // ENTRADA: Validação do payload
-    const { refresh_token } = await req.json();
+    const body = await req.json();
+    const refresh_token = typeof body?.refresh_token === 'string' ? body.refresh_token.trim() : '';
     
-    if (!refresh_token) {
+    if (!refresh_token || refresh_token.length < 10 || refresh_token.length > 1000) {
       return new Response(
         JSON.stringify({ error: 'Refresh token não fornecido' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Rate limiting: 10 attempts/hour per token prefix (first 8 chars for privacy)
+    const tokenPrefix = refresh_token.substring(0, 8);
+    const rateLimitId = `refresh:${tokenPrefix}`;
+    
+    const { data: recentAttempts } = await supabaseAdmin
+      .from('rate_limit_attempts')
+      .select('*')
+      .eq('identifier', rateLimitId)
+      .gte('attempted_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
+
+    if (recentAttempts && recentAttempts.length >= 10) {
+      return new Response(
+        JSON.stringify({ error: 'Muitas tentativas. Aguarde 1 hora.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Register attempt
+    await supabaseAdmin.from('rate_limit_attempts').insert({
+      identifier: rateLimitId,
+      attempted_at: new Date().toISOString()
+    });
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -46,11 +75,6 @@ serve(async (req) => {
     }
 
     // Verifica se conta ainda está ativa
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
     const { data: profile } = await supabaseAdmin
       .from('user_profiles')
       .select('status')
@@ -83,7 +107,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Erro em /auth/refresh:', error);
+    console.error('Erro em /auth/refresh');
     return new Response(
       JSON.stringify({ error: 'Erro interno do servidor' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

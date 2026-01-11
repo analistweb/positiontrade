@@ -6,6 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Valid roles enum
+const VALID_ROLES = ['pending', 'user', 'admin', 'moderator'] as const;
+type ValidRole = typeof VALID_ROLES[number];
+
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * POST /admin/users/:id/approve
  * Entrada: { user_id: string, assigned_roles?: string[] }
@@ -57,21 +64,59 @@ serve(async (req) => {
       );
     }
 
-    // ENTRADA: Validação do payload
-    const { user_id, assigned_roles = ['user'] } = await req.json();
-    
-    if (!user_id) {
-      return new Response(
-        JSON.stringify({ error: 'ID de usuário não fornecido' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
+
+    // Rate limiting: 100 actions/hour per admin
+    const rateLimitId = `admin-action:${admin.id}`;
+    const { data: recentAttempts } = await supabaseAdmin
+      .from('rate_limit_attempts')
+      .select('*')
+      .eq('identifier', rateLimitId)
+      .gte('attempted_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
+
+    if (recentAttempts && recentAttempts.length >= 100) {
+      return new Response(
+        JSON.stringify({ error: 'Limite de ações excedido. Aguarde 1 hora.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Register attempt
+    await supabaseAdmin.from('rate_limit_attempts').insert({
+      identifier: rateLimitId,
+      attempted_at: new Date().toISOString()
+    });
+
+    // ENTRADA: Validação do payload
+    const body = await req.json();
+    const user_id = typeof body?.user_id === 'string' ? body.user_id.trim() : '';
+    const assigned_roles = Array.isArray(body?.assigned_roles) ? body.assigned_roles : ['user'];
+    
+    // Validate user_id format
+    if (!user_id || !UUID_REGEX.test(user_id)) {
+      return new Response(
+        JSON.stringify({ error: 'ID de usuário inválido' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate roles against enum
+    const validatedRoles: ValidRole[] = [];
+    for (const role of assigned_roles) {
+      if (typeof role !== 'string') continue;
+      const trimmedRole = role.trim().toLowerCase();
+      if (VALID_ROLES.includes(trimmedRole as ValidRole)) {
+        validatedRoles.push(trimmedRole as ValidRole);
+      }
+    }
+
+    if (validatedRoles.length === 0) {
+      validatedRoles.push('user'); // Default role
+    }
 
     // PROCESSAMENTO: Altera status para 'active'
     const { error: updateError } = await supabaseAdmin
@@ -80,7 +125,7 @@ serve(async (req) => {
       .eq('user_id', user_id);
 
     if (updateError) {
-      console.error('Erro ao atualizar perfil:', updateError);
+      console.error('Erro ao atualizar perfil');
       return new Response(
         JSON.stringify({ error: 'Erro ao aprovar usuário' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -88,9 +133,9 @@ serve(async (req) => {
     }
 
     // Atribui roles iniciais
-    const rolesToInsert = assigned_roles.map(role => ({
+    const rolesToInsert = validatedRoles.map(role => ({
       user_id,
-      role: role as 'pending' | 'user' | 'admin' | 'moderator'
+      role
     }));
 
     const { error: rolesError } = await supabaseAdmin
@@ -98,7 +143,7 @@ serve(async (req) => {
       .upsert(rolesToInsert, { onConflict: 'user_id,role' });
 
     if (rolesError) {
-      console.error('Erro ao atribuir roles:', rolesError);
+      console.error('Erro ao atribuir roles');
     }
 
     // Log de auditoria
@@ -106,7 +151,7 @@ serve(async (req) => {
       event_type: 'user_approved',
       user_id,
       actor_id: admin.id,
-      metadata: { assigned_roles },
+      metadata: { assigned_roles: validatedRoles },
       result: 'success'
     });
 
@@ -115,13 +160,13 @@ serve(async (req) => {
       JSON.stringify({ 
         userId: user_id,
         new_status: 'active',
-        assigned_roles
+        assigned_roles: validatedRoles
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Erro em /admin/users/:id/approve:', error);
+    console.error('Erro em /admin/users/:id/approve');
     return new Response(
       JSON.stringify({ error: 'Erro interno do servidor' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
