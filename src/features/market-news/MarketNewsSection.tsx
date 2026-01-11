@@ -3,13 +3,15 @@
  * Pure UI component - no business logic
  * 
  * Displays news that impact Bitcoin from macroeconomic perspective
+ * Uses CryptoCompare free public API for real-time data
  */
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Newspaper, ExternalLink, TrendingUp, AlertTriangle, Minus } from 'lucide-react';
+import { Newspaper, ExternalLink, TrendingUp, AlertTriangle, Minus, RefreshCw, Wifi } from 'lucide-react';
 import { useMarketNews } from './useMarketNews';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import type { ClassifiedNewsItem } from './types';
 
 // Impact level badge colors using semantic tokens
@@ -128,26 +130,55 @@ function EmptyState() {
 }
 
 export function MarketNewsSection() {
-  const { status, data } = useMarketNews();
+  const { status, data, refetch, dataUpdatedAt, isFetching } = useMarketNews();
 
   // Error state - don't render section at all (doesn't break Home)
   if (status === 'error') {
     return null;
   }
 
+  const lastUpdate = dataUpdatedAt 
+    ? new Date(dataUpdatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    : null;
+
   return (
     <section className="glass-morphism rounded-2xl p-6 border border-border/30 hover:border-primary/30 transition-all">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 bg-amber-500/10 rounded-xl">
-          <Newspaper className="w-6 h-6 text-amber-400" />
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-amber-500/10 rounded-xl">
+            <Newspaper className="w-6 h-6 text-amber-400" />
+          </div>
+          <div>
+            <h2 className="text-xl sm:text-2xl font-semibold text-foreground">
+              Notícias que Impactam o Bitcoin
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Fatores macroeconômicos e geopolíticos
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-xl sm:text-2xl font-semibold text-foreground">
-            Notícias que Impactam o Bitcoin
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Fatores macroeconômicos e geopolíticos
-          </p>
+        
+        {/* Real-time indicator and refresh */}
+        <div className="flex items-center gap-2">
+          {status === 'success' && (
+            <Badge variant="outline" className="text-xs gap-1 bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
+              <Wifi className="w-3 h-3" />
+              <span className="hidden sm:inline">Tempo Real</span>
+            </Badge>
+          )}
+          {lastUpdate && (
+            <span className="text-xs text-muted-foreground hidden sm:block">
+              Atualizado: {lastUpdate}
+            </span>
+          )}
+          <button
+            onClick={() => refetch?.()}
+            disabled={isFetching}
+            className="p-2 rounded-lg hover:bg-accent/50 transition-colors disabled:opacity-50"
+            title="Atualizar notícias"
+          >
+            <RefreshCw className={`w-4 h-4 text-muted-foreground ${isFetching ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 
