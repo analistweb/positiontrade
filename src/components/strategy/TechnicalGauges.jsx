@@ -55,8 +55,19 @@ const GaugeChart = ({ value, max, label, color, icon: Icon }) => {
 const TechnicalGauges = ({ conditionsStatus }) => {
   if (!conditionsStatus) return null;
 
-  const volumeRatio = conditionsStatus.currentVolume / conditionsStatus.avgVolume;
+  // Safe access with fallbacks
+  const currentVolume = conditionsStatus.currentVolume || 0;
+  const avgVolume = conditionsStatus.avgVolume || 1;
+  const volumeRatio = currentVolume / avgVolume;
   const volumePercentage = Math.min(volumeRatio * 100, 200);
+  
+  // Safe values for required fields
+  const currentPrice = conditionsStatus.currentPrice || 0;
+  const ema50Value = conditionsStatus.ema50Value || currentPrice;
+  const referenceHigh = conditionsStatus.referenceHigh || currentPrice;
+  const referenceLow = conditionsStatus.referenceLow || currentPrice;
+  const adx = conditionsStatus.adx || 0;
+  const atrValue = conditionsStatus.atrValue || 0;
 
   // Determinar cor do Market Strength
   const getStrengthColor = (score) => {
@@ -111,15 +122,15 @@ const TechnicalGauges = ({ conditionsStatus }) => {
           {/* Linha 1: Indicadores Clássicos */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
             <GaugeChart
-              value={conditionsStatus.adx}
+              value={adx}
               max={100}
               label="ADX (Força da Tendência)"
               color="#10b981"
               icon={TrendingUp}
             />
             <GaugeChart
-              value={conditionsStatus.atrValue}
-              max={conditionsStatus.atrValue * 2}
+              value={atrValue}
+              max={Math.max(atrValue * 2, 1)}
               label="ATR (Volatilidade)"
               color="#f59e0b"
               icon={Activity}
@@ -165,19 +176,19 @@ const TechnicalGauges = ({ conditionsStatus }) => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs sm:text-sm">
               <div>
                 <p className="text-muted-foreground mb-1">Preço Atual</p>
-                <p className="font-bold text-lg">${conditionsStatus.currentPrice.toFixed(2)}</p>
+                <p className="font-bold text-lg">${currentPrice.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground mb-1">EMA50</p>
-                <p className="font-bold text-lg">${conditionsStatus.ema50Value.toFixed(2)}</p>
+                <p className="font-bold text-lg">${ema50Value.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground mb-1">Resistência</p>
-                <p className="font-bold text-lg">${conditionsStatus.referenceHigh.toFixed(2)}</p>
+                <p className="font-bold text-lg">${referenceHigh.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground mb-1">Suporte</p>
-                <p className="font-bold text-lg">${conditionsStatus.referenceLow.toFixed(2)}</p>
+                <p className="font-bold text-lg">${referenceLow.toFixed(2)}</p>
               </div>
             </div>
 
