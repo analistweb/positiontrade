@@ -5,14 +5,100 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface CryptoPanicNews {
-  id: number;
+interface CryptoCompareNews {
+  id: string;
   title: string;
+  body: string;
   url: string;
-  source: { title: string; domain: string };
-  published_at: string;
-  currencies: Array<{ code: string; title: string }>;
-  kind: string;
+  source: string;
+  source_info: { name: string; lang: string };
+  published_on: number;
+  categories: string;
+}
+
+// Translate common English terms to Portuguese
+function translateToPortuguese(text: string): string {
+  const translations: Record<string, string> = {
+    // Common crypto terms
+    "Bitcoin": "Bitcoin",
+    "Ethereum": "Ethereum",
+    "crypto": "cripto",
+    "cryptocurrency": "criptomoeda",
+    "cryptocurrencies": "criptomoedas",
+    "blockchain": "blockchain",
+    "price": "preço",
+    "market": "mercado",
+    "trading": "negociação",
+    "whale": "baleia",
+    "whales": "baleias",
+    "bull": "alta",
+    "bear": "baixa",
+    "bullish": "altista",
+    "bearish": "baixista",
+    "rally": "alta",
+    "crash": "queda",
+    "pump": "subida",
+    "dump": "queda",
+    "all-time high": "máxima histórica",
+    "ATH": "ATH",
+    // Economic terms
+    "Federal Reserve": "Federal Reserve",
+    "Fed": "Fed",
+    "interest rate": "taxa de juros",
+    "interest rates": "taxas de juros",
+    "inflation": "inflação",
+    "CPI": "IPC",
+    "GDP": "PIB",
+    "unemployment": "desemprego",
+    "recession": "recessão",
+    "stimulus": "estímulo",
+    "monetary policy": "política monetária",
+    "central bank": "banco central",
+    // Regulatory
+    "SEC": "SEC",
+    "regulation": "regulação",
+    "regulatory": "regulatório",
+    "approval": "aprovação",
+    "ETF": "ETF",
+    "spot ETF": "ETF spot",
+    // Market actions
+    "buy": "compra",
+    "sell": "venda",
+    "hold": "manter",
+    "surge": "dispara",
+    "surges": "dispara",
+    "soars": "dispara",
+    "drops": "cai",
+    "falls": "cai",
+    "rises": "sobe",
+    "gains": "ganha",
+    "loses": "perde",
+    // Time
+    "today": "hoje",
+    "yesterday": "ontem",
+    "week": "semana",
+    "month": "mês",
+    "year": "ano",
+  };
+
+  let translated = text;
+  
+  // Apply translations (case-insensitive replacement)
+  Object.entries(translations).forEach(([en, pt]) => {
+    const regex = new RegExp(`\\b${en}\\b`, 'gi');
+    translated = translated.replace(regex, pt);
+  });
+  
+  return translated;
+}
+
+// Create a summary from the body
+function createSummary(body: string): string {
+  if (!body) return "";
+  // Get first 150 characters, clean HTML if any
+  const cleanBody = body.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  if (cleanBody.length <= 150) return translateToPortuguese(cleanBody);
+  return translateToPortuguese(cleanBody.substring(0, 147) + "...");
 }
 
 serve(async (req) => {
@@ -22,134 +108,106 @@ serve(async (req) => {
   }
 
   try {
-    const CRYPTOPANIC_API_KEY = Deno.env.get("CRYPTOPANIC_API_KEY");
-
-    if (!CRYPTOPANIC_API_KEY) {
-      // Return mock news when API key is not configured
-      const mockNews = [
-        {
-          id: "1",
-          title: "Federal Reserve mantém taxa de juros, Bitcoin reage positivamente",
-          summary: "O Fed decidiu manter as taxas de juros, impactando positivamente o mercado de criptomoedas.",
-          source: "Reuters",
-          publishedAt: new Date().toISOString(),
-          category: "economy",
-          url: "https://www.reuters.com/markets/currencies/",
-          impact: "high"
-        },
-        {
-          id: "2", 
-          title: "Inflação nos EUA desacelera para 2.9% em dezembro",
-          summary: "Dados de inflação mais baixos que o esperado animam investidores de Bitcoin.",
-          source: "Bloomberg",
-          publishedAt: new Date(Date.now() - 3600000).toISOString(),
-          category: "economy",
-          url: "https://www.bloomberg.com/crypto",
-          impact: "high"
-        },
-        {
-          id: "3",
-          title: "ETFs de Bitcoin registram entradas recordes de $1.2 bilhões",
-          summary: "Fundos de Bitcoin spot nos EUA atraem capital institucional massivo.",
-          source: "CoinDesk",
-          publishedAt: new Date(Date.now() - 7200000).toISOString(),
-          category: "crypto",
-          url: "https://www.coindesk.com/",
-          impact: "medium"
-        },
-        {
-          id: "4",
-          title: "Banco Central Europeu sinaliza possível corte de juros",
-          summary: "BCE indica flexibilização monetária, beneficiando ativos de risco como Bitcoin.",
-          source: "Financial Times",
-          publishedAt: new Date(Date.now() - 10800000).toISOString(),
-          category: "economy",
-          url: "https://www.ft.com/",
-          impact: "medium"
-        },
-        {
-          id: "5",
-          title: "China flexibiliza regulação de mineração de Bitcoin",
-          summary: "Governo chinês relaxa restrições regionais para mineração de criptomoedas.",
-          source: "South China Morning Post",
-          publishedAt: new Date(Date.now() - 14400000).toISOString(),
-          category: "regulation",
-          url: "https://www.scmp.com/tech",
-          impact: "medium"
-        }
-      ];
-
-      return new Response(JSON.stringify({ 
-        news: mockNews, 
-        source: "mock",
-        message: "Configure CRYPTOPANIC_API_KEY for real-time news"
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Fetch real news from CryptoPanic
+    console.log("[fetch-market-news] Fetching from CryptoCompare (free public API)...");
+    
+    // CryptoCompare News API - Free, no API key required for basic access
     const response = await fetch(
-      `https://cryptopanic.com/api/v1/posts/?auth_token=${CRYPTOPANIC_API_KEY}&kind=news&filter=hot&currencies=BTC,ETH&public=true`,
+      "https://min-api.cryptocompare.com/data/v2/news/?lang=EN&categories=BTC,ETH,Regulation,Market&excludeCategories=Sponsored",
       { 
-        headers: { "Accept": "application/json" },
+        headers: { 
+          "Accept": "application/json",
+          "User-Agent": "CryptoAnalytics/1.0"
+        },
       }
     );
 
     if (!response.ok) {
-      throw new Error(`CryptoPanic API error: ${response.status}`);
+      console.error(`[fetch-market-news] CryptoCompare API error: ${response.status}`);
+      throw new Error(`CryptoCompare API error: ${response.status}`);
     }
 
     const data = await response.json();
     
-    if (!data.results || !Array.isArray(data.results)) {
-      throw new Error("Invalid response from CryptoPanic");
+    if (!data.Data || !Array.isArray(data.Data)) {
+      console.error("[fetch-market-news] Invalid response structure:", data);
+      throw new Error("Invalid response from CryptoCompare");
     }
 
+    console.log(`[fetch-market-news] Received ${data.Data.length} news items`);
+
     // Transform and classify news
-    const news = data.results.slice(0, 10).map((item: CryptoPanicNews) => {
+    const news = data.Data.slice(0, 10).map((item: CryptoCompareNews) => {
       const title = item.title.toLowerCase();
+      const body = item.body?.toLowerCase() || "";
+      const combinedText = title + " " + body;
       
-      // Classify impact based on keywords
+      // Classify impact based on keywords (macro-economic focus)
       let impact = "low";
+      
+      // High impact: Fed, interest rates, inflation, ETF approvals, major regulations
       if (
-        title.includes("fed") ||
-        title.includes("federal reserve") ||
-        title.includes("inflation") ||
-        title.includes("interest rate") ||
-        title.includes("juros") ||
-        title.includes("inflação") ||
-        title.includes("etf") ||
-        title.includes("sec") ||
-        title.includes("regulation")
+        combinedText.includes("fed") ||
+        combinedText.includes("federal reserve") ||
+        combinedText.includes("fomc") ||
+        combinedText.includes("inflation") ||
+        combinedText.includes("cpi") ||
+        combinedText.includes("interest rate") ||
+        combinedText.includes("etf approv") ||
+        combinedText.includes("sec approv") ||
+        combinedText.includes("spot etf") ||
+        combinedText.includes("billion") ||
+        combinedText.includes("trillion") ||
+        combinedText.includes("halving") ||
+        combinedText.includes("regulation") ||
+        combinedText.includes("ban") ||
+        combinedText.includes("lawsuit")
       ) {
         impact = "high";
-      } else if (
-        title.includes("bank") ||
-        title.includes("whale") ||
-        title.includes("institutional") ||
-        title.includes("billion") ||
-        title.includes("million") ||
-        title.includes("price") ||
-        title.includes("rally") ||
-        title.includes("crash")
+      } 
+      // Medium impact: Banks, institutions, major price moves
+      else if (
+        combinedText.includes("bank") ||
+        combinedText.includes("institutional") ||
+        combinedText.includes("blackrock") ||
+        combinedText.includes("grayscale") ||
+        combinedText.includes("fidelity") ||
+        combinedText.includes("whale") ||
+        combinedText.includes("million") ||
+        combinedText.includes("all-time high") ||
+        combinedText.includes("ath") ||
+        combinedText.includes("surge") ||
+        combinedText.includes("crash") ||
+        combinedText.includes("rally")
       ) {
         impact = "medium";
       }
 
+      // Determine category
+      let category = "crypto";
+      if (item.categories?.includes("Regulation")) {
+        category = "regulation";
+      } else if (
+        combinedText.includes("fed") ||
+        combinedText.includes("inflation") ||
+        combinedText.includes("interest rate") ||
+        combinedText.includes("economy")
+      ) {
+        category = "economy";
+      }
+
       return {
-        id: String(item.id),
-        title: item.title,
-        summary: "",
-        source: item.source?.title || item.source?.domain || "Unknown",
-        publishedAt: item.published_at,
-        category: item.kind || "news",
-        url: item.url, // Direct link to the article
+        id: item.id,
+        title: translateToPortuguese(item.title),
+        summary: createSummary(item.body),
+        source: item.source_info?.name || item.source || "CryptoCompare",
+        publishedAt: new Date(item.published_on * 1000).toISOString(),
+        category,
+        url: item.url, // Direct link to original article
         impact
       };
     });
 
-    // Sort by impact (high first) then by date
+    // Sort by impact (high first) then by date (newest first)
     const sortedNews = news.sort((a: any, b: any) => {
       const impactOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
       if (impactOrder[a.impact] !== impactOrder[b.impact]) {
@@ -158,21 +216,40 @@ serve(async (req) => {
       return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
     });
 
+    console.log(`[fetch-market-news] Returning ${sortedNews.length} processed news items`);
+
     return new Response(JSON.stringify({ 
       news: sortedNews, 
-      source: "cryptopanic",
-      count: sortedNews.length
+      source: "cryptocompare",
+      count: sortedNews.length,
+      updatedAt: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (error) {
-    console.error("Error fetching market news:", error);
+    console.error("[fetch-market-news] Error:", error);
+    
+    // Return fallback news on error to maintain UI integrity
+    const fallbackNews = [
+      {
+        id: "fallback-1",
+        title: "Aguardando dados de notícias em tempo real...",
+        summary: "O sistema está tentando conectar com as fontes de notícias. Tente novamente em alguns segundos.",
+        source: "Sistema",
+        publishedAt: new Date().toISOString(),
+        category: "system",
+        url: "#",
+        impact: "low"
+      }
+    ];
+    
     return new Response(JSON.stringify({ 
       error: error.message,
-      news: [] 
+      news: fallbackNews,
+      source: "fallback"
     }), {
-      status: 500,
+      status: 200, // Return 200 with fallback to not break UI
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

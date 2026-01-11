@@ -12,8 +12,12 @@ const MAX_NEWS_ITEMS = 5;
 const STALE_TIME = 5 * 60 * 1000; // 5 minutes
 const REFETCH_INTERVAL = 5 * 60 * 1000; // 5 minutes for real-time updates
 
-export function useMarketNews(): NewsState {
-  const { data, isLoading, isError, error } = useQuery({
+export function useMarketNews(): NewsState & { 
+  refetch?: () => void; 
+  dataUpdatedAt?: number;
+  isFetching?: boolean;
+} {
+  const { data, isLoading, isError, error, refetch, dataUpdatedAt, isFetching } = useQuery({
     queryKey: ['market-news-bitcoin-impact'],
     queryFn: fetchMarketNews,
     staleTime: STALE_TIME,
@@ -24,7 +28,7 @@ export function useMarketNews(): NewsState {
 
   // Loading state
   if (isLoading) {
-    return { status: 'loading', data: [] };
+    return { status: 'loading', data: [], refetch, isFetching };
   }
 
   // Error state (API failed completely)
@@ -33,12 +37,14 @@ export function useMarketNews(): NewsState {
       status: 'error',
       data: [],
       error: error instanceof Error ? error.message : 'Erro ao carregar notícias',
+      refetch,
+      isFetching,
     };
   }
 
   // No data or empty array
   if (!data || data.length === 0) {
-    return { status: 'empty', data: [] };
+    return { status: 'empty', data: [], refetch, dataUpdatedAt, isFetching };
   }
 
   // Process news - use pre-classified impact if available, otherwise classify locally
@@ -68,5 +74,8 @@ export function useMarketNews(): NewsState {
   return {
     status: 'success',
     data: sortedNews,
+    refetch,
+    dataUpdatedAt,
+    isFetching,
   };
 }
