@@ -6,13 +6,43 @@
  * Uses CryptoCompare free public API for real-time data
  */
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Newspaper, ExternalLink, TrendingUp, AlertTriangle, Minus, RefreshCw, Wifi } from 'lucide-react';
+import { Newspaper, ExternalLink, TrendingUp, AlertTriangle, Minus, RefreshCw, Wifi, Filter } from 'lucide-react';
 import { useMarketNews } from './useMarketNews';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import type { ClassifiedNewsItem } from './types';
+
+// Category filter options
+type CategoryFilter = 'all' | 'regulation' | 'economy' | 'market';
+
+const categoryFilters: { key: CategoryFilter; label: string }[] = [
+  { key: 'all', label: 'Todas' },
+  { key: 'regulation', label: 'Regulação' },
+  { key: 'economy', label: 'Economia' },
+  { key: 'market', label: 'Mercado' },
+];
+
+// Keywords for category classification (client-side)
+const categoryKeywords: Record<Exclude<CategoryFilter, 'all'>, string[]> = {
+  regulation: ['regulação', 'regulamento', 'sec', 'lei', 'legislação', 'proibição', 'aprovação', 'etf', 'compliance', 'cbdc', 'banco central', 'governo', 'tribunal', 'legal', 'ilegal', 'proibir', 'permitir', 'licença'],
+  economy: ['inflação', 'juros', 'fed', 'taxa', 'dólar', 'economia', 'recessão', 'pib', 'emprego', 'cpi', 'fomc', 'powell', 'yellen', 'tesouro', 'treasury', 'bonds', 'yield', 'macro'],
+  market: ['preço', 'alta', 'baixa', 'bull', 'bear', 'rally', 'correção', 'volume', 'liquidez', 'whale', 'baleia', 'exchange', 'trading', 'bitcoin', 'ethereum', 'altcoin', 'defi', 'nft'],
+};
+
+// Classify news by category based on title keywords
+function classifyCategory(title: string): CategoryFilter {
+  const lowerTitle = title.toLowerCase();
+  
+  for (const [category, keywords] of Object.entries(categoryKeywords)) {
+    if (keywords.some(keyword => lowerTitle.includes(keyword))) {
+      return category as Exclude<CategoryFilter, 'all'>;
+    }
+  }
+  
+  return 'market'; // Default to market if no match
+}
 
 // Impact level badge colors using semantic tokens
 const impactStyles = {
@@ -47,6 +77,7 @@ interface NewsItemCardProps {
 function NewsItemCard({ news, index }: NewsItemCardProps) {
   const style = impactStyles[news.impactLevel];
   const ImpactIcon = style.icon;
+  const isHighImpact = news.impactLevel === 'high';
   
   const formattedDate = new Date(news.publishedAt).toLocaleDateString('pt-BR', {
     day: '2-digit',
@@ -69,8 +100,10 @@ function NewsItemCard({ news, index }: NewsItemCardProps) {
       onClick={handleClick}
       className={`
         group p-4 rounded-lg border transition-all cursor-pointer
-        bg-card/50 hover:bg-card/80
-        border-border/30 hover:border-primary/30
+        ${isHighImpact 
+          ? 'bg-destructive/5 hover:bg-destructive/10 border-destructive/20 hover:border-destructive/40 ring-1 ring-destructive/10' 
+          : 'bg-card/50 hover:bg-card/80 border-border/30 hover:border-primary/30'
+        }
         ${news.url ? 'cursor-pointer' : 'cursor-default'}
       `}
     >
@@ -84,9 +117,15 @@ function NewsItemCard({ news, index }: NewsItemCardProps) {
               <ImpactIcon className="w-3 h-3" />
               {style.label}
             </span>
+            {isHighImpact && (
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive"></span>
+              </span>
+            )}
           </div>
           
-          <h3 className="font-medium text-foreground leading-tight mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+          <h3 className={`font-medium leading-tight mb-2 line-clamp-2 group-hover:text-primary transition-colors ${isHighImpact ? 'text-foreground font-semibold' : 'text-foreground'}`}>
             {news.title}
           </h3>
           
@@ -120,17 +159,67 @@ function LoadingSkeleton() {
   );
 }
 
-function EmptyState() {
+interface EmptyStateProps {
+  isFiltered?: boolean;
+}
+
+function EmptyState({ isFiltered }: EmptyStateProps) {
   return (
     <div className="text-center py-8 text-muted-foreground">
-      <Newspaper className="w-10 h-10 mx-auto mb-3 opacity-50" />
-      <p className="text-sm">Nenhuma notícia relevante no momento</p>
+      {isFiltered ? (
+        <>
+          <Filter className="w-10 h-10 mx-auto mb-3 opacity-50" />
+          <p className="text-sm font-medium">Nenhuma notícia nesta categoria</p>
+          <p className="text-xs mt-1">Tente selecionar outra categoria ou "Todas"</p>
+        </>
+      ) : (
+        <>
+          <Newspaper className="w-10 h-10 mx-auto mb-3 opacity-50" />
+          <p className="text-sm">Nenhuma notícia relevante no momento</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+interface CategoryFilterChipsProps {
+  selected: CategoryFilter;
+  onSelect: (category: CategoryFilter) => void;
+}
+
+function CategoryFilterChips({ selected, onSelect }: CategoryFilterChipsProps) {
+  return (
+    <div className="flex flex-wrap gap-2 mb-4">
+      {categoryFilters.map(({ key, label }) => (
+        <button
+          key={key}
+          onClick={() => onSelect(key)}
+          className={`
+            px-3 py-1.5 rounded-full text-xs font-medium transition-all
+            ${selected === key
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+            }
+          `}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 }
 
 export function MarketNewsSection() {
   const { status, data, refetch, dataUpdatedAt, isFetching } = useMarketNews();
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
+
+  // Filter news by category (client-side only)
+  const filteredNews = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    if (categoryFilter === 'all') return data;
+    
+    return data.filter(news => classifyCategory(news.title) === categoryFilter);
+  }, [data, categoryFilter]);
 
   // Error state - don't render section at all (doesn't break Home)
   if (status === 'error') {
@@ -140,6 +229,8 @@ export function MarketNewsSection() {
   const lastUpdate = dataUpdatedAt 
     ? new Date(dataUpdatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     : null;
+
+  const isFiltered = categoryFilter !== 'all';
 
   return (
     <section className="glass-morphism rounded-2xl p-6 border border-border/30 hover:border-primary/30 transition-all">
@@ -182,13 +273,20 @@ export function MarketNewsSection() {
         </div>
       </div>
 
+      {/* Category filter chips */}
+      {status === 'success' && (
+        <CategoryFilterChips selected={categoryFilter} onSelect={setCategoryFilter} />
+      )}
+
       {status === 'loading' && <LoadingSkeleton />}
       
       {status === 'empty' && <EmptyState />}
       
-      {status === 'success' && (
+      {status === 'success' && filteredNews.length === 0 && <EmptyState isFiltered={isFiltered} />}
+      
+      {status === 'success' && filteredNews.length > 0 && (
         <div className="space-y-3">
-          {data.map((news, index) => (
+          {filteredNews.map((news, index) => (
             <NewsItemCard key={news.id} news={news} index={index} />
           ))}
         </div>
