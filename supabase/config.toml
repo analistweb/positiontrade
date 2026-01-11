@@ -37,3 +37,10 @@ verify_jwt = true
 
 [functions.auth-logout]
 verify_jwt = true
+
+# Funções públicas de dados de mercado
+[functions.fetch-market-news]
+verify_jwt = false
+
+[functions.fetch-liquidation-data]
+verify_jwt = false

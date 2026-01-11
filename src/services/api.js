@@ -1,48 +1,23 @@
 import axios from 'axios';
+import { supabase } from '@/integrations/supabase/client';
 
-// ⚠️ AVISO DE SEGURANÇA ⚠️
-// API Keys estão expostas no cliente (VITE_ prefix inclui no bundle).
-// RECOMENDAÇÃO: Implementar Edge Functions com Lovable Cloud para ocultar chaves.
-// RISCO ATUAL: Chaves podem ser extraídas por qualquer usuário via DevTools.
-// Para produção: Mova estas chamadas para Edge Functions ou aceite uso limitado de APIs gratuitas.
-const COINGLASS_API_KEY = import.meta.env.VITE_COINGLASS_API_KEY;
-const CRYPTOPANIC_API_KEY = import.meta.env.VITE_CRYPTOPANIC_API_KEY;
 const FEAR_GREED_API = 'https://api.alternative.me/fng/';
-const COINGLASS_API = 'https://open-api.coinglass.com/public/v2';
 
-// ⚠️ AVISO: Todas as funções agora usam APENAS dados reais de APIs
-// Não há fallback para dados simulados - se a API falhar, o erro será propagado
-
-
+// ✅ SEGURO: API keys agora são gerenciadas via Edge Functions no servidor
+// Não há mais exposição de chaves no cliente
 
 export const fetchLiquidationData = async () => {
-  if (!COINGLASS_API_KEY) {
-    throw new Error('COINGLASS_API_KEY não configurada. Configure a chave de API para usar dados reais de liquidação.');
-  }
-
   try {
-    const response = await axios.get(`${COINGLASS_API}/liquidation_history`, {
-      headers: { 'coinglassSecret': COINGLASS_API_KEY },
-      timeout: 10000
-    });
-
-    if (!response.data || !response.data.data) {
-      throw new Error('Resposta inválida da API Coinglass');
+    const { data, error } = await supabase.functions.invoke('fetch-liquidation-data');
+    
+    if (error) {
+      throw new Error(error.message || 'Erro ao buscar dados de liquidação');
     }
-
-    return {
-      liquidations: response.data.data.slice(0, 10).map(liq => ({
-        exchange: liq.exchangeName,
-        amount: liq.amount,
-        type: liq.side.toLowerCase(),
-        timestamp: liq.updateTime
-      })),
-      totalLiquidated: response.data.data.reduce((sum, liq) => sum + liq.amount, 0),
-      longVsShort: response.data.longShortRate
-    };
+    
+    return data;
   } catch (error) {
-    console.error('❌ Erro ao buscar dados REAIS de liquidação:', error.message);
-    throw new Error(`Falha ao obter dados reais de liquidação: ${error.message}`);
+    console.error('❌ Erro ao buscar dados de liquidação:', error.message);
+    throw new Error(`Falha ao obter dados de liquidação: ${error.message}`);
   }
 };
 
@@ -61,8 +36,6 @@ export const fetchMarketSentiment = async () => {
       fearGreedIndex: fearGreedValue,
       classification: response.data.data[0].value_classification,
       timestamp: response.data.data[0].timestamp,
-      // Nota: métricas de redes sociais requerem API adicional (Twitter API, Reddit API, etc)
-      // Por enquanto, retornando apenas Fear & Greed Index real
       socialMediaMentions: []
     };
   } catch (error) {
@@ -71,29 +44,19 @@ export const fetchMarketSentiment = async () => {
   }
 };
 
+// Nota: fetchMarketNews agora usa a Edge Function fetch-market-news via useMarketNews hook
+// A função abaixo é mantida para compatibilidade, mas redireciona para a Edge Function
 export const fetchMarketNews = async () => {
-  if (!CRYPTOPANIC_API_KEY) {
-    throw new Error('CRYPTOPANIC_API_KEY não configurada. Configure a chave de API para usar notícias reais de cripto.');
-  }
-
   try {
-    const response = await axios.get('https://cryptopanic.com/api/v1/posts/', {
-      params: {
-        auth_token: CRYPTOPANIC_API_KEY,
-        kind: 'news',
-        filter: 'hot',
-        currencies: 'BTC,ETH'
-      },
-      timeout: 10000
-    });
-
-    if (!response.data || !response.data.results) {
-      throw new Error('Resposta inválida da API CryptoPanic');
+    const { data, error } = await supabase.functions.invoke('fetch-market-news');
+    
+    if (error) {
+      throw new Error(error.message || 'Erro ao buscar notícias');
     }
-
-    return response.data.results;
+    
+    return data?.news || [];
   } catch (error) {
-    console.error('❌ Erro ao buscar notícias REAIS:', error.message);
-    throw new Error(`Falha ao obter notícias reais: ${error.message}`);
+    console.error('❌ Erro ao buscar notícias:', error.message);
+    throw new Error(`Falha ao obter notícias: ${error.message}`);
   }
 };
