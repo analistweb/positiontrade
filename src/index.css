@@ -5,130 +5,145 @@
 @layer base {
   :root {
     /* ========================================
-       🎨 CORE COLORS - Refined Dark Theme
+       🎨 EDITORIAL COLOR SYSTEM - Light Premium
        ======================================== */
-    --background: 222.2 84% 4.9%;
-    --background-elevated: 222.2 84% 6.5%;
-    --background-muted: 222.2 84% 3.5%;
     
-    --foreground: 210 40% 98%;
-    --foreground-muted: 215 20.2% 70%;
-    --foreground-subtle: 215 20.2% 55%;
+    /* Core Background */
+    --background: 0 0% 100%;
+    --background-alt: 0 0% 96%;
+    --background-elevated: 0 0% 98%;
+    --background-muted: 0 0% 94%;
     
-    --card: 222.2 84% 5.8%;
-    --card-foreground: 210 40% 98%;
-    --card-hover: 222.2 84% 7%;
+    /* Core Foreground */
+    --foreground: 0 0% 0%;
+    --foreground-muted: 0 0% 20%;
+    --foreground-subtle: 0 0% 45%;
     
-    --popover: 222.2 84% 6.2%;
-    --popover-foreground: 210 40% 98%;
+    /* Card */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --card-hover: 0 0% 98%;
+    
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
     
     /* ========================================
-       🔵 BRAND COLORS
+       🔵 BRAND COLORS - Editorial Blue
        ======================================== */
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --primary-hover: 217.2 91.2% 65%;
-    --primary-muted: 217.2 70% 45%;
+    --primary: 210 100% 48%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 210 100% 42%;
+    --primary-muted: 210 70% 60%;
     
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --secondary-hover: 217.2 32.6% 22%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 10%;
+    --secondary-hover: 0 0% 92%;
     
-    --accent: 217.2 50% 40%;
-    --accent-foreground: 210 40% 98%;
-    --accent-hover: 217.2 50% 45%;
+    --accent: 45 100% 51%;
+    --accent-foreground: 0 0% 0%;
+    --accent-hover: 45 100% 45%;
     
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
     
     /* ========================================
        📊 TRADING COLORS - Professional
        ======================================== */
-    --success: 142 76% 36%;
-    --success-foreground: 142 76% 95%;
-    --success-muted: 142 76% 25%;
-    --success-hover: 142 76% 42%;
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+    --success-muted: 160 60% 50%;
+    --success-hover: 160 84% 35%;
     
-    --danger: 0 72% 51%;
-    --danger-foreground: 0 72% 95%;
-    --danger-muted: 0 72% 38%;
-    --danger-hover: 0 72% 56%;
+    --danger: 0 84% 60%;
+    --danger-foreground: 0 0% 100%;
+    --danger-muted: 0 60% 65%;
+    --danger-hover: 0 84% 55%;
     
     --warning: 38 92% 50%;
-    --warning-foreground: 38 92% 10%;
-    --warning-muted: 38 92% 38%;
+    --warning-foreground: 0 0% 0%;
+    --warning-muted: 38 70% 60%;
     
     --info: 199 89% 48%;
-    --info-foreground: 199 89% 95%;
-    --info-muted: 199 89% 35%;
+    --info-foreground: 0 0% 100%;
+    --info-muted: 199 60% 60%;
     
     /* Trading-specific */
-    --buy: 142 76% 36%;
-    --buy-foreground: 142 76% 95%;
-    --buy-glow: 142 76% 36%;
+    --buy: 160 84% 39%;
+    --buy-foreground: 0 0% 100%;
+    --buy-glow: 160 84% 39%;
     
-    --sell: 0 72% 51%;
-    --sell-foreground: 0 72% 95%;
-    --sell-glow: 0 72% 51%;
+    --sell: 0 84% 60%;
+    --sell-foreground: 0 0% 100%;
+    --sell-glow: 0 84% 60%;
     
-    --neutral: 215 20% 50%;
-    --neutral-foreground: 215 20% 95%;
+    --neutral: 0 0% 50%;
+    --neutral-foreground: 0 0% 100%;
     
     /* Strategy Version Colors */
     --version-baseline: 270 80% 55%;
-    --version-active: 142 76% 45%;
+    --version-active: 160 84% 45%;
     --version-testing: 38 92% 50%;
-    --version-frozen: 215 20% 40%;
+    --version-frozen: 0 0% 50%;
     
     /* Score Indicator Colors */
-    --score-excellent: 142 76% 40%;
-    --score-good: 142 50% 45%;
+    --score-excellent: 160 84% 40%;
+    --score-good: 160 50% 50%;
     --score-moderate: 38 92% 50%;
-    --score-weak: 0 72% 51%;
+    --score-weak: 0 84% 60%;
     
     /* Chart Colors */
-    --chart-bullish: 142 76% 40%;
-    --chart-bearish: 0 72% 50%;
-    --chart-volume: 217.2 91.2% 50%;
+    --chart-bullish: 160 84% 40%;
+    --chart-bearish: 0 84% 55%;
+    --chart-volume: 210 100% 50%;
     --chart-ema: 38 92% 55%;
     --chart-pivot: 270 80% 60%;
     
     /* ========================================
        🎭 STATE COLORS
        ======================================== */
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 50%;
+    --destructive-foreground: 0 0% 100%;
     
     /* ========================================
        🔲 BORDERS & INPUTS
        ======================================== */
-    --border: 217.2 32.6% 17.5%;
-    --border-hover: 217.2 32.6% 25%;
-    --border-focus: 217.2 91.2% 59.8%;
+    --border: 0 0% 88%;
+    --border-hover: 0 0% 75%;
+    --border-focus: 210 100% 48%;
     
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-    
-    /* ========================================
-       📐 SPACING & SIZING
-       ======================================== */
-    --radius: 0.75rem;
-    --radius-sm: 0.5rem;
-    --radius-md: 0.625rem;
-    --radius-lg: 1rem;
-    --radius-xl: 1.25rem;
+    --input: 0 0% 96%;
+    --ring: 210 100% 48%;
     
     /* ========================================
-       🌟 EFFECTS & SHADOWS
+       📐 SPACING & SIZING - Editorial Scale
        ======================================== */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.15);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.15);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.25), 0 4px 6px -4px rgb(0 0 0 / 0.15);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.15);
+    --radius: 0.5rem;
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
     
-    --shadow-success: 0 0 20px hsl(var(--success) / 0.3);
-    --shadow-danger: 0 0 20px hsl(var(--danger) / 0.3);
-    --shadow-primary: 0 0 20px hsl(var(--primary) / 0.2);
+    /* Editorial Spacing */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 32px;
+    --space-xl: 64px;
+    --space-2xl: 96px;
+    
+    /* ========================================
+       🌟 EFFECTS & SHADOWS - Subtle Premium
+       ======================================== */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.04);
+    --shadow-editorial: 0 24px 48px -12px rgb(0 0 0 / 0.15);
+    
+    --shadow-success: 0 0 20px hsl(var(--success) / 0.15);
+    --shadow-danger: 0 0 20px hsl(var(--danger) / 0.15);
+    --shadow-primary: 0 0 20px hsl(var(--primary) / 0.1);
     
     /* ========================================
        ✨ GRADIENTS
@@ -136,7 +151,8 @@
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-muted)) 100%);
     --gradient-success: linear-gradient(135deg, hsl(var(--success)) 0%, hsl(var(--success-muted)) 100%);
     --gradient-danger: linear-gradient(135deg, hsl(var(--danger)) 0%, hsl(var(--danger-muted)) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--background-elevated)) 100%);
+    --gradient-editorial: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background-alt)) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(0 0% 97%) 0%, hsl(0 0% 100%) 50%, hsl(210 40% 98%) 100%);
     
     /* ========================================
        🎬 ANIMATIONS & TRANSITIONS
@@ -145,6 +161,31 @@
     --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Dark mode overrides for trading context */
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --background-alt: 222.2 84% 6%;
+    --background-elevated: 222.2 84% 6.5%;
+    --background-muted: 222.2 84% 3.5%;
+    
+    --foreground: 210 40% 98%;
+    --foreground-muted: 215 20% 70%;
+    --foreground-subtle: 215 20% 55%;
+    
+    --card: 222.2 84% 5.8%;
+    --card-foreground: 210 40% 98%;
+    --card-hover: 222.2 84% 7%;
+    
+    --popover: 222.2 84% 6.2%;
+    --popover-foreground: 210 40% 98%;
+    
+    --border: 217.2 32.6% 17.5%;
+    --border-hover: 217.2 32.6% 25%;
+    
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20% 65%;
   }
 
   html {
@@ -192,24 +233,108 @@
   }
 
   /* ========================================
-     🎴 CARD COMPONENTS - Professional
+     ✍️ EDITORIAL TYPOGRAPHY
+     ======================================== */
+  
+  /* Hero Typography - Playlair Display style */
+  .font-hero {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+  
+  .font-editorial {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  
+  .font-subtitle {
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1.4;
+  }
+  
+  .font-body {
+    font-weight: 400;
+    line-height: 1.7;
+  }
+  
+  .font-small {
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  h1 {
+    @apply font-hero text-3xl sm:text-4xl md:text-5xl lg:text-6xl;
+    @apply mb-6 text-foreground;
+  }
+
+  h2 {
+    @apply font-editorial text-2xl sm:text-3xl md:text-4xl;
+    @apply mb-4 text-foreground;
+  }
+
+  h3 {
+    @apply font-subtitle text-xl sm:text-2xl md:text-3xl;
+    @apply mb-3 text-foreground;
+  }
+  
+  h4 {
+    @apply font-subtitle text-lg sm:text-xl;
+    @apply mb-2 text-foreground;
+  }
+  
+  h5 {
+    @apply font-subtitle text-base sm:text-lg;
+    @apply mb-2 text-foreground;
+  }
+
+  p {
+    @apply font-body text-base leading-relaxed;
+    @apply text-foreground-muted;
+  }
+  
+  .text-subtle {
+    @apply text-foreground-subtle;
+  }
+  
+  .text-mono {
+    @apply font-mono tracking-tight;
+  }
+
+  /* ========================================
+     🎴 EDITORIAL CARDS
      ======================================== */
   .glass-morphism {
-    @apply backdrop-blur-lg bg-black/30 border border-white/10;
+    @apply bg-background/95 backdrop-blur-md border border-border/50;
     box-shadow: var(--shadow-lg);
   }
 
   .card {
-    @apply p-4 sm:p-6 rounded-xl bg-card text-card-foreground;
-    @apply border border-border/50;
-    box-shadow: var(--shadow-md);
+    @apply p-6 sm:p-8 rounded-lg bg-card text-card-foreground;
+    @apply border border-border;
+    box-shadow: var(--shadow-sm);
     transition: all var(--transition-base);
   }
   
   .card:hover {
-    @apply bg-card-hover border-border-hover;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-md);
     transform: translateY(-2px);
+  }
+  
+  .card-editorial {
+    @apply bg-background border-0;
+    box-shadow: var(--shadow-editorial);
+    transition: all var(--transition-slow);
+  }
+  
+  .card-editorial:hover {
+    box-shadow: 0 32px 64px -16px rgb(0 0 0 / 0.18);
+    transform: translateY(-4px);
   }
   
   .card-elevated {
@@ -227,70 +352,24 @@
   }
 
   /* ========================================
-     📝 TYPOGRAPHY - Professional Scale
+     📋 TABLES
      ======================================== */
-  h1 {
-    @apply text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl;
-    @apply mb-4 text-foreground;
-    line-height: 1.2;
-    letter-spacing: -0.02em;
-  }
-
-  h2 {
-    @apply text-xl font-semibold tracking-tight sm:text-2xl md:text-3xl lg:text-4xl;
-    @apply mb-3 text-foreground;
-    line-height: 1.3;
-    letter-spacing: -0.01em;
-  }
-
-  h3 {
-    @apply text-lg font-semibold tracking-tight sm:text-xl md:text-2xl lg:text-3xl;
-    @apply mb-2 text-foreground;
-    line-height: 1.4;
-  }
-  
-  h4 {
-    @apply text-base font-semibold sm:text-lg md:text-xl;
-    @apply mb-2 text-foreground;
-    line-height: 1.5;
-  }
-  
-  h5 {
-    @apply text-sm font-semibold sm:text-base md:text-lg;
-    @apply mb-1 text-foreground;
-    line-height: 1.5;
-  }
-
-  p {
-    @apply leading-relaxed text-sm sm:text-base;
-    @apply text-foreground-muted;
-    line-height: 1.6;
-  }
-  
-  .text-subtle {
-    @apply text-foreground-subtle;
-  }
-  
-  .text-mono {
-    @apply font-mono tracking-tight;
-  }
-
   .enhanced-table {
     @apply w-full overflow-x-auto;
   }
 
   .enhanced-table th {
-    @apply bg-primary/10 text-primary-foreground font-medium;
-    @apply px-3 py-2 sm:px-4 sm:py-3 text-left text-xs sm:text-sm;
+    @apply bg-background-alt text-foreground font-medium;
+    @apply px-4 py-3 text-left text-sm border-b border-border;
   }
 
   .enhanced-table td {
-    @apply px-3 py-2 sm:px-4 sm:py-3 border-t border-border/50;
-    @apply text-foreground/90 text-xs sm:text-sm;
+    @apply px-4 py-3 border-b border-border/50;
+    @apply text-foreground-muted text-sm;
   }
 
   .enhanced-table tr:hover {
-    @apply bg-primary/5;
+    @apply bg-background-alt/50;
   }
 
   /* ========================================
@@ -301,7 +380,7 @@
   }
   
   .trading-buy:hover {
-    @apply bg-success/20 border-success/50;
+    @apply bg-success/15 border-success/50;
   }
   
   .trading-sell {
@@ -309,25 +388,23 @@
   }
   
   .trading-sell:hover {
-    @apply bg-danger/20 border-danger/50;
+    @apply bg-danger/15 border-danger/50;
   }
   
   .trading-neutral {
-    @apply bg-neutral/10 text-neutral border-neutral/30;
+    @apply bg-muted text-muted-foreground border-border;
   }
   
   .signal-badge-buy {
-    @apply inline-flex items-center gap-1 px-2 py-1 rounded-md;
-    @apply bg-success/20 text-success border border-success/40;
-    @apply font-semibold text-xs;
-    box-shadow: var(--shadow-success);
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md;
+    @apply bg-success/10 text-success border border-success/30;
+    @apply font-medium text-sm;
   }
   
   .signal-badge-sell {
-    @apply inline-flex items-center gap-1 px-2 py-1 rounded-md;
-    @apply bg-danger/20 text-danger border border-danger/40;
-    @apply font-semibold text-xs;
-    box-shadow: var(--shadow-danger);
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md;
+    @apply bg-danger/10 text-danger border border-danger/30;
+    @apply font-medium text-sm;
   }
   
   .price-up {
@@ -337,32 +414,31 @@
   .price-down {
     @apply text-danger font-semibold;
   }
-  
+
   /* ========================================
      📈 STRATEGY VERSION BADGES
      ======================================== */
   .version-badge {
-    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold;
-    @apply border backdrop-blur-sm transition-all duration-200;
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold;
+    @apply border transition-all duration-200;
   }
   
   .version-badge-active {
-    @apply bg-success/20 text-success border-success/40;
-    box-shadow: 0 0 12px hsl(var(--success) / 0.3);
+    @apply bg-success/10 text-success border-success/30;
   }
   
   .version-badge-baseline {
-    @apply bg-purple-500/20 text-purple-400 border-purple-400/40;
+    @apply bg-purple-100 text-purple-700 border-purple-200;
   }
   
   .version-badge-testing {
-    @apply bg-warning/20 text-warning border-warning/40;
+    @apply bg-warning/10 text-warning border-warning/30;
   }
   
   .version-badge-frozen {
     @apply bg-muted text-muted-foreground border-border;
   }
-  
+
   /* ========================================
      📊 SCORE INDICATOR
      ======================================== */
@@ -380,77 +456,78 @@
     mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #fff calc(100% - 4px));
     -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #fff calc(100% - 4px));
   }
-  
+
   /* ========================================
-     🎯 STRATEGY HERO SECTION
+     🎯 EDITORIAL HERO SECTION
      ======================================== */
+  .editorial-hero {
+    @apply relative overflow-hidden;
+    background: var(--gradient-hero);
+  }
+  
+  .editorial-hero::before {
+    content: '';
+    @apply absolute inset-0 opacity-[0.03];
+    background-image: radial-gradient(hsl(var(--foreground)) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
   .strategy-hero {
-    @apply relative overflow-hidden rounded-2xl border;
+    @apply relative overflow-hidden rounded-xl border border-border;
     background: linear-gradient(135deg, 
-      hsl(var(--card)) 0%, 
-      hsl(var(--background-elevated)) 50%,
-      hsl(var(--card)) 100%
+      hsl(var(--background)) 0%, 
+      hsl(var(--background-alt)) 50%,
+      hsl(var(--background)) 100%
     );
   }
   
   .strategy-hero::before {
     content: '';
-    @apply absolute inset-0 opacity-30;
-    background: radial-gradient(circle at 20% 20%, hsl(var(--primary) / 0.3) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, hsl(var(--success) / 0.2) 0%, transparent 50%);
+    @apply absolute inset-0 opacity-10;
+    background: radial-gradient(circle at 20% 20%, hsl(var(--primary) / 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, hsl(var(--success) / 0.15) 0%, transparent 50%);
   }
-  
-  .strategy-hero-glow {
-    @apply absolute top-0 right-0 w-96 h-96 rounded-full blur-3xl opacity-20;
-    background: hsl(var(--primary));
-    animation: hero-glow 8s ease-in-out infinite;
-  }
-  
-  @keyframes hero-glow {
-    0%, 100% { transform: translate(30%, -30%) scale(1); opacity: 0.2; }
-    50% { transform: translate(20%, -20%) scale(1.1); opacity: 0.3; }
-  }
-  
+
   /* ========================================
      📱 SIGNAL CARDS
      ======================================== */
   .signal-card {
-    @apply relative overflow-hidden rounded-xl border transition-all duration-300;
-    background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--background-elevated)) 100%);
+    @apply relative overflow-hidden rounded-lg border border-border transition-all duration-300;
+    @apply bg-background;
   }
   
   .signal-card:hover {
-    @apply border-primary/50;
+    @apply border-primary/30;
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px -5px hsl(var(--primary) / 0.2);
+    box-shadow: var(--shadow-lg);
   }
   
   .signal-card-buy {
-    @apply border-success/30;
+    @apply border-success/20;
     background: linear-gradient(145deg, 
-      hsl(var(--card)) 0%, 
-      hsl(var(--success) / 0.05) 100%
+      hsl(var(--background)) 0%, 
+      hsl(var(--success) / 0.03) 100%
     );
   }
   
   .signal-card-buy:hover {
-    @apply border-success/60;
-    box-shadow: 0 8px 25px -5px hsl(var(--success) / 0.25);
+    @apply border-success/40;
+    box-shadow: 0 8px 25px -5px hsl(var(--success) / 0.15);
   }
   
   .signal-card-sell {
-    @apply border-danger/30;
+    @apply border-danger/20;
     background: linear-gradient(145deg, 
-      hsl(var(--card)) 0%, 
-      hsl(var(--danger) / 0.05) 100%
+      hsl(var(--background)) 0%, 
+      hsl(var(--danger) / 0.03) 100%
     );
   }
   
   .signal-card-sell:hover {
-    @apply border-danger/60;
-    box-shadow: 0 8px 25px -5px hsl(var(--danger) / 0.25);
+    @apply border-danger/40;
+    box-shadow: 0 8px 25px -5px hsl(var(--danger) / 0.15);
   }
-  
+
   /* ========================================
      🎬 PULSE RING ANIMATION
      ======================================== */
@@ -460,26 +537,17 @@
   }
   
   @keyframes pulse-ring {
-    0% {
-      transform: scale(0.95);
-      opacity: 0.8;
-    }
-    50% {
-      transform: scale(1.05);
-      opacity: 0.4;
-    }
-    100% {
-      transform: scale(0.95);
-      opacity: 0.8;
-    }
+    0% { transform: scale(0.95); opacity: 0.8; }
+    50% { transform: scale(1.05); opacity: 0.4; }
+    100% { transform: scale(0.95); opacity: 0.8; }
   }
-  
+
   /* ========================================
      📊 METRIC CARDS
      ======================================== */
   .metric-card {
-    @apply relative rounded-xl p-4 border transition-all duration-200;
-    background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--background-elevated)) 100%);
+    @apply relative rounded-lg p-5 border border-border transition-all duration-200;
+    @apply bg-background;
   }
   
   .metric-card:hover {
@@ -489,27 +557,17 @@
   }
   
   .metric-value {
-    @apply text-2xl font-bold tracking-tight;
-    background: linear-gradient(135deg, hsl(var(--foreground)) 0%, hsl(var(--foreground-muted)) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    @apply text-3xl font-bold tracking-tight text-foreground;
   }
   
   .metric-value-success {
-    background: linear-gradient(135deg, hsl(var(--success)) 0%, hsl(var(--success-muted)) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    @apply text-success;
   }
   
   .metric-value-danger {
-    background: linear-gradient(135deg, hsl(var(--danger)) 0%, hsl(var(--danger-muted)) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    @apply text-danger;
   }
-  
+
   /* ========================================
      🎬 SMOOTH TRANSITIONS & ANIMATIONS
      ======================================== */
@@ -532,13 +590,13 @@
   }
   
   @keyframes glow-success {
-    0%, 100% { box-shadow: 0 0 5px hsl(var(--success) / 0.3); }
-    50% { box-shadow: 0 0 20px hsl(var(--success) / 0.5); }
+    0%, 100% { box-shadow: 0 0 5px hsl(var(--success) / 0.2); }
+    50% { box-shadow: 0 0 15px hsl(var(--success) / 0.35); }
   }
   
   @keyframes glow-danger {
-    0%, 100% { box-shadow: 0 0 5px hsl(var(--danger) / 0.3); }
-    50% { box-shadow: 0 0 20px hsl(var(--danger) / 0.5); }
+    0%, 100% { box-shadow: 0 0 5px hsl(var(--danger) / 0.2); }
+    50% { box-shadow: 0 0 15px hsl(var(--danger) / 0.35); }
   }
   
   @keyframes pulse-subtle {
@@ -549,8 +607,30 @@
   .animate-pulse-subtle {
     animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
+  
+  /* Fade in animation for scroll storytelling */
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fade-in-up {
+    animation: fade-in-up 0.6s ease-out forwards;
+  }
+  
+  /* Parallax effect helper */
+  .parallax-slow {
+    will-change: transform;
+    transition: transform 0.3s ease-out;
+  }
 
-  /* Prevent text selection on double-tap (but allow long-press) */
+  /* Prevent text selection on double-tap */
   .no-select {
     -webkit-user-select: none;
     user-select: none;
@@ -559,20 +639,66 @@
   /* Custom scrollbar for webkit browsers */
   @media (min-width: 768px) {
     ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
     }
 
     ::-webkit-scrollbar-track {
-      @apply bg-muted/20;
+      @apply bg-transparent;
     }
 
     ::-webkit-scrollbar-thumb {
-      @apply bg-primary/30 rounded-full;
+      @apply bg-border rounded-full;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-      @apply bg-primary/50;
+      @apply bg-border-hover;
     }
+  }
+
+  /* ========================================
+     🎨 EDITORIAL UTILITY CLASSES
+     ======================================== */
+  .editorial-container {
+    @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  .editorial-section {
+    @apply py-16 sm:py-24 lg:py-32;
+  }
+  
+  .editorial-divider {
+    @apply w-16 h-0.5 bg-border mx-auto my-8;
+  }
+  
+  .editorial-label {
+    @apply text-xs font-semibold uppercase tracking-widest text-foreground-subtle;
+  }
+  
+  .editorial-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8;
+  }
+  
+  .editorial-link {
+    @apply relative text-foreground font-medium;
+    @apply after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5;
+    @apply after:bg-primary after:transition-all after:duration-300;
+  }
+  
+  .editorial-link:hover::after {
+    @apply after:w-full;
+  }
+  
+  /* Impact badges */
+  .impact-high {
+    @apply bg-danger/10 text-danger border-danger/20;
+  }
+  
+  .impact-medium {
+    @apply bg-warning/10 text-warning border-warning/20;
+  }
+  
+  .impact-low {
+    @apply bg-success/10 text-success border-success/20;
   }
 }
