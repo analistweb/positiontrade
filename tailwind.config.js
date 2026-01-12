@@ -5,7 +5,7 @@ module.exports = {
     "./pages/**/*.{js,jsx}",
     "./components/**/*.{js,jsx}",
     "./app/**/*.{js,jsx}",
-    "./src/**/*.{js,jsx}",
+    "./src/**/*.{js,jsx,ts,tsx}",
   ],
   prefix: "",
   theme: {
@@ -13,18 +13,33 @@ module.exports = {
       center: true,
       padding: {
         DEFAULT: "1rem",
-        sm: "2rem",
+        sm: "1.5rem",
+        lg: "2rem",
       },
       screens: {
+        sm: "640px",
+        md: "768px",
+        lg: "1024px",
+        xl: "1280px",
         "2xl": "1400px",
       },
     },
     extend: {
+      fontFamily: {
+        serif: ['Georgia', 'Times New Roman', 'serif'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+      },
       spacing: {
         'safe-top': 'env(safe-area-inset-top)',
         'safe-bottom': 'env(safe-area-inset-bottom)',
         'safe-left': 'env(safe-area-inset-left)',
         'safe-right': 'env(safe-area-inset-right)',
+        'xs': '4px',
+        'sm': '8px',
+        'md': '16px',
+        'lg': '32px',
+        'xl': '64px',
+        '2xl': '96px',
       },
       colors: {
         border: {
@@ -36,6 +51,7 @@ module.exports = {
         ring: "hsl(var(--ring))",
         background: {
           DEFAULT: "hsl(var(--background))",
+          alt: "hsl(var(--background-alt))",
           elevated: "hsl(var(--background-elevated))",
           muted: "hsl(var(--background-muted))",
         },
@@ -127,15 +143,16 @@ module.exports = {
         md: "var(--shadow-md)",
         lg: "var(--shadow-lg)",
         xl: "var(--shadow-xl)",
+        editorial: "var(--shadow-editorial)",
         success: "var(--shadow-success)",
         danger: "var(--shadow-danger)",
         primary: "var(--shadow-primary)",
       },
       transitionDuration: {
-        fast: "var(--transition-fast)",
-        base: "var(--transition-base)",
-        slow: "var(--transition-slow)",
-        bounce: "var(--transition-bounce)",
+        fast: "150ms",
+        base: "200ms",
+        slow: "300ms",
+        bounce: "500ms",
       },
       typography: {
         DEFAULT: {
@@ -145,7 +162,7 @@ module.exports = {
             a: {
               color: 'hsl(var(--primary))',
               '&:hover': {
-                color: 'hsl(var(--primary-foreground))',
+                color: 'hsl(var(--primary-hover))',
               },
             },
           },
@@ -160,10 +177,25 @@ module.exports = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "fade-in-up": {
+          from: { opacity: "0", transform: "translateY(24px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "slide-in-right": {
+          from: { transform: "translateX(100%)" },
+          to: { transform: "translateX(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "fade-in-up": "fade-in-up 0.6s ease-out forwards",
+        "fade-in": "fade-in 0.4s ease-out forwards",
+        "slide-in-right": "slide-in-right 0.3s ease-out",
       },
     },
   },
