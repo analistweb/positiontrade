@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Link } from 'react-router-dom';
 import { 
   TrendingUp, 
@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { EditorialHero, EditorialSection } from '@/components/editorial/EditorialHero';
 import { EditorialCard, EditorialCardGrid } from '@/components/editorial/EditorialCard';
 import { EditorialLoading, EditorialError } from '@/components/editorial/EditorialStates';
+import { ScrollProgressBar, FadeInOnScroll, StaggerContainer, StaggerItem } from '@/components/effects';
 import LivePriceCard from '@/components/dashboard/LivePriceCard';
 import FearGreedIndex from '@/components/dashboard/FearGreedIndex';
 import WhaleActivityPreview from '@/components/dashboard/WhaleActivityPreview';
@@ -26,6 +27,8 @@ import { MarketNewsSection } from '@/features/market-news';
 import { toast } from "sonner";
 
 const Index = () => {
+  const prefersReducedMotion = useReducedMotion();
+  
   const { data: marketOverview, isLoading, error, refetch } = useQuery({
     queryKey: ['marketOverview'],
     queryFn: async () => {
@@ -72,18 +75,29 @@ const Index = () => {
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
+      {/* Scroll Progress Bar */}
+      <ScrollProgressBar />
+      
+      {/* Hero Section with Parallax */}
       <EditorialHero
         label="Análise em Tempo Real"
         title="Inteligência de Mercado para Criptomoedas"
         description="Dados ao vivo, indicadores técnicos avançados e monitoramento de baleias para decisões mais informadas."
         size="large"
+        showParallax={true}
       >
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Button asChild size="lg">
+          <Button asChild size="lg" className="group">
             <Link to="/sinais-trade">
               <Radio className="w-4 h-4 mr-2" />
               Ver Sinais ao Vivo
+              <motion.span 
+                className="ml-2"
+                animate={prefersReducedMotion ? {} : { x: [0, 4, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              >
+                →
+              </motion.span>
             </Link>
           </Button>
           <Button asChild variant="outline" size="lg">
@@ -103,80 +117,59 @@ const Index = () => {
         <>
           {/* Market Stats */}
           <EditorialSection label="Visão Geral" title="Mercado Global">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6">
+            <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6">
               {/* Market Cap */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="metric-card"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-foreground-subtle">Cap. de Mercado</span>
-                  <Globe className="w-4 h-4 text-primary" />
+              <StaggerItem>
+                <div className="metric-card group">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-foreground-subtle">Cap. de Mercado</span>
+                    <Globe className="w-4 h-4 text-primary transition-transform group-hover:scale-110" />
+                  </div>
+                  <p className="metric-value">{formatCurrency(marketOverview?.global?.total_market_cap?.usd)}</p>
+                  <p className="text-xs text-foreground-subtle mt-1">
+                    Volume 24h: {formatCurrency(marketOverview?.global?.total_volume?.usd)}
+                  </p>
                 </div>
-                <p className="metric-value">{formatCurrency(marketOverview?.global?.total_market_cap?.usd)}</p>
-                <p className="text-xs text-foreground-subtle mt-1">
-                  Volume 24h: {formatCurrency(marketOverview?.global?.total_volume?.usd)}
-                </p>
-              </motion.div>
+              </StaggerItem>
 
               {/* BTC Dominance */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.1 }}
-                className="metric-card"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-foreground-subtle">Dominância BTC</span>
-                  <Badge variant="outline" className="text-xs">BTC</Badge>
+              <StaggerItem>
+                <div className="metric-card group">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-foreground-subtle">Dominância BTC</span>
+                    <Badge variant="outline" className="text-xs">BTC</Badge>
+                  </div>
+                  <p className="metric-value">{marketOverview?.global?.market_cap_percentage?.btc?.toFixed(1)}%</p>
+                  <p className="text-xs text-foreground-subtle mt-1">
+                    ETH: {marketOverview?.global?.market_cap_percentage?.eth?.toFixed(1)}%
+                  </p>
                 </div>
-                <p className="metric-value">{marketOverview?.global?.market_cap_percentage?.btc?.toFixed(1)}%</p>
-                <p className="text-xs text-foreground-subtle mt-1">
-                  ETH: {marketOverview?.global?.market_cap_percentage?.eth?.toFixed(1)}%
-                </p>
-              </motion.div>
+              </StaggerItem>
 
               {/* Active Markets */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2 }}
-                className="metric-card"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-foreground-subtle">Mercados</span>
-                  <Activity className="w-4 h-4 text-success" />
+              <StaggerItem>
+                <div className="metric-card group">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-foreground-subtle">Mercados</span>
+                    <Activity className="w-4 h-4 text-success transition-transform group-hover:scale-110" />
+                  </div>
+                  <p className="metric-value">{marketOverview?.global?.active_cryptocurrencies?.toLocaleString()}</p>
+                  <p className="text-xs text-foreground-subtle mt-1">
+                    {marketOverview?.global?.markets?.toLocaleString()} exchanges
+                  </p>
                 </div>
-                <p className="metric-value">{marketOverview?.global?.active_cryptocurrencies?.toLocaleString()}</p>
-                <p className="text-xs text-foreground-subtle mt-1">
-                  {marketOverview?.global?.markets?.toLocaleString()} exchanges
-                </p>
-              </motion.div>
+              </StaggerItem>
 
               {/* Fear & Greed */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.3 }}
-              >
+              <StaggerItem>
                 <FearGreedIndex />
-              </motion.div>
+              </StaggerItem>
 
               {/* Whale Activity */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.4 }}
-              >
+              <StaggerItem>
                 <WhaleActivityPreview />
-              </motion.div>
-            </div>
+              </StaggerItem>
+            </StaggerContainer>
           </EditorialSection>
 
           {/* Top Cryptocurrencies */}
@@ -185,26 +178,33 @@ const Index = () => {
             title="Principais Criptomoedas"
             className="bg-background-alt"
           >
-            <div className="flex items-center justify-between mb-6">
-              <Badge className="bg-success/10 text-success border-success/20">
-                <span className="w-2 h-2 rounded-full bg-success animate-pulse mr-2" />
-                Atualização automática
-              </Badge>
-              <Button variant="ghost" size="sm" onClick={() => refetch()}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Atualizar
-              </Button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <FadeInOnScroll>
+              <div className="flex items-center justify-between mb-6">
+                <Badge className="bg-success/10 text-success border-success/20">
+                  <span className="w-2 h-2 rounded-full bg-success animate-pulse mr-2" />
+                  Atualização automática
+                </Badge>
+                <Button variant="ghost" size="sm" onClick={() => refetch()} className="group">
+                  <RefreshCw className="w-4 h-4 mr-2 transition-transform group-hover:rotate-180" />
+                  Atualizar
+                </Button>
+              </div>
+            </FadeInOnScroll>
+            
+            <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {marketOverview?.topCoins?.map((coin, index) => (
-                <LivePriceCard key={coin.id} coin={coin} index={index} />
+                <StaggerItem key={coin.id}>
+                  <LivePriceCard coin={coin} index={index} />
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerContainer>
           </EditorialSection>
 
           {/* News Section */}
           <EditorialSection label="Notícias" title="Últimas Atualizações">
-            <MarketNewsSection />
+            <FadeInOnScroll>
+              <MarketNewsSection />
+            </FadeInOnScroll>
           </EditorialSection>
 
           {/* Quick Links */}
