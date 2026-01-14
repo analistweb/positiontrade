@@ -1,4 +1,4 @@
-import { HomeIcon, TrendingUpIcon, WalletIcon, ActivityIcon, BarChartIcon, ZapIcon, Radio } from "lucide-react";
+import { HomeIcon, TrendingUpIcon, WalletIcon, ActivityIcon, BarChartIcon, ZapIcon, Radio, FlaskConical } from "lucide-react";
 import Dashboard from "./pages/Dashboard.jsx";
 import Index from "./pages/Index.jsx";
 import AnalisesCompraVenda from "./pages/AnalisesCompraVenda.jsx";
@@ -7,6 +7,7 @@ import FormacaoTopo from "./pages/FormacaoTopo.jsx";
 import AnaliseTecnica from "./pages/AnaliseTecnica.jsx";
 import EstrategiaETH from "./pages/EstrategiaETH.jsx";
 import SinaisTrade from "./pages/SinaisTrade.jsx";
+import AsymmetricEdgeTest from "./pages/AsymmetricEdgeTest.tsx";
 
 export const navItems = [
   {
@@ -57,5 +58,12 @@ export const navItems = [
     icon: <BarChartIcon className="h-4 w-4" />,
     page: <AnaliseTecnica />,
     description: "Utilize ferramentas avançadas para análise de preços, tendências e indicadores técnicos"
+  },
+  {
+    title: "ASYMMETRIC EDGE TEST",
+    to: "/asymmetric-edge",
+    icon: <FlaskConical className="h-4 w-4" />,
+    page: <AsymmetricEdgeTest />,
+    description: "Validação estatística da estratégia ASYMMETRIC_EDGE_V2 com backtest e Monte Carlo"
   },
 ];
