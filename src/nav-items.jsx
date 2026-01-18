@@ -1,4 +1,4 @@
-import { HomeIcon, TrendingUpIcon, WalletIcon, ActivityIcon, BarChartIcon, ZapIcon, Radio, FlaskConical } from "lucide-react";
+import { HomeIcon, TrendingUpIcon, WalletIcon, ActivityIcon, BarChartIcon, ZapIcon, Radio, FlaskConical, Hexagon } from "lucide-react";
 import Dashboard from "./pages/Dashboard.jsx";
 import Index from "./pages/Index.jsx";
 import AnalisesCompraVenda from "./pages/AnalisesCompraVenda.jsx";
@@ -8,6 +8,7 @@ import AnaliseTecnica from "./pages/AnaliseTecnica.jsx";
 import EstrategiaETH from "./pages/EstrategiaETH.jsx";
 import SinaisTrade from "./pages/SinaisTrade.jsx";
 import AsymmetricEdgeTest from "./pages/AsymmetricEdgeTest.tsx";
+import EstrategiaHarmonica from "./pages/EstrategiaHarmonica.tsx";
 
 export const navItems = [
   {
@@ -65,5 +66,12 @@ export const navItems = [
     icon: <FlaskConical className="h-4 w-4" />,
     page: <AsymmetricEdgeTest />,
     description: "Validação estatística da estratégia ASYMMETRIC_EDGE_V2 com backtest e Monte Carlo"
+  },
+  {
+    title: "Estratégia Harmônica",
+    to: "/estrategia-harmonica",
+    icon: <Hexagon className="h-4 w-4" />,
+    page: <EstrategiaHarmonica />,
+    description: "Padrões harmônicos XABCD com backtest, Monte Carlo e risco de ruína para ETHUSDT"
   },
 ];
