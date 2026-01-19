@@ -1,5 +1,6 @@
 /**
  * Filtro de tendência usando EMA200 no H4
+ * Versão melhorada: aceita tendência neutral com menor peso
  */
 
 import type { Candle } from './types';
@@ -52,18 +53,43 @@ export function convertM15ToH4(candlesM15: Candle[]): Candle[] {
   return candlesH4;
 }
 
+export interface TrendResult {
+  trend: 'bullish' | 'bearish' | 'neutral';
+  ema200: number;
+  price: number;
+  strength: number; // 0-1, quanto mais longe da EMA, mais forte
+}
+
 /**
  * Determina a tendência com base na EMA200 do H4
+ * Versão melhorada: não descarta neutral, calcula força da tendência
  */
 export function trendFilter(
   candlesM15: Candle[],
   currentM15Index: number
-): { trend: 'bullish' | 'bearish' | 'neutral'; ema200: number; price: number } {
+): TrendResult {
   // Converte para H4
   const candlesH4 = convertM15ToH4(candlesM15.slice(0, currentM15Index + 1));
   
+  // Se não temos dados suficientes, retorna neutral com strength baixo
   if (candlesH4.length < 200) {
-    return { trend: 'neutral', ema200: 0, price: 0 };
+    // Usa EMA50 como fallback
+    if (candlesH4.length >= 50) {
+      const closePrices = candlesH4.map(c => c.close);
+      const ema = calculateEMA(closePrices, 50);
+      const currentEMA = ema[ema.length - 1];
+      const currentPrice = candlesH4[candlesH4.length - 1].close;
+      
+      const distance = Math.abs(currentPrice - currentEMA) / currentEMA;
+      
+      if (currentPrice > currentEMA * 1.002) {
+        return { trend: 'bullish', ema200: currentEMA, price: currentPrice, strength: Math.min(distance * 10, 1) };
+      } else if (currentPrice < currentEMA * 0.998) {
+        return { trend: 'bearish', ema200: currentEMA, price: currentPrice, strength: Math.min(distance * 10, 1) };
+      }
+      return { trend: 'neutral', ema200: currentEMA, price: currentPrice, strength: 0.3 };
+    }
+    return { trend: 'neutral', ema200: 0, price: 0, strength: 0.5 }; // Neutral com força média
   }
   
   // Calcula EMA200 no H4
@@ -73,13 +99,19 @@ export function trendFilter(
   const currentEMA = ema[ema.length - 1];
   const currentPrice = candlesH4[candlesH4.length - 1].close;
   
-  if (currentPrice > currentEMA * 1.001) {
-    return { trend: 'bullish', ema200: currentEMA, price: currentPrice };
-  } else if (currentPrice < currentEMA * 0.999) {
-    return { trend: 'bearish', ema200: currentEMA, price: currentPrice };
+  // Calcula distância percentual da EMA
+  const distance = Math.abs(currentPrice - currentEMA) / currentEMA;
+  const strength = Math.min(distance * 10, 1); // 10% = strength 1.0
+  
+  // Zona morta muito pequena (0.05% ao invés de 0.1%)
+  if (currentPrice > currentEMA * 1.0005) {
+    return { trend: 'bullish', ema200: currentEMA, price: currentPrice, strength };
+  } else if (currentPrice < currentEMA * 0.9995) {
+    return { trend: 'bearish', ema200: currentEMA, price: currentPrice, strength };
   }
   
-  return { trend: 'neutral', ema200: currentEMA, price: currentPrice };
+  // Neutral não é mais um problema - padrões podem ser aceitos com menor peso
+  return { trend: 'neutral', ema200: currentEMA, price: currentPrice, strength: 0.5 };
 }
 
 /**

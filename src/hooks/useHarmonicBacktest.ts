@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { fetchM15Candles, fetchH4Candles, validateDataSufficiency } from '@/services/harmonic/dataFetcher';
-import { backtestEngine } from '@/services/harmonic/backtestEngine';
+import { backtestEngine, type BacktestStats } from '@/services/harmonic/backtestEngine';
 import { monteCarloSimulation, finalValidator } from '@/services/harmonic/monteCarloSimulation';
 import type { BacktestResult, MonteCarloResult, ValidationResult, BacktestConfig } from '@/services/harmonic/types';
 
@@ -12,6 +12,7 @@ interface HarmonicBacktestState {
   validation: ValidationResult | null;
   error: string | null;
   dataInfo: string | null;
+  stats: BacktestStats | null;
 }
 
 const DEFAULT_CONFIG: BacktestConfig = {
@@ -19,7 +20,7 @@ const DEFAULT_CONFIG: BacktestConfig = {
   riskPerTrade: 0.01,
   slippage: 0.0005,
   exchangeFee: 0.0004,
-  swingConfirmation: 3
+  swingConfirmation: 2 // Reduzido de 3 para 2
 };
 
 export function useHarmonicBacktest() {
@@ -30,11 +31,12 @@ export function useHarmonicBacktest() {
     monteCarlo: null,
     validation: null,
     error: null,
-    dataInfo: null
+    dataInfo: null,
+    stats: null
   });
 
   const runBacktest = useCallback(async (config: Partial<BacktestConfig> = {}) => {
-    setState(prev => ({ ...prev, isLoading: true, error: null, progress: 'Buscando dados M15...' }));
+    setState(prev => ({ ...prev, isLoading: true, error: null, progress: 'Buscando dados M15...', stats: null }));
 
     try {
       const finalConfig = { ...DEFAULT_CONFIG, ...config };
@@ -59,22 +61,27 @@ export function useHarmonicBacktest() {
       setState(prev => ({ ...prev, progress: 'Executando backtest...' }));
       const backtestResult = backtestEngine(candlesM15, candlesH4, finalConfig);
 
+      // Extrai stats do resultado
+      const { stats, ...backtestWithoutStats } = backtestResult;
+
       setState(prev => ({ ...prev, progress: 'Rodando Monte Carlo (1000 simulações)...' }));
-      const monteCarloResult = monteCarloSimulation(backtestResult.trades, finalConfig.initialCapital, 1000);
+      const monteCarloResult = monteCarloSimulation(backtestWithoutStats.trades, finalConfig.initialCapital, 1000);
 
       setState(prev => ({ ...prev, progress: 'Validando estratégia...' }));
-      const validationResult = finalValidator(backtestResult, monteCarloResult, finalConfig.initialCapital);
+      const validationResult = finalValidator(backtestWithoutStats, monteCarloResult, finalConfig.initialCapital);
 
       setState({
         isLoading: false,
         progress: '',
-        backtest: backtestResult,
+        backtest: backtestWithoutStats,
         monteCarlo: monteCarloResult,
         validation: validationResult,
         error: null,
-        dataInfo: dataValidation.message
+        dataInfo: dataValidation.message,
+        stats
       });
     } catch (error) {
+      console.error('[HARMONIC] Erro no backtest:', error);
       setState(prev => ({
         ...prev,
         isLoading: false,
