@@ -1,6 +1,7 @@
 /**
  * Engine de backtest determinístico para padrões harmônicos
  * Ordem cronológica, slippage 0.05%, taxa exchange 0.04%
+ * Versão melhorada: aceita tendência neutral, logs detalhados
  */
 
 import type { 
@@ -20,7 +21,7 @@ const DEFAULT_CONFIG: BacktestConfig = {
   riskPerTrade: 0.01, // 1%
   slippage: 0.0005, // 0.05%
   exchangeFee: 0.0004, // 0.04%
-  swingConfirmation: 3
+  swingConfirmation: 2 // Reduzido de 3 para 2
 };
 
 interface ActiveTrade {
@@ -34,6 +35,15 @@ interface ActiveTrade {
   positionSize: number;
   positionRemaining: number;
   realizedPnL: number;
+}
+
+export interface BacktestStats {
+  swingsDetected: number;
+  patternsFound: number;
+  patternsAligned: number;
+  patternsTraded: number;
+  rejectedByTrend: number;
+  rejectedByRisk: number;
 }
 
 /**
@@ -52,30 +62,39 @@ function calculateFees(notional: number, feeRate: number): number {
 
 /**
  * Determina se o padrão alinha com a tendência H4
+ * Versão melhorada: aceita neutral com menor prioridade
  */
 function alignsWithTrend(
   pattern: HarmonicPattern,
   ema200H4: number[],
   candlesH4: Candle[],
-  m15IndexToH4Index: Map<number, number>
+  m15IndexToH4Index: Map<number, number>,
+  allowNeutral: boolean = true
 ): boolean {
   const dIndex = pattern.points.D.index;
   const h4Index = m15IndexToH4Index.get(dIndex);
   
   if (h4Index === undefined || h4Index >= ema200H4.length) {
-    return false;
+    // Se não temos EMA suficiente, aceita o padrão (early data)
+    return true;
   }
   
   const ema = ema200H4[h4Index];
   const price = candlesH4[h4Index]?.close || 0;
   
-  if (!ema || !price) return false;
+  if (!ema || !price) return true; // Aceita se não há dados
   
-  // Bullish: preço > EMA200
-  if (pattern.type === 'bullish' && price > ema) return true;
+  // Bullish: preço > EMA200 ou neutral
+  if (pattern.type === 'bullish') {
+    if (price > ema) return true;
+    if (allowNeutral && Math.abs(price - ema) / ema < 0.01) return true; // 1% de tolerância
+  }
   
-  // Bearish: preço < EMA200
-  if (pattern.type === 'bearish' && price < ema) return true;
+  // Bearish: preço < EMA200 ou neutral
+  if (pattern.type === 'bearish') {
+    if (price < ema) return true;
+    if (allowNeutral && Math.abs(price - ema) / ema < 0.01) return true; // 1% de tolerância
+  }
   
   return false;
 }
@@ -87,12 +106,21 @@ export function backtestEngine(
   candlesM15: Candle[],
   candlesH4: Candle[],
   config: BacktestConfig = DEFAULT_CONFIG
-): BacktestResult {
+): BacktestResult & { stats: BacktestStats } {
   const trades: Trade[] = [];
   let capital = config.initialCapital;
   const capitalCurve: number[] = [capital];
   let maxCapital = capital;
   let maxDrawdown = 0;
+  
+  const stats: BacktestStats = {
+    swingsDetected: 0,
+    patternsFound: 0,
+    patternsAligned: 0,
+    patternsTraded: 0,
+    rejectedByTrend: 0,
+    rejectedByRisk: 0
+  };
   
   // Mapeia índices M15 para H4
   const m15IndexToH4Index = new Map<number, number>();
@@ -105,22 +133,47 @@ export function backtestEngine(
     m15IndexToH4Index.set(i, h4Index);
   }
   
-  // Calcula EMA200 do H4
-  const ema200H4 = calculateEMA200ForH4(candlesH4);
+  // Calcula EMA200 do H4 (pode ser vazio se poucos dados)
+  const ema200H4 = candlesH4.length >= 50 ? calculateEMA200ForH4(candlesH4) : [];
   
-  // Detecta swings
+  // Detecta swings com confirmação reduzida
   const allSwings = detectSwings(candlesM15, config.swingConfirmation);
-  const swings = filterSignificantSwings(allSwings, 5);
+  const swings = filterSignificantSwings(allSwings, 3, 0.2);
   
+  stats.swingsDetected = swings.length;
   console.log(`[BACKTEST] Swings detectados: ${swings.length}`);
   
-  // Identifica padrões
-  const patterns = identifyHarmonicPatterns(swings, candlesM15);
+  // Identifica padrões com logs
+  const patterns = identifyHarmonicPatterns(swings, candlesM15, true);
+  stats.patternsFound = patterns.length;
   console.log(`[BACKTEST] Padrões harmônicos encontrados: ${patterns.length}`);
+  
+  if (patterns.length === 0) {
+    console.log(`[BACKTEST] Nenhum padrão encontrado. Swings: ${swings.length}`);
+    if (swings.length > 0) {
+      console.log(`[BACKTEST] Primeiros 5 swings:`, swings.slice(0, 5).map(s => 
+        `${s.type}@${s.price.toFixed(2)} (idx:${s.index})`
+      ));
+    }
+  }
+  
+  // Filtra padrões pela tendência
+  const alignedPatterns = patterns.filter(p => 
+    alignsWithTrend(p, ema200H4, candlesH4, m15IndexToH4Index, true)
+  );
+  stats.patternsAligned = alignedPatterns.length;
+  stats.rejectedByTrend = patterns.length - alignedPatterns.length;
+  
+  console.log(`[BACKTEST] Padrões alinhados com tendência: ${alignedPatterns.length}`);
   
   // Simula trades em ordem cronológica
   let activeTrade: ActiveTrade | null = null;
   let patternIndex = 0;
+  
+  // Ordena padrões por índice de confirmação
+  const sortedPatterns = [...alignedPatterns].sort((a, b) => 
+    a.points.D.index - b.points.D.index
+  );
   
   for (let i = 0; i < candlesM15.length; i++) {
     const candle = candlesM15[i];
@@ -256,45 +309,51 @@ export function backtestEngine(
     }
     
     // Verifica novas entradas
-    if (!activeTrade && patternIndex < patterns.length) {
-      const pattern = patterns[patternIndex];
+    if (!activeTrade && patternIndex < sortedPatterns.length) {
+      const pattern = sortedPatterns[patternIndex];
       
-      // Padrão foi confirmado neste candle?
-      if (pattern.points.D.index + config.swingConfirmation === i) {
-        // Verifica alinhamento com tendência H4
-        if (alignsWithTrend(pattern, ema200H4, candlesH4, m15IndexToH4Index)) {
-          const entryPrice = applySlippage(
-            candle.close, 
-            pattern.type === 'bullish', 
-            config.slippage
-          );
+      // Padrão foi confirmado neste candle? (D + confirmação)
+      const confirmationIndex = pattern.points.D.index + config.swingConfirmation;
+      
+      if (confirmationIndex === i) {
+        const entryPrice = applySlippage(
+          candle.close, 
+          pattern.type === 'bullish', 
+          config.slippage
+        );
+        
+        // Encontra último swing para SL
+        const lastSwing = swings.filter(s => s.index < pattern.points.D.index).pop();
+        const lastSwingPrice = lastSwing?.price || pattern.points.D.price;
+        
+        const stopLoss = calculateStopLoss(pattern, candlesM15.slice(0, i + 1), lastSwingPrice);
+        const { tp1, tp2 } = calculateTakeProfits(pattern);
+        const positionSize = calculatePositionSize(capital, entryPrice, stopLoss, config.riskPerTrade);
+        
+        if (positionSize > 0) {
+          const entryFees = calculateFees(entryPrice * positionSize, config.exchangeFee);
+          capital -= entryFees;
           
-          // Encontra último swing para SL
-          const lastSwing = swings.filter(s => s.index < pattern.points.D.index).pop();
-          const lastSwingPrice = lastSwing?.price || pattern.points.D.price;
+          activeTrade = {
+            pattern,
+            entryPrice,
+            entryIndex: i,
+            stopLoss,
+            tp1,
+            tp2,
+            trailingStop: stopLoss,
+            positionSize,
+            positionRemaining: 1.0,
+            realizedPnL: -entryFees
+          };
           
-          const stopLoss = calculateStopLoss(pattern, candlesM15.slice(0, i + 1), lastSwingPrice);
-          const { tp1, tp2 } = calculateTakeProfits(pattern);
-          const positionSize = calculatePositionSize(capital, entryPrice, stopLoss, config.riskPerTrade);
-          
-          if (positionSize > 0) {
-            const entryFees = calculateFees(entryPrice * positionSize, config.exchangeFee);
-            capital -= entryFees;
-            
-            activeTrade = {
-              pattern,
-              entryPrice,
-              entryIndex: i,
-              stopLoss,
-              tp1,
-              tp2,
-              trailingStop: stopLoss,
-              positionSize,
-              positionRemaining: 1.0,
-              realizedPnL: -entryFees
-            };
-          }
+          stats.patternsTraded++;
+        } else {
+          stats.rejectedByRisk++;
         }
+        patternIndex++;
+      } else if (confirmationIndex < i) {
+        // Padrão passou, avança para o próximo
         patternIndex++;
       }
     }
@@ -305,6 +364,9 @@ export function backtestEngine(
     const currentDrawdown = (maxCapital - capital) / maxCapital;
     maxDrawdown = Math.max(maxDrawdown, currentDrawdown);
   }
+  
+  console.log(`[BACKTEST] Trades executados: ${trades.length}`);
+  console.log(`[BACKTEST] Stats:`, stats);
   
   // Calcula métricas finais
   const winningTrades = trades.filter(t => t.profitR > 0);
@@ -329,10 +391,10 @@ export function backtestEngine(
   
   // Sharpe Ratio simplificado
   const returns = trades.map(t => t.profitR);
-  const avgReturn = returns.reduce((a, b) => a + b, 0) / returns.length || 0;
-  const stdDev = Math.sqrt(
-    returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length || 1
-  );
+  const avgReturn = returns.length > 0 ? returns.reduce((a, b) => a + b, 0) / returns.length : 0;
+  const stdDev = returns.length > 0 
+    ? Math.sqrt(returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length) 
+    : 1;
   const sharpe = stdDev === 0 ? 0 : avgReturn / stdDev;
   
   return {
@@ -348,6 +410,7 @@ export function backtestEngine(
     maxDrawdown,
     sharpe,
     finalCapital: capital,
-    capitalCurve
+    capitalCurve,
+    stats
   };
 }

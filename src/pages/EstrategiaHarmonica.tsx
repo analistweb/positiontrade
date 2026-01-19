@@ -1,13 +1,13 @@
 import { useHarmonicBacktest } from '@/hooks/useHarmonicBacktest';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, XCircle, AlertTriangle, Play, TrendingUp, TrendingDown, Target, Shield, Percent, DollarSign } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, Play, TrendingUp, TrendingDown, Target, Shield, Percent, DollarSign, BarChart3, Activity, Info } from 'lucide-react';
 import { SignalStatusCard, PatternDetailsCard, EquityCurveChart, TradesTable } from '@/components/harmonic';
 
 export default function EstrategiaHarmonica() {
-  const { isLoading, progress, backtest, monteCarlo, validation, error, dataInfo, runBacktest } = useHarmonicBacktest();
+  const { isLoading, progress, backtest, monteCarlo, validation, error, dataInfo, stats, runBacktest } = useHarmonicBacktest();
 
   // Extrai o último padrão e níveis dos trades
   const lastTrade = backtest?.trades?.[backtest.trades.length - 1];
@@ -70,6 +70,74 @@ export default function EstrategiaHarmonica() {
             hasActiveTrade={false}
           />
         </div>
+
+        {/* Estatísticas de Detecção */}
+        {stats && (
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Activity className="h-5 w-5 text-primary" />
+                Diagnóstico de Detecção
+              </CardTitle>
+              <CardDescription>Pipeline de identificação de padrões harmônicos</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                <div className="p-3 rounded-lg bg-muted/50 text-center">
+                  <p className="text-xl font-bold text-primary">{stats.swingsDetected}</p>
+                  <p className="text-xs text-muted-foreground">Swings Detectados</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 text-center">
+                  <p className="text-xl font-bold text-blue-400">{stats.patternsFound}</p>
+                  <p className="text-xs text-muted-foreground">Padrões Encontrados</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 text-center">
+                  <p className="text-xl font-bold text-green-400">{stats.patternsAligned}</p>
+                  <p className="text-xs text-muted-foreground">Alinhados c/ Tendência</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/50 text-center">
+                  <p className="text-xl font-bold text-yellow-400">{stats.patternsTraded}</p>
+                  <p className="text-xs text-muted-foreground">Trades Executados</p>
+                </div>
+                <div className="p-3 rounded-lg bg-red-500/10 text-center">
+                  <p className="text-xl font-bold text-red-400">{stats.rejectedByTrend}</p>
+                  <p className="text-xs text-muted-foreground">Rejeitados (Tendência)</p>
+                </div>
+                <div className="p-3 rounded-lg bg-red-500/10 text-center">
+                  <p className="text-xl font-bold text-red-400">{stats.rejectedByRisk}</p>
+                  <p className="text-xs text-muted-foreground">Rejeitados (Risco)</p>
+                </div>
+              </div>
+              
+              {stats.patternsFound === 0 && stats.swingsDetected > 0 && (
+                <div className="mt-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 flex items-start gap-3">
+                  <Info className="h-5 w-5 text-yellow-400 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-yellow-400">Nenhum padrão harmônico detectado</p>
+                    <p className="text-muted-foreground mt-1">
+                      {stats.swingsDetected} swings foram identificados, mas nenhuma sequência XABCD válida foi encontrada.
+                      Isso pode indicar que o mercado não formou padrões harmônicos claros no período analisado,
+                      ou que as regras de geometria Fibonacci estão muito restritivas.
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {stats.swingsDetected < 10 && (
+                <div className="mt-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 flex items-start gap-3">
+                  <Info className="h-5 w-5 text-yellow-400 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-yellow-400">Poucos swings detectados</p>
+                    <p className="text-muted-foreground mt-1">
+                      Apenas {stats.swingsDetected} swings foram identificados. Padrões harmônicos requerem
+                      pelo menos 5 swings consecutivos alternados. Verifique se os dados históricos estão completos.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Veredicto */}
         {validation && (

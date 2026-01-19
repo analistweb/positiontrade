@@ -1,6 +1,7 @@
 /**
  * Detector de swings confirmados (sem lookahead)
  * Um swing só é confirmado após N candles futuros
+ * Versão melhorada: mais sensível, menos ruído
  */
 
 import type { Candle, SwingPoint } from './types';
@@ -11,7 +12,7 @@ import type { Candle, SwingPoint } from './types';
  */
 export function detectSwingHighs(
   candles: Candle[],
-  confirmationBars: number = 3
+  confirmationBars: number = 2 // Reduzido de 3 para 2
 ): SwingPoint[] {
   const swings: SwingPoint[] = [];
   
@@ -57,7 +58,7 @@ export function detectSwingHighs(
  */
 export function detectSwingLows(
   candles: Candle[],
-  confirmationBars: number = 3
+  confirmationBars: number = 2 // Reduzido de 3 para 2
 ): SwingPoint[] {
   const swings: SwingPoint[] = [];
   
@@ -102,7 +103,7 @@ export function detectSwingLows(
  */
 export function detectSwings(
   candles: Candle[],
-  confirmationBars: number = 3
+  confirmationBars: number = 2 // Reduzido de 3 para 2
 ): SwingPoint[] {
   const highs = detectSwingHighs(candles, confirmationBars);
   const lows = detectSwingLows(candles, confirmationBars);
@@ -111,13 +112,37 @@ export function detectSwings(
 }
 
 /**
- * Filtra swings para remover ruído (swings muito próximos)
+ * Calcula a amplitude média dos swings para filtrar ruído
+ */
+function calculateAverageSwingAmplitude(swings: SwingPoint[]): number {
+  if (swings.length < 2) return 0;
+  
+  let totalAmplitude = 0;
+  let count = 0;
+  
+  for (let i = 1; i < swings.length; i++) {
+    if (swings[i].type !== swings[i - 1].type) {
+      totalAmplitude += Math.abs(swings[i].price - swings[i - 1].price);
+      count++;
+    }
+  }
+  
+  return count > 0 ? totalAmplitude / count : 0;
+}
+
+/**
+ * Filtra swings para remover ruído (swings muito próximos ou de baixa amplitude)
+ * Versão melhorada: permite swings do mesmo tipo se distantes
  */
 export function filterSignificantSwings(
   swings: SwingPoint[],
-  minDistance: number = 5
+  minDistance: number = 3, // Reduzido de 5 para 3
+  minAmplitudeRatio: number = 0.3 // Swings devem ter pelo menos 30% da amplitude média
 ): SwingPoint[] {
   if (swings.length === 0) return [];
+  
+  const avgAmplitude = calculateAverageSwingAmplitude(swings);
+  const minAmplitude = avgAmplitude * minAmplitudeRatio;
   
   const filtered: SwingPoint[] = [swings[0]];
   
@@ -125,8 +150,18 @@ export function filterSignificantSwings(
     const lastSwing = filtered[filtered.length - 1];
     const currentSwing = swings[i];
     
-    // Se for do mesmo tipo e muito próximo, mantém o mais extremo
+    // Calcula amplitude com o swing anterior
+    const amplitude = Math.abs(currentSwing.price - lastSwing.price);
+    
+    // Se for do mesmo tipo
     if (currentSwing.type === lastSwing.type) {
+      // Permite se estiver distante o suficiente (> 15 candles)
+      if (currentSwing.index - lastSwing.index >= 15) {
+        filtered.push(currentSwing);
+        continue;
+      }
+      
+      // Se muito próximo, mantém o mais extremo
       if (currentSwing.index - lastSwing.index < minDistance) {
         if (currentSwing.type === 'high' && currentSwing.price > lastSwing.price) {
           filtered[filtered.length - 1] = currentSwing;
@@ -137,8 +172,29 @@ export function filterSignificantSwings(
       }
     }
     
-    filtered.push(currentSwing);
+    // Se for de tipo diferente, verifica amplitude mínima
+    if (currentSwing.type !== lastSwing.type) {
+      if (amplitude >= minAmplitude || minAmplitude === 0) {
+        filtered.push(currentSwing);
+      }
+    } else {
+      // Mesmo tipo, distância média - adiciona
+      filtered.push(currentSwing);
+    }
   }
   
   return filtered;
+}
+
+/**
+ * Detecta swings com múltiplos níveis de sensibilidade
+ * Retorna swings major (mais significativos) e minor (mais sensíveis)
+ */
+export function detectMultiLevelSwings(
+  candles: Candle[]
+): { major: SwingPoint[]; minor: SwingPoint[] } {
+  const major = filterSignificantSwings(detectSwings(candles, 3), 8, 0.4);
+  const minor = filterSignificantSwings(detectSwings(candles, 2), 3, 0.2);
+  
+  return { major, minor };
 }
