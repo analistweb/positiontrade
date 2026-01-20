@@ -31,7 +31,7 @@ export async function fetchMarketNews(): Promise<NewsItem[]> {
       console.info(`[MarketNews] Fetched ${data.count} real news articles`);
     }
 
-    // Transform to NewsItem format with direct URLs
+    // Transform to NewsItem format with direct URLs and images
     return data.news.map((item: any) => ({
       id: item.id,
       title: item.title,
@@ -40,6 +40,7 @@ export async function fetchMarketNews(): Promise<NewsItem[]> {
       publishedAt: item.publishedAt,
       category: item.category,
       url: item.url, // Direct link to the article source
+      imageUrl: item.imageUrl || null, // Image from API
       impactLevel: item.impact || 'low',
     }));
 

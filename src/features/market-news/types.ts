@@ -11,6 +11,7 @@ export interface NewsItem {
   publishedAt: string;
   category?: string;
   url?: string;
+  imageUrl?: string;
 }
 
 export interface ClassifiedNewsItem extends NewsItem {
