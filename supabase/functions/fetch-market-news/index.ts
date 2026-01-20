@@ -10,16 +10,80 @@ interface CryptoCompareNews {
   title: string;
   body: string;
   url: string;
+  imageurl: string;
   source: string;
   source_info: { name: string; lang: string };
   published_on: number;
   categories: string;
 }
 
-// Translate common English terms to Portuguese
-function translateToPortuguese(text: string): string {
+interface TranslationResult {
+  translations: string[];
+}
+
+// Translate texts using Lovable AI
+async function translateWithAI(texts: string[]): Promise<string[]> {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  
+  if (!LOVABLE_API_KEY || texts.length === 0) {
+    console.log("[fetch-market-news] No API key or empty texts, skipping AI translation");
+    return texts;
+  }
+
+  try {
+    console.log(`[fetch-market-news] Translating ${texts.length} texts with AI...`);
+    
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [{
+          role: 'user',
+          content: `Traduza os seguintes títulos de notícias do inglês para português brasileiro de forma natural e fluente. Mantenha termos técnicos como Bitcoin, Ethereum, ETF, SEC, Fed quando apropriado. Retorne APENAS um JSON válido no formato: {"translations": ["tradução1", "tradução2", ...]}\n\nTextos para traduzir:\n${texts.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
+        }],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`[fetch-market-news] AI translation failed: ${response.status}`);
+      return texts;
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    
+    // Extract JSON from response (handle markdown code blocks)
+    let jsonStr = content;
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[1].trim();
+    }
+    
+    // Try to parse the JSON
+    try {
+      const parsed: TranslationResult = JSON.parse(jsonStr);
+      if (parsed.translations && Array.isArray(parsed.translations) && parsed.translations.length === texts.length) {
+        console.log(`[fetch-market-news] Successfully translated ${parsed.translations.length} texts`);
+        return parsed.translations;
+      }
+    } catch (parseError) {
+      console.error("[fetch-market-news] Failed to parse AI response:", parseError);
+    }
+    
+    return texts;
+  } catch (error) {
+    console.error("[fetch-market-news] AI translation error:", error);
+    return texts;
+  }
+}
+
+// Fallback translation using keywords
+function translateKeywords(text: string): string {
   const translations: Record<string, string> = {
-    // Common crypto terms
     "Bitcoin": "Bitcoin",
     "Ethereum": "Ethereum",
     "crypto": "cripto",
@@ -40,8 +104,6 @@ function translateToPortuguese(text: string): string {
     "pump": "subida",
     "dump": "queda",
     "all-time high": "máxima histórica",
-    "ATH": "ATH",
-    // Economic terms
     "Federal Reserve": "Federal Reserve",
     "Fed": "Fed",
     "interest rate": "taxa de juros",
@@ -51,20 +113,9 @@ function translateToPortuguese(text: string): string {
     "GDP": "PIB",
     "unemployment": "desemprego",
     "recession": "recessão",
-    "stimulus": "estímulo",
-    "monetary policy": "política monetária",
-    "central bank": "banco central",
-    // Regulatory
-    "SEC": "SEC",
     "regulation": "regulação",
     "regulatory": "regulatório",
     "approval": "aprovação",
-    "ETF": "ETF",
-    "spot ETF": "ETF spot",
-    // Market actions
-    "buy": "compra",
-    "sell": "venda",
-    "hold": "manter",
     "surge": "dispara",
     "surges": "dispara",
     "soars": "dispara",
@@ -73,17 +124,22 @@ function translateToPortuguese(text: string): string {
     "rises": "sobe",
     "gains": "ganha",
     "loses": "perde",
-    // Time
     "today": "hoje",
     "yesterday": "ontem",
     "week": "semana",
     "month": "mês",
     "year": "ano",
+    "Signals": "Sinaliza",
+    "Signaling": "Sinalizando",
+    "Potential": "Potencial",
+    "Shift": "Mudança",
+    "Climbs": "Sobe",
+    "Index": "Índice",
+    "Season": "Temporada",
+    "Altcoin": "Altcoin",
   };
 
   let translated = text;
-  
-  // Apply translations (case-insensitive replacement)
   Object.entries(translations).forEach(([en, pt]) => {
     const regex = new RegExp(`\\b${en}\\b`, 'gi');
     translated = translated.replace(regex, pt);
@@ -93,12 +149,11 @@ function translateToPortuguese(text: string): string {
 }
 
 // Create a summary from the body
-function createSummary(body: string): string {
+function createSummary(body: string, maxLength: number = 150): string {
   if (!body) return "";
-  // Get first 150 characters, clean HTML if any
   const cleanBody = body.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-  if (cleanBody.length <= 150) return translateToPortuguese(cleanBody);
-  return translateToPortuguese(cleanBody.substring(0, 147) + "...");
+  if (cleanBody.length <= maxLength) return cleanBody;
+  return cleanBody.substring(0, maxLength - 3) + "...";
 }
 
 serve(async (req) => {
@@ -108,9 +163,8 @@ serve(async (req) => {
   }
 
   try {
-    console.log("[fetch-market-news] Fetching from CryptoCompare (free public API)...");
+    console.log("[fetch-market-news] Fetching from CryptoCompare...");
     
-    // CryptoCompare News API - Free, no API key required for basic access
     const response = await fetch(
       "https://min-api.cryptocompare.com/data/v2/news/?lang=EN&categories=BTC,ETH,Regulation,Market&excludeCategories=Sponsored",
       { 
@@ -135,16 +189,38 @@ serve(async (req) => {
 
     console.log(`[fetch-market-news] Received ${data.Data.length} news items`);
 
+    // Get the first 10 items
+    const items: CryptoCompareNews[] = data.Data.slice(0, 10);
+    
+    // Extract titles and summaries for translation
+    const titlesToTranslate = items.map(item => item.title);
+    const summariesToTranslate = items.map(item => createSummary(item.body));
+    
+    // Translate with AI
+    const [translatedTitles, translatedSummaries] = await Promise.all([
+      translateWithAI(titlesToTranslate),
+      translateWithAI(summariesToTranslate.filter(s => s.length > 0))
+    ]);
+    
+    // Build translated summaries array (handling empty ones)
+    let summaryIndex = 0;
+    const finalSummaries = items.map(item => {
+      const summary = createSummary(item.body);
+      if (summary.length > 0) {
+        return translatedSummaries[summaryIndex++] || translateKeywords(summary);
+      }
+      return "";
+    });
+
     // Transform and classify news
-    const news = data.Data.slice(0, 10).map((item: CryptoCompareNews) => {
+    const news = items.map((item, index) => {
       const title = item.title.toLowerCase();
       const body = item.body?.toLowerCase() || "";
       const combinedText = title + " " + body;
       
-      // Classify impact based on keywords (macro-economic focus)
+      // Classify impact based on keywords
       let impact = "low";
       
-      // High impact: Fed, interest rates, inflation, ETF approvals, major regulations
       if (
         combinedText.includes("fed") ||
         combinedText.includes("federal reserve") ||
@@ -163,9 +239,7 @@ serve(async (req) => {
         combinedText.includes("lawsuit")
       ) {
         impact = "high";
-      } 
-      // Medium impact: Banks, institutions, major price moves
-      else if (
+      } else if (
         combinedText.includes("bank") ||
         combinedText.includes("institutional") ||
         combinedText.includes("blackrock") ||
@@ -195,20 +269,24 @@ serve(async (req) => {
         category = "economy";
       }
 
+      // Use AI translation or fallback to keyword translation
+      const finalTitle = translatedTitles[index] || translateKeywords(item.title);
+
       return {
         id: item.id,
-        title: translateToPortuguese(item.title),
-        summary: createSummary(item.body),
+        title: finalTitle,
+        summary: finalSummaries[index] || "",
         source: item.source_info?.name || item.source || "CryptoCompare",
         publishedAt: new Date(item.published_on * 1000).toISOString(),
         category,
-        url: item.url, // Direct link to original article
+        url: item.url,
+        imageUrl: item.imageurl || null,
         impact
       };
     });
 
     // Sort by impact (high first) then by date (newest first)
-    const sortedNews = news.sort((a: any, b: any) => {
+    const sortedNews = news.sort((a, b) => {
       const impactOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
       if (impactOrder[a.impact] !== impactOrder[b.impact]) {
         return impactOrder[a.impact] - impactOrder[b.impact];
@@ -230,7 +308,6 @@ serve(async (req) => {
   } catch (error) {
     console.error("[fetch-market-news] Error:", error);
     
-    // Return fallback news on error to maintain UI integrity
     const fallbackNews = [
       {
         id: "fallback-1",
@@ -240,6 +317,7 @@ serve(async (req) => {
         publishedAt: new Date().toISOString(),
         category: "system",
         url: "#",
+        imageUrl: null,
         impact: "low"
       }
     ];
@@ -249,7 +327,7 @@ serve(async (req) => {
       news: fallbackNews,
       source: "fallback"
     }), {
-      status: 200, // Return 200 with fallback to not break UI
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

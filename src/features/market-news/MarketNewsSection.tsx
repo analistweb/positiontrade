@@ -290,8 +290,13 @@ function NewsItemCard({ news, index, featured }: NewsItemCardProps) {
   });
 
   const handleClick = () => {
-    if (news.url) window.open(news.url, '_blank', 'noopener,noreferrer');
+    if (news.url && news.url !== '#') {
+      window.open(news.url, '_blank', 'noopener,noreferrer');
+    }
   };
+
+  const [imageError, setImageError] = React.useState(false);
+  const hasImage = news.imageUrl && !imageError;
 
   return (
     <motion.article
@@ -306,59 +311,96 @@ function NewsItemCard({ news, index, featured }: NewsItemCardProps) {
       onClick={handleClick}
       whileHover={prefersReducedMotion ? {} : { y: -6, transition: { duration: 0.2 } }}
       className={`
-        group relative p-6 rounded-2xl border transition-all duration-300 cursor-pointer overflow-hidden
+        group relative rounded-2xl border transition-all duration-300 cursor-pointer overflow-hidden
         ${style.cardBg} ${style.cardBorder} ${style.glow}
         hover:shadow-xl hover:shadow-black/5
         ${featured ? 'lg:col-span-2' : ''}
       `}
     >
-      {/* Hover gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/3 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      
-      {/* High impact indicator */}
-      {isHighImpact && (
-        <motion.div 
-          className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-destructive via-destructive/80 to-destructive/40 rounded-l-2xl"
-          initial={{ scaleY: 0 }}
-          animate={{ scaleY: 1 }}
-          transition={{ delay: index * 0.05 + 0.2 }}
-        />
-      )}
-      
-      <div className="relative flex items-start gap-4">
-        {/* Category icon */}
-        <div className={`
-          flex-shrink-0 p-3 rounded-xl border backdrop-blur-sm transition-all duration-300
-          ${isHighImpact 
-            ? 'bg-destructive/10 border-destructive/30 group-hover:bg-destructive/15' 
-            : 'bg-muted/20 border-border/40 group-hover:bg-primary/10 group-hover:border-primary/30'
-          }
-        `}>
-          <CategoryIcon className={`w-5 h-5 ${isHighImpact ? 'text-destructive' : 'text-muted-foreground group-hover:text-primary'} transition-colors`} />
-        </div>
-        
-        <div className="flex-1 min-w-0">
-          {/* Badges */}
-          <div className="flex flex-wrap items-center gap-2 mb-3">
+      {/* Image Section */}
+      {hasImage && (
+        <div className="relative w-full h-44 overflow-hidden">
+          <img 
+            src={news.imageUrl} 
+            alt={news.title}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+            onError={() => setImageError(true)}
+          />
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+          
+          {/* Impact badge on image */}
+          <div className="absolute top-3 left-3">
             <span className={`
-              inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold
+              inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold backdrop-blur-sm
               ${style.bg} ${style.text} ${style.border} border
             `}>
               <ImpactIcon className="w-3.5 h-3.5" />
               {style.label}
             </span>
-            
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-muted/40 text-muted-foreground border border-border/20">
+          </div>
+          
+          {/* Category badge on image */}
+          <div className="absolute top-3 right-3">
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-background/80 backdrop-blur-sm text-foreground border border-border/30">
+              <CategoryIcon className="w-3 h-3" />
               {categoryFilters.find(f => f.key === category)?.label}
             </span>
-            
-            {isHighImpact && (
+          </div>
+          
+          {/* Live indicator for high impact */}
+          {isHighImpact && (
+            <div className="absolute bottom-3 right-3">
               <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
               </span>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Content Section */}
+      <div className={`relative p-5 ${hasImage ? 'pt-4' : 'pt-5'}`}>
+        {/* Hover gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/3 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        
+        {/* High impact indicator (left border) */}
+        {isHighImpact && !hasImage && (
+          <motion.div 
+            className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-destructive via-destructive/80 to-destructive/40 rounded-l-2xl"
+            initial={{ scaleY: 0 }}
+            animate={{ scaleY: 1 }}
+            transition={{ delay: index * 0.05 + 0.2 }}
+          />
+        )}
+        
+        <div className="relative">
+          {/* Badges (only if no image) */}
+          {!hasImage && (
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className={`
+                inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold
+                ${style.bg} ${style.text} ${style.border} border
+              `}>
+                <ImpactIcon className="w-3.5 h-3.5" />
+                {style.label}
+              </span>
+              
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-muted/40 text-muted-foreground border border-border/20">
+                <CategoryIcon className="w-3 h-3" />
+                {categoryFilters.find(f => f.key === category)?.label}
+              </span>
+              
+              {isHighImpact && (
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
+                </span>
+              )}
+            </div>
+          )}
           
           {/* Title */}
           <h3 className={`
@@ -388,18 +430,14 @@ function NewsItemCard({ news, index, featured }: NewsItemCardProps) {
               </time>
             </div>
             
-            {news.url && (
+            {news.url && news.url !== '#' && (
               <span className="flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity font-medium">
-                <span className="hidden sm:inline">Ler mais</span>
-                <ChevronRight className="w-4 h-4" />
+                <span className="hidden sm:inline">Ler artigo</span>
+                <ExternalLink className="w-3.5 h-3.5" />
               </span>
             )}
           </div>
         </div>
-        
-        {news.url && (
-          <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 group-hover:text-primary" />
-        )}
       </div>
     </motion.article>
   );
