@@ -5,6 +5,7 @@ import { Menu, X, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { navItems } from '@/nav-items';
 import { AuthStatus } from '@/components/common/AuthStatus';
+import { ThemeToggle } from '@/components/common/ThemeToggle';
 
 export const EditorialHeader = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -103,7 +104,10 @@ export const EditorialHeader = () => {
             </nav>
 
             {/* Right Section */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              {/* Theme Toggle */}
+              <ThemeToggle />
+              
               <div className="hidden lg:block">
                 <AuthStatus />
               </div>
@@ -204,7 +208,11 @@ export const EditorialHeader = () => {
                 </nav>
 
                 {/* Mobile Footer */}
-                <div className="p-4 border-t border-border">
+                <div className="p-4 border-t border-border space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-foreground-muted">Tema</span>
+                    <ThemeToggle />
+                  </div>
                   <AuthStatus />
                 </div>
               </div>

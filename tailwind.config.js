@@ -189,6 +189,16 @@ module.exports = {
           from: { transform: "translateX(100%)" },
           to: { transform: "translateX(0)" },
         },
+        "float": {
+          "0%, 100%": { transform: "translate(0, 0) rotate(0deg)" },
+          "25%": { transform: "translate(5px, -10px) rotate(1deg)" },
+          "50%": { transform: "translate(-5px, -5px) rotate(-1deg)" },
+          "75%": { transform: "translate(10px, -8px) rotate(0.5deg)" },
+        },
+        "glow-pulse": {
+          "0%, 100%": { boxShadow: "0 0 15px currentColor" },
+          "50%": { boxShadow: "0 0 30px currentColor" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -196,6 +206,8 @@ module.exports = {
         "fade-in-up": "fade-in-up 0.6s ease-out forwards",
         "fade-in": "fade-in 0.4s ease-out forwards",
         "slide-in-right": "slide-in-right 0.3s ease-out",
+        "float": "float 6s ease-in-out infinite",
+        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
       },
     },
   },

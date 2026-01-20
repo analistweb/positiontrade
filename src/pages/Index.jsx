@@ -21,6 +21,7 @@ import { EditorialCard, EditorialCardGrid } from '@/components/editorial/Editori
 import { EditorialLoading, EditorialError } from '@/components/editorial/EditorialStates';
 import { ScrollProgressBar, FadeInOnScroll, StaggerContainer, StaggerItem } from '@/components/effects';
 import LivePriceCard from '@/components/dashboard/LivePriceCard';
+import CryptoBubbles from '@/components/dashboard/CryptoBubbles';
 import FearGreedIndex from '@/components/dashboard/FearGreedIndex';
 import WhaleActivityPreview from '@/components/dashboard/WhaleActivityPreview';
 import { MarketNewsSection } from '@/features/market-news';
@@ -172,7 +173,7 @@ const Index = () => {
             </StaggerContainer>
           </EditorialSection>
 
-          {/* Top Cryptocurrencies */}
+          {/* Top Cryptocurrencies - Crypto Bubbles */}
           <EditorialSection 
             label="Ao Vivo" 
             title="Principais Criptomoedas"
@@ -191,13 +192,10 @@ const Index = () => {
               </div>
             </FadeInOnScroll>
             
-            <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {marketOverview?.topCoins?.map((coin, index) => (
-                <StaggerItem key={coin.id}>
-                  <LivePriceCard coin={coin} index={index} />
-                </StaggerItem>
-              ))}
-            </StaggerContainer>
+            {/* Crypto Bubbles Animation */}
+            <FadeInOnScroll>
+              <CryptoBubbles coins={marketOverview?.topCoins || []} />
+            </FadeInOnScroll>
           </EditorialSection>
 
           {/* News Section */}
