@@ -1,4 +1,4 @@
-import { HomeIcon, TrendingUpIcon, WalletIcon, ActivityIcon, BarChartIcon, ZapIcon, Radio, FlaskConical, Hexagon } from "lucide-react";
+import { HomeIcon, TrendingUpIcon, WalletIcon, ActivityIcon, BarChartIcon, ZapIcon, Radio, FlaskConical, Hexagon, Target } from "lucide-react";
 import Dashboard from "./pages/Dashboard.jsx";
 import Index from "./pages/Index.jsx";
 import AnalisesCompraVenda from "./pages/AnalisesCompraVenda.jsx";
@@ -9,6 +9,7 @@ import EstrategiaETH from "./pages/EstrategiaETH.jsx";
 import SinaisTrade from "./pages/SinaisTrade.jsx";
 import AsymmetricEdgeTest from "./pages/AsymmetricEdgeTest.tsx";
 import EstrategiaHarmonica from "./pages/EstrategiaHarmonica.tsx";
+import AnalisePosicao from "./pages/AnalisePosicao.tsx";
 
 export const navItems = [
   {
@@ -73,5 +74,12 @@ export const navItems = [
     icon: <Hexagon className="h-4 w-4" />,
     page: <EstrategiaHarmonica />,
     description: "Padrões harmônicos XABCD com backtest, Monte Carlo e risco de ruína para ETHUSDT"
+  },
+  {
+    title: "Análise Position",
+    to: "/analise-posicao",
+    icon: <Target className="h-4 w-4" />,
+    page: <AnalisePosicao />,
+    description: "Análise técnica para position trade com suportes, resistências e pontos de entrada"
   },
 ];
