@@ -25,7 +25,15 @@ export const ThemeToggle = ({ className = '' }) => {
   const isDark = resolvedTheme === 'dark';
 
   const toggleTheme = () => {
+    // Add transition class for smooth theme change
+    document.documentElement.classList.add('transitioning-theme');
+    
     setTheme(isDark ? 'light' : 'dark');
+    
+    // Remove transition class after animation completes
+    setTimeout(() => {
+      document.documentElement.classList.remove('transitioning-theme');
+    }, 400);
   };
 
   return (
@@ -47,7 +55,7 @@ export const ThemeToggle = ({ className = '' }) => {
                 exit={{ rotate: 90, scale: 0, opacity: 0 }}
                 transition={{ duration: 0.3, ease: 'easeInOut' }}
               >
-                <Sun className="h-5 w-5 text-amber-400" />
+                <Sun className="h-5 w-5 text-accent1" />
               </motion.div>
             ) : (
               <motion.div
@@ -57,7 +65,7 @@ export const ThemeToggle = ({ className = '' }) => {
                 exit={{ rotate: -90, scale: 0, opacity: 0 }}
                 transition={{ duration: 0.3, ease: 'easeInOut' }}
               >
-                <Moon className="h-5 w-5 text-slate-700" />
+                <Moon className="h-5 w-5 text-foreground" />
               </motion.div>
             )}
           </AnimatePresence>
