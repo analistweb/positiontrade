@@ -84,6 +84,19 @@ module.exports = {
           foreground: "hsl(var(--accent-foreground))",
           hover: "hsl(var(--accent-hover))",
         },
+        // Exclusive accent palette
+        accent1: {
+          DEFAULT: "hsl(var(--accent1))",
+          foreground: "hsl(var(--accent1-foreground))",
+          hover: "hsl(var(--accent1-hover))",
+          muted: "hsl(var(--accent1-muted))",
+        },
+        accent2: {
+          DEFAULT: "hsl(var(--accent2))",
+          foreground: "hsl(var(--accent2-foreground))",
+          hover: "hsl(var(--accent2-hover))",
+          muted: "hsl(var(--accent2-muted))",
+        },
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
