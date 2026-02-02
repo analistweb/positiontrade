@@ -1,14 +1,11 @@
-import { HomeIcon, TrendingUpIcon, WalletIcon, ActivityIcon, BarChartIcon, ZapIcon, Radio, FlaskConical, Hexagon, Target } from "lucide-react";
+import { HomeIcon, TrendingUpIcon, WalletIcon, ActivityIcon, BarChartIcon, Radio, Target } from "lucide-react";
 import Dashboard from "./pages/Dashboard.jsx";
 import Index from "./pages/Index.jsx";
 import AnalisesCompraVenda from "./pages/AnalisesCompraVenda.jsx";
 import PosicaoCarteira from "./pages/PosicaoCarteira.jsx";
 import FormacaoTopo from "./pages/FormacaoTopo.jsx";
 import AnaliseTecnica from "./pages/AnaliseTecnica.jsx";
-import EstrategiaETH from "./pages/EstrategiaETH.jsx";
 import SinaisTrade from "./pages/SinaisTrade.jsx";
-import AsymmetricEdgeTest from "./pages/AsymmetricEdgeTest.tsx";
-import EstrategiaHarmonica from "./pages/EstrategiaHarmonica.tsx";
 import AnalisePosicao from "./pages/AnalisePosicao.tsx";
 
 export const navItems = [
@@ -48,32 +45,11 @@ export const navItems = [
     description: "Identifique possíveis pontos máximos de preço para tomar decisões mais informadas"
   },
   {
-    title: "Estratégia ETHUSDT",
-    to: "/estrategia-eth",
-    icon: <ZapIcon className="h-4 w-4" />,
-    page: <EstrategiaETH />,
-    description: "Trading automatizado com Didi Index, DMI e rompimento em timeframe de 15 minutos"
-  },
-  {
     title: "Análise Técnica",
     to: "/analise-tecnica",
     icon: <BarChartIcon className="h-4 w-4" />,
     page: <AnaliseTecnica />,
     description: "Utilize ferramentas avançadas para análise de preços, tendências e indicadores técnicos"
-  },
-  {
-    title: "ASYMMETRIC EDGE TEST",
-    to: "/asymmetric-edge",
-    icon: <FlaskConical className="h-4 w-4" />,
-    page: <AsymmetricEdgeTest />,
-    description: "Validação estatística da estratégia ASYMMETRIC_EDGE_V2 com backtest e Monte Carlo"
-  },
-  {
-    title: "Estratégia Harmônica",
-    to: "/estrategia-harmonica",
-    icon: <Hexagon className="h-4 w-4" />,
-    page: <EstrategiaHarmonica />,
-    description: "Padrões harmônicos XABCD com backtest, Monte Carlo e risco de ruína para ETHUSDT"
   },
   {
     title: "Análise Position",
