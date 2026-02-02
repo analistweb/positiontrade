@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { motion } from 'framer-motion';
@@ -7,7 +8,7 @@ import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { toast } from 'sonner';
 
-const FearGreedIndex = () => {
+const FearGreedIndex = ({ variant = 'default' }) => {
   const { data, isLoading } = useQuery({
     queryKey: ['fearGreedIndex'],
     queryFn: async () => {
@@ -63,6 +64,46 @@ const FearGreedIndex = () => {
     return <TrendingUp className="w-5 h-5" />;
   };
 
+  // Compact variant for LiveCryptoHero
+  if (variant === 'compact') {
+    if (isLoading) {
+      return (
+        <div className="relative bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4">
+          <div className="animate-pulse">
+            <div className="h-4 bg-white/10 rounded w-20 mb-2" />
+            <div className="h-8 bg-white/10 rounded w-16" />
+          </div>
+        </div>
+      );
+    }
+
+    if (!data) return null;
+    const value = parseInt(data.value);
+
+    return (
+      <div className="relative group">
+        <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/20 to-transparent rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="relative bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-all duration-300">
+          <div className="flex items-center gap-2 mb-2">
+            <span className={getIndexColor(value)}>
+              {getIndexIcon(value)}
+            </span>
+            <span className="text-xs text-white/50 uppercase tracking-wider">F&G</span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <p className={cn("text-xl md:text-2xl font-bold", getIndexColor(value))}>
+              {value}
+            </p>
+            <span className={cn("text-xs", getIndexColor(value))}>
+              {getIndexLabel(value)}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Default variant
   if (isLoading) {
     return (
       <Card className="glass-morphism border-0">

@@ -48,15 +48,16 @@ const CryptoBubbles = ({ coins = [] }) => {
   }
 
   return (
-    <div className="relative w-full min-h-[400px] md:min-h-[500px] overflow-hidden rounded-2xl bg-gradient-to-br from-background-alt to-background p-4 md:p-8">
-      {/* Background glow effects */}
+    <div className="relative w-full min-h-[450px] md:min-h-[550px] overflow-hidden rounded-3xl bg-gradient-to-br from-white/5 via-transparent to-white/5 backdrop-blur-sm border border-white/10 p-6 md:p-10">
+      {/* Enhanced Background glow effects */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-success/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-danger/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-accent2/15 rounded-full blur-[100px] animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent1/15 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px]" />
       </div>
       
       {/* Bubbles container */}
-      <div className="relative flex flex-wrap items-center justify-center gap-4 md:gap-6">
+      <div className="relative flex flex-wrap items-center justify-center gap-5 md:gap-8">
         {bubbleData.map((bubble, index) => (
           <BubbleItem key={bubble.id} bubble={bubble} index={index} />
         ))}
