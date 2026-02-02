@@ -4,11 +4,9 @@ import { motion, useReducedMotion } from "framer-motion";
 import { Link } from 'react-router-dom';
 import { 
   TrendingUp, 
-  Activity, 
   BarChart3, 
   Wallet, 
   ArrowRight,
-  Globe,
   Zap,
   Radio,
   RefreshCw
@@ -16,14 +14,12 @@ import {
 import { axiosInstance } from '@/config/api';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { EditorialHero, EditorialSection } from '@/components/editorial/EditorialHero';
+import { EditorialSection } from '@/components/editorial/EditorialHero';
 import { EditorialCard, EditorialCardGrid } from '@/components/editorial/EditorialCard';
 import { EditorialLoading, EditorialError } from '@/components/editorial/EditorialStates';
-import { ScrollProgressBar, FadeInOnScroll, StaggerContainer, StaggerItem } from '@/components/effects';
-import LivePriceCard from '@/components/dashboard/LivePriceCard';
-import CryptoBubbles from '@/components/dashboard/CryptoBubbles';
-import FearGreedIndex from '@/components/dashboard/FearGreedIndex';
-import WhaleActivityPreview from '@/components/dashboard/WhaleActivityPreview';
+import { ScrollProgressBar, FadeInOnScroll } from '@/components/effects';
+import LiveCryptoHero from '@/components/dashboard/LiveCryptoHero';
+import NewsBannerHero from '@/components/dashboard/NewsBannerHero';
 import { MarketNewsSection } from '@/features/market-news';
 import { toast } from "sonner";
 
@@ -39,7 +35,7 @@ const Index = () => {
           params: {
             vs_currency: 'usd',
             order: 'market_cap_desc',
-            per_page: 6,
+            per_page: 8,
             page: 1,
             sparkline: false,
             price_change_percentage: '24h'
@@ -56,6 +52,7 @@ const Index = () => {
   });
 
   const formatCurrency = (value) => {
+    if (!value) return '$0';
     if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
     if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
@@ -75,157 +72,67 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       {/* Scroll Progress Bar */}
       <ScrollProgressBar />
       
-      {/* Hero Section with Parallax */}
-      <EditorialHero
-        label="Análise em Tempo Real"
-        title="Inteligência de Mercado para Criptomoedas"
-        description="Dados ao vivo, indicadores técnicos avançados e monitoramento de baleias para decisões mais informadas."
-        size="large"
-        showParallax={true}
-      >
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Button asChild size="lg" className="group">
-            <Link to="/sinais-trade">
-              <Radio className="w-4 h-4 mr-2" />
-              Ver Sinais ao Vivo
-              <motion.span 
-                className="ml-2"
-                animate={prefersReducedMotion ? {} : { x: [0, 4, 0] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-              >
-                →
-              </motion.span>
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="lg">
-            <Link to="/analise-compra-venda">
-              Análise de Mercado
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Link>
-          </Button>
-        </div>
-      </EditorialHero>
-
+      {/* LIVE CRYPTO HERO - Principal */}
       {isLoading ? (
-        <div className="editorial-container py-16">
-          <EditorialLoading title="Carregando dados do mercado" />
+        <div className="min-h-[80vh] flex items-center justify-center bg-gradient-to-b from-background via-[hsl(220,18%,8%)] to-[hsl(220,18%,5%)]">
+          <EditorialLoading title="Carregando dados ao vivo" />
         </div>
       ) : (
-        <>
-          {/* Market Stats */}
-          <EditorialSection label="Visão Geral" title="Mercado Global">
-            <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6">
-              {/* Market Cap */}
-              <StaggerItem>
-                <div className="metric-card group">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-foreground-subtle">Cap. de Mercado</span>
-                    <Globe className="w-4 h-4 text-primary transition-transform group-hover:scale-110" />
-                  </div>
-                  <p className="metric-value">{formatCurrency(marketOverview?.global?.total_market_cap?.usd)}</p>
-                  <p className="text-xs text-foreground-subtle mt-1">
-                    Volume 24h: {formatCurrency(marketOverview?.global?.total_volume?.usd)}
-                  </p>
-                </div>
-              </StaggerItem>
-
-              {/* BTC Dominance */}
-              <StaggerItem>
-                <div className="metric-card group">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-foreground-subtle">Dominância BTC</span>
-                    <Badge variant="outline" className="text-xs">BTC</Badge>
-                  </div>
-                  <p className="metric-value">{marketOverview?.global?.market_cap_percentage?.btc?.toFixed(1)}%</p>
-                  <p className="text-xs text-foreground-subtle mt-1">
-                    ETH: {marketOverview?.global?.market_cap_percentage?.eth?.toFixed(1)}%
-                  </p>
-                </div>
-              </StaggerItem>
-
-              {/* Active Markets */}
-              <StaggerItem>
-                <div className="metric-card group">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-foreground-subtle">Mercados</span>
-                    <Activity className="w-4 h-4 text-success transition-transform group-hover:scale-110" />
-                  </div>
-                  <p className="metric-value">{marketOverview?.global?.active_cryptocurrencies?.toLocaleString()}</p>
-                  <p className="text-xs text-foreground-subtle mt-1">
-                    {marketOverview?.global?.markets?.toLocaleString()} exchanges
-                  </p>
-                </div>
-              </StaggerItem>
-
-              {/* Fear & Greed */}
-              <StaggerItem>
-                <FearGreedIndex />
-              </StaggerItem>
-
-              {/* Whale Activity */}
-              <StaggerItem>
-                <WhaleActivityPreview />
-              </StaggerItem>
-            </StaggerContainer>
-          </EditorialSection>
-
-          {/* Top Cryptocurrencies - Crypto Bubbles */}
-          <EditorialSection 
-            label="Ao Vivo" 
-            title="Principais Criptomoedas"
-            className="bg-background-alt"
-          >
-            <FadeInOnScroll>
-              <div className="flex items-center justify-between mb-6">
-                <Badge className="bg-success/10 text-success border-success/20">
-                  <span className="w-2 h-2 rounded-full bg-success animate-pulse mr-2" />
-                  Atualização automática
-                </Badge>
-                <Button variant="ghost" size="sm" onClick={() => refetch()} className="group">
-                  <RefreshCw className="w-4 h-4 mr-2 transition-transform group-hover:rotate-180" />
-                  Atualizar
-                </Button>
-              </div>
-            </FadeInOnScroll>
-            
-            {/* Crypto Bubbles Animation */}
-            <FadeInOnScroll>
-              <CryptoBubbles coins={marketOverview?.topCoins || []} />
-            </FadeInOnScroll>
-          </EditorialSection>
-
-          {/* News Section */}
-          <EditorialSection label="Notícias" title="Últimas Atualizações">
-            <FadeInOnScroll>
-              <MarketNewsSection />
-            </FadeInOnScroll>
-          </EditorialSection>
-
-          {/* Quick Links */}
-          <EditorialSection 
-            label="Explorar" 
-            title="Ferramentas de Análise"
-            className="bg-background-alt"
-          >
-            <EditorialCardGrid columns={3}>
-              {quickLinks.map((link, index) => (
-                <EditorialCard
-                  key={link.to}
-                  title={link.title}
-                  description={link.description}
-                  icon={link.icon}
-                  to={link.to}
-                  delay={index * 0.1}
-                />
-              ))}
-            </EditorialCardGrid>
-          </EditorialSection>
-        </>
+        <LiveCryptoHero 
+          coins={marketOverview?.topCoins || []}
+          globalData={marketOverview?.global}
+          formatCurrency={formatCurrency}
+        />
       )}
+
+      {/* NEWS BANNER HERO */}
+      <NewsBannerHero />
+
+      {/* NEWS SECTION */}
+      <section className="py-12 md:py-16 bg-background">
+        <div className="editorial-container">
+          <FadeInOnScroll>
+            <div className="flex items-center justify-between mb-8">
+              <Badge className="bg-accent2/10 text-accent2 border-accent2/20">
+                <span className="w-2 h-2 rounded-full bg-accent2 animate-pulse mr-2" />
+                Atualização automática
+              </Badge>
+              <Button variant="ghost" size="sm" onClick={() => refetch()} className="group">
+                <RefreshCw className="w-4 h-4 mr-2 transition-transform group-hover:rotate-180" />
+                Atualizar
+              </Button>
+            </div>
+          </FadeInOnScroll>
+          
+          <FadeInOnScroll>
+            <MarketNewsSection />
+          </FadeInOnScroll>
+        </div>
+      </section>
+
+      {/* Quick Links - Ferramentas */}
+      <EditorialSection 
+        label="Explorar" 
+        title="Ferramentas de Análise"
+        className="bg-background-alt"
+      >
+        <EditorialCardGrid columns={3}>
+          {quickLinks.map((link, index) => (
+            <EditorialCard
+              key={link.to}
+              title={link.title}
+              description={link.description}
+              icon={link.icon}
+              to={link.to}
+              delay={index * 0.1}
+            />
+          ))}
+        </EditorialCardGrid>
+      </EditorialSection>
     </div>
   );
 };
