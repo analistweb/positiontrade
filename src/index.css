@@ -880,4 +880,95 @@
     @apply border-accent2 text-accent2 bg-transparent;
     @apply hover:bg-accent2/10;
   }
+
+  /* ========================================
+     🔍 MARKET SURVEILLANCE - Isolated Styles
+     ======================================== */
+  
+  /* Surveillance Cards */
+  .surveillance-card {
+    @apply rounded-xl border border-border/50 transition-all duration-300;
+    @apply bg-card/80 backdrop-blur-sm;
+  }
+  
+  .surveillance-card:hover {
+    @apply border-border;
+  }
+  
+  /* Status Icon with animation */
+  .surveillance-status-icon {
+    @apply text-5xl inline-block;
+    animation: pulse-status 2s ease-in-out infinite;
+  }
+  
+  @keyframes pulse-status {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.08); opacity: 0.85; }
+  }
+  
+  /* Status Gradients - Healthy (Green) */
+  .surveillance-gradient-healthy {
+    background: linear-gradient(
+      135deg, 
+      hsl(var(--success) / 0.08) 0%, 
+      hsl(var(--success) / 0.15) 100%
+    );
+    border-color: hsl(var(--success) / 0.3);
+  }
+  
+  .dark .surveillance-gradient-healthy {
+    background: linear-gradient(
+      135deg, 
+      hsl(var(--success) / 0.12) 0%, 
+      hsl(var(--success) / 0.2) 100%
+    );
+  }
+  
+  /* Status Gradients - Artificial (Warning/Yellow) */
+  .surveillance-gradient-artificial {
+    background: linear-gradient(
+      135deg, 
+      hsl(var(--warning) / 0.08) 0%, 
+      hsl(var(--warning) / 0.15) 100%
+    );
+    border-color: hsl(var(--warning) / 0.3);
+  }
+  
+  .dark .surveillance-gradient-artificial {
+    background: linear-gradient(
+      135deg, 
+      hsl(var(--warning) / 0.12) 0%, 
+      hsl(var(--warning) / 0.2) 100%
+    );
+  }
+  
+  /* Status Gradients - Manipulated (Danger/Red) */
+  .surveillance-gradient-manipulated {
+    background: linear-gradient(
+      135deg, 
+      hsl(var(--danger) / 0.08) 0%, 
+      hsl(var(--danger) / 0.15) 100%
+    );
+    border-color: hsl(var(--danger) / 0.3);
+  }
+  
+  .dark .surveillance-gradient-manipulated {
+    background: linear-gradient(
+      135deg, 
+      hsl(var(--danger) / 0.12) 0%, 
+      hsl(var(--danger) / 0.2) 100%
+    );
+  }
+  
+  /* Control Bar */
+  .surveillance-control-bar {
+    @apply sticky top-20 z-10;
+  }
+  
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .surveillance-status-icon {
+      animation: none;
+    }
+  }
 }
