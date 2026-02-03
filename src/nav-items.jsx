@@ -1,4 +1,4 @@
-import { HomeIcon, TrendingUpIcon, WalletIcon, ActivityIcon, BarChartIcon, Radio, Target } from "lucide-react";
+import { HomeIcon, TrendingUpIcon, WalletIcon, ActivityIcon, BarChartIcon, Radio, Target, ShieldAlert } from "lucide-react";
 import Dashboard from "./pages/Dashboard.jsx";
 import Index from "./pages/Index.jsx";
 import AnalisesCompraVenda from "./pages/AnalisesCompraVenda.jsx";
@@ -7,6 +7,7 @@ import FormacaoTopo from "./pages/FormacaoTopo.jsx";
 import AnaliseTecnica from "./pages/AnaliseTecnica.jsx";
 import SinaisTrade from "./pages/SinaisTrade.jsx";
 import AnalisePosicao from "./pages/AnalisePosicao.tsx";
+import MarketSurveillance from "./pages/MarketSurveillance.tsx";
 
 export const navItems = [
   {
@@ -57,5 +58,12 @@ export const navItems = [
     icon: <Target className="h-4 w-4" />,
     page: <AnalisePosicao />,
     description: "Análise técnica para position trade com suportes, resistências e pontos de entrada"
+  },
+  {
+    title: "Vigilância de Mercado",
+    to: "/market-surveillance",
+    icon: <ShieldAlert className="h-4 w-4" />,
+    page: <MarketSurveillance />,
+    description: "Detecção de manipulação em tempo real com análise de order book e trades"
   },
 ];
