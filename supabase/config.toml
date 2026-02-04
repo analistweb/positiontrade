@@ -18,6 +18,9 @@ verify_jwt = false
 [functions.auth-create-first-admin]
 verify_jwt = false
 
+[functions.auth-set-password]
+verify_jwt = false
+
 # Funções protegidas (requerem JWT e role admin)
 [functions.admin-verify-role]
 verify_jwt = true
@@ -29,6 +32,9 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.admin-revoke-user]
+verify_jwt = true
+
+[functions.auth-admin-reset-user]
 verify_jwt = true
 
 # Funções protegidas (requerem JWT de usuário autenticado)
