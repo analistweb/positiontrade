@@ -13,6 +13,7 @@ import { ProtectedRoute } from "@/components/common/ProtectedRoute";
 import Register from "@/pages/auth/Register";
 import VerifyEmail from "@/pages/auth/VerifyEmail";
 import CreatePassword from "@/pages/auth/CreatePassword";
+import SetPassword from "@/pages/auth/SetPassword";
 import AdminPanel from "@/pages/auth/AdminPanel";
 import CustomLogin from "@/pages/auth/CustomLogin";
 import CreateFirstAdmin from "@/pages/auth/CreateFirstAdmin";
@@ -45,6 +46,7 @@ const AppContent = () => {
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/create-password" element={<CreatePassword />} />
+          <Route path="/set-password" element={<SetPassword />} />
           <Route path="/custom-login" element={<CustomLogin />} />
           <Route path="/create-first-admin" element={<CreateFirstAdmin />} />
           
