@@ -1,502 +1,266 @@
 
 
-## Plano: Sistema de Vigilância de Manipulação de Mercado Cripto
+## Plano: Correção Completa do Sistema de Autenticação
 
-### VISÃO GERAL
+### DIAGNÓSTICO DOS PROBLEMAS
 
-Implementar um dashboard mobile-first completamente isolado para detecção de manipulação de mercado cripto, utilizando WebSocket Streams gratuitos da Binance e um sistema de métricas proprietário.
+Após análise detalhada do código e banco de dados, identifiquei **4 problemas críticos**:
+
+| Problema | Gravidade | Status Atual |
+|----------|-----------|--------------|
+| Emails nunca são enviados | CRÍTICO | Apenas `console.log()` |
+| Aprovação não notifica usuário | ALTO | Usuário não sabe que foi aprovado |
+| Token expirado não tem renovação | MÉDIO | Token expira em 15 min sem reenvio |
+| Usuário aprovado sem senha | ALTO | Login impossível |
 
 ---
 
-### ARQUITETURA DE ISOLAMENTO
+### SITUAÇÃO DO USUÁRIO `analist.com@outlook.com`
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    SISTEMA EXISTENTE (Não Modificado)                   │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐         │
-│  │  PriceChart     │  │ CryptoBubbles   │  │ binanceSocket   │         │
-│  │  (read-only)    │  │  (read-only)    │  │   (singleton)   │         │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘         │
-└─────────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  │ Dados compartilhados (somente leitura)
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│               NOVO: MARKET SURVEILLANCE SYSTEM (Isolado)                │
-│                                                                          │
-│  ┌─────────────────────────────────────────────────────────────────────┐│
-│  │              MarketSurveillanceProvider (Contexto)                   ││
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                  ││
-│  │  │ WebSocket   │  │  Métricas   │  │  Status     │                  ││
-│  │  │ Manager     │  │  Calculator │  │  Engine     │                  ││
-│  │  └─────────────┘  └─────────────┘  └─────────────┘                  ││
-│  └─────────────────────────────────────────────────────────────────────┘│
-│                                                                          │
-│  ┌─────────────────────────────────────────────────────────────────────┐│
-│  │                        Componentes UI                                ││
-│  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                 ││
-│  │  │MarketStatus  │ │WhatIsHappen  │ │ImmediateRisk │                 ││
-│  │  │Card          │ │ingCard       │ │Card          │                 ││
-│  │  └──────────────┘ └──────────────┘ └──────────────┘                 ││
-│  │  ┌──────────────┐ ┌──────────────┐                                  ││
-│  │  │Correlation   │ │MarketControl │                                  ││
-│  │  │SimpleCard    │ │Bar           │                                  ││
-│  │  └──────────────┘ └──────────────┘                                  ││
-│  └─────────────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────────┘
+Status no Banco de Dados:
+├── user_id: 1d9b1d40-7fd2-464d-a9b2-fb2362db5948
+├── status: active (FOI APROVADO pelo admin)
+├── email_verified_at: NULL (nunca verificou)
+├── token: f36582a5-79d1-4f40-a90c-d100ec0a359f
+├── token_expires: 2026-01-11 20:21:43 (EXPIRADO)
+└── used_at: NULL (nunca usado)
+
+Problema: O usuário foi aprovado, mas nunca recebeu email,
+então não pôde verificar email nem criar senha.
 ```
 
 ---
 
-### FASE 1: Serviço WebSocket Isolado
+### FASE 1: Configurar Sistema de Envio de Email
 
-**Arquivo:** `src/services/surveillance/binanceMultiStream.ts`
+**Pré-requisito: RESEND_API_KEY**
+
+O sistema precisa de uma API key do Resend para enviar emails.
+
+**Ação necessária do usuário:**
+1. Criar conta em resend.com
+2. Verificar domínio de email
+3. Gerar API key
+4. Fornecer a key para configuração
+
+---
+
+### FASE 2: Criar Edge Function para Envio de Email
+
+**Novo arquivo:** `supabase/functions/send-verification-email/index.ts`
+
+```typescript
+// Funcionalidades:
+// 1. Recebe user_id, email, token, tipo (verification/approval/reset)
+// 2. Usa Resend para enviar email formatado
+// 3. Templates diferentes para cada tipo de email
+// 4. Logs de auditoria
+```
+
+**Tipos de email:**
+- `email_verification`: Link para verificar email
+- `account_approved`: Notificação de aprovação + link para login
+- `password_reset`: Link para redefinir senha
+
+---
+
+### FASE 3: Atualizar Edge Function auth-register
+
+**Arquivo:** `supabase/functions/auth-register/index.ts`
+
+**Alterações:**
+1. Remover `// TODO: Enviar email` (linha 121)
+2. Chamar função de envio de email com token
+3. Gerar URL completa de verificação
+
+```typescript
+// NOVO: Enviar email de verificação
+const verificationUrl = `${Deno.env.get('SITE_URL')}/verify-email?token=${verificationToken}`;
+
+await supabaseAdmin.functions.invoke('send-verification-email', {
+  body: {
+    to: email,
+    type: 'email_verification',
+    data: { verificationUrl, token: verificationToken }
+  }
+});
+```
+
+---
+
+### FASE 4: Atualizar Edge Function admin-approve-user
+
+**Arquivo:** `supabase/functions/admin-approve-user/index.ts`
+
+**Alterações:**
+1. Após aprovar, buscar email do usuário
+2. Enviar email de notificação de aprovação
+3. Se usuário não tiver senha, enviar link para criar
+
+```typescript
+// NOVO: Notificar usuário sobre aprovação
+const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(user_id);
+
+// Verifica se usuário tem senha
+const needsPassword = !authUser?.user?.confirmed_at;
+
+await supabaseAdmin.functions.invoke('send-verification-email', {
+  body: {
+    to: authUser.user.email,
+    type: 'account_approved',
+    data: { 
+      loginUrl: `${Deno.env.get('SITE_URL')}/custom-login`,
+      needsPassword,
+      passwordResetUrl: needsPassword 
+        ? `${Deno.env.get('SITE_URL')}/create-password?token=${newToken}` 
+        : null
+    }
+  }
+});
+```
+
+---
+
+### FASE 5: Criar Função de Reenvio de Token
+
+**Novo arquivo:** `supabase/functions/auth-resend-token/index.ts`
 
 **Funcionalidades:**
-- Gerenciador de múltiplos WebSocket streams da Binance
-- Máximo de 5 streams por conexão (limite Binance)
-- Limpeza automática de listeners ao desmontar
-- Validação de dados com Zod antes de processar
+1. Recebe email do usuário
+2. Verifica se usuário existe e status
+3. Gera novo token de verificação
+4. Invalida tokens anteriores
+5. Envia novo email
 
-**Streams a conectar:**
-```typescript
-// Trade Stream - para detectar wash trading
-wss://stream.binance.com:9443/ws/btcusdt@trade
-
-// Order Book Stream - para detectar spoofing
-wss://stream.binance.com:9443/ws/btcusdt@depth20@100ms
-
-// Kline Stream - para análise de volume
-wss://stream.binance.com:9443/ws/btcusdt@kline_1m
-
-// Ticker Stream - para preço e variação 24h
-wss://stream.binance.com:9443/ws/btcusdt@ticker
-```
-
-**Validação de dados:**
-```typescript
-// Schemas Zod para cada tipo de mensagem
-const tradeSchema = z.object({
-  e: z.literal('trade'),
-  p: z.string(), // price
-  q: z.string(), // quantity
-  T: z.number(), // timestamp
-  m: z.boolean() // buyer is market maker
-});
-
-const depthSchema = z.object({
-  bids: z.array(z.tuple([z.string(), z.string()])),
-  asks: z.array(z.tuple([z.string(), z.string()]))
-});
-```
+Isso resolve o problema de tokens expirados.
 
 ---
 
-### FASE 2: Calculadores de Métricas
+### FASE 6: Atualizar UI para Reenvio de Token
 
-**Arquivo:** `src/services/surveillance/metricsCalculator.ts`
+**Arquivo:** `src/pages/auth/VerifyEmail.jsx`
 
-**Métricas implementadas:**
-
-| Métrica | Fórmula | Descrição |
-|---------|---------|-----------|
-| `volumeMetrics.zScore` | (V - μ) / σ | Desvio padrão do volume |
-| `orderBookMetrics.imbalanceRatio` | (Bids - Asks) / Total | Assimetria do livro |
-| `washTradingMetrics.repeatPatternScore` | Trades repetidos / Total | Padrão de wash trading |
-| `spoofingMetrics.phantomOrderScore` | Ordens canceladas / Total | Ordens fantasma |
-| `correlationMetrics.correlation` | Pearson(price, volume) | Correlação preço-volume |
-
-**Lógica de cálculo (isolada):**
-```typescript
-export function calculateMetrics(
-  trades: Trade[],
-  orderBook: OrderBook,
-  klines: Kline[]
-): SurveillanceMetrics {
-  // Validar inputs
-  if (!trades.length || !orderBook.bids.length) {
-    return getDefaultMetrics();
-  }
-  
-  // Calcular cada métrica independentemente
-  return {
-    volumeMetrics: calculateVolumeZScore(klines),
-    orderBookMetrics: calculateImbalanceRatio(orderBook),
-    washTradingMetrics: calculateWashTradingScore(trades),
-    spoofingMetrics: calculatePhantomOrderScore(orderBook),
-    correlationMetrics: calculatePriceVolumeCorrelation(klines),
-    price: parseFloat(trades[trades.length - 1].p),
-    priceChange24h: calculatePriceChange(klines)
-  };
-}
-```
+**Alterações:**
+1. Adicionar botão "Reenviar token"
+2. Input de email para reenvio
+3. Cooldown de 60 segundos entre reenvios
 
 ---
 
-### FASE 3: Engine de Status de Mercado
+### FASE 7: Correção Imediata para o Usuário Atual
 
-**Arquivo:** `src/services/surveillance/marketStatusEngine.ts`
+**Problema específico de `analist.com@outlook.com`:**
 
-**Função `calculateMarketStatus` (isolada):**
+O usuário foi aprovado mas nunca completou o fluxo. Para corrigir:
 
-```typescript
-export type MarketStatus = 
-  | 'HEALTHY'      // 🟢 Mercado Saudável
-  | 'ARTIFICIAL'   // 🟡 Mercado Artificial
-  | 'MANIPULATED'; // 🔴 Mercado Manipulado
+1. **Gerar novo token de verificação** via SQL ou função
+2. **Marcar email como verificado** (já foi aprovado pelo admin)
+3. **Permitir reset de senha** via link direto
 
-export function calculateMarketStatus(metrics: SurveillanceMetrics): MarketStatus {
-  // Não altera métricas globais - função pura
-  const {
-    volumeMetrics,
-    orderBookMetrics,
-    washTradingMetrics,
-    spoofingMetrics
-  } = metrics;
-  
-  // Score de manipulação (0-100)
-  const manipulationScore = 
-    (volumeMetrics.zScore > 3 ? 25 : 0) +
-    (Math.abs(orderBookMetrics.imbalanceRatio) > 0.7 ? 25 : 0) +
-    (washTradingMetrics.repeatPatternScore > 0.4 ? 25 : 0) +
-    (spoofingMetrics.phantomOrderScore > 0.3 ? 25 : 0);
-  
-  if (manipulationScore >= 50) return 'MANIPULATED';
-  if (manipulationScore >= 25) return 'ARTIFICIAL';
-  return 'HEALTHY';
-}
-```
+**Solução técnica:**
+Criar uma função `auth-admin-reset-user` que permite ao admin:
+- Gerar link de reset de senha
+- Enviar por email ao usuário
 
 ---
 
-### FASE 4: Context Provider Isolado
+### FASE 8: Adicionar Secret SITE_URL
 
-**Arquivo:** `src/contexts/MarketSurveillanceContext.tsx`
-
-**Estrutura:**
-```typescript
-interface SurveillanceState {
-  metrics: SurveillanceMetrics | null;
-  status: MarketStatus;
-  isConnected: boolean;
-  lastUpdate: Date | null;
-  selectedPair: string;
-  error: string | null;
-}
-
-export const MarketSurveillanceProvider: React.FC = ({ children }) => {
-  // Estado completamente isolado
-  const [state, dispatch] = useReducer(surveillanceReducer, initialState);
-  
-  // WebSocket manager com cleanup
-  useEffect(() => {
-    const manager = new BinanceMultiStream();
-    manager.connect(state.selectedPair);
-    
-    manager.onMetrics((metrics) => {
-      dispatch({ type: 'UPDATE_METRICS', payload: metrics });
-    });
-    
-    // Cleanup ao desmontar
-    return () => {
-      manager.disconnect();
-      manager.removeAllListeners();
-    };
-  }, [state.selectedPair]);
-  
-  return (
-    <MarketSurveillanceContext.Provider value={{ state, dispatch }}>
-      {children}
-    </MarketSurveillanceContext.Provider>
-  );
-};
+**Configuração necessária:**
 ```
+SITE_URL = "https://compraouvenda.lovable.app"
+```
+
+Esta variável é necessária para gerar URLs corretas nos emails.
 
 ---
 
-### FASE 5: Componentes Mobile-First
+### RESUMO DE ARQUIVOS
 
-**Estrutura de arquivos:**
-```text
-src/components/surveillance/
-├── MarketStatusCard.tsx      # Status principal (🟢🟡🔴)
-├── MarketControlBar.tsx      # Seletor de par + conexão
-├── WhatIsHappeningCard.tsx   # Explicação do status
-├── ImmediateRiskCard.tsx     # Alertas de risco
-├── CorrelationSimpleCard.tsx # Correlação preço-volume
-└── index.ts                  # Barrel export
-```
-
-**Design Mobile-First:**
-```text
-MOBILE (Stack Vertical)                DESKTOP (Grid 2 colunas)
-┌─────────────────────┐               ┌────────────┬────────────┐
-│   MarketControlBar  │               │MarketStatus│  WhatIs    │
-├─────────────────────┤               │   Card     │ Happening  │
-│   MarketStatusCard  │               ├────────────┼────────────┤
-│   (Status Grande)   │               │ Immediate  │Correlation │
-├─────────────────────┤               │   Risk     │  Simple    │
-│  WhatIsHappeningCard│               └────────────┴────────────┘
-├─────────────────────┤
-│  ImmediateRiskCard  │
-├─────────────────────┤
-│ CorrelationSimple   │
-└─────────────────────┘
-```
-
-**Exemplo - MarketStatusCard:**
-```tsx
-export const MarketStatusCard: React.FC = React.memo(() => {
-  const { state } = useMarketSurveillance();
-  
-  const statusConfig = useMemo(() => ({
-    HEALTHY: {
-      gradient: 'var(--status-healthy-gradient)',
-      icon: '🟢',
-      label: 'Mercado Saudável',
-      description: 'Atividade normal detectada'
-    },
-    ARTIFICIAL: {
-      gradient: 'var(--status-artificial-gradient)',
-      icon: '🟡',
-      label: 'Mercado Artificial',
-      description: 'Padrões incomuns detectados'
-    },
-    MANIPULATED: {
-      gradient: 'var(--status-manipulated-gradient)',
-      icon: '🔴',
-      label: 'Mercado Manipulado',
-      description: 'Manipulação ativa detectada'
-    }
-  }), []);
-  
-  const config = statusConfig[state.status];
-  
-  return (
-    <div 
-      className="surveillance-status-card"
-      style={{ background: config.gradient }}
-    >
-      <span className="status-icon animate-pulse-status">{config.icon}</span>
-      <h2 className="status-label">{config.label}</h2>
-      <p className="status-description">{config.description}</p>
-    </div>
-  );
-});
-```
+| Arquivo | Ação | Descrição |
+|---------|------|-----------|
+| `supabase/functions/send-verification-email/index.ts` | Criar | Função central de envio de emails |
+| `supabase/functions/auth-register/index.ts` | Editar | Integrar envio de email |
+| `supabase/functions/admin-approve-user/index.ts` | Editar | Notificar usuário aprovado |
+| `supabase/functions/auth-resend-token/index.ts` | Criar | Reenvio de tokens expirados |
+| `supabase/functions/auth-admin-reset-user/index.ts` | Criar | Admin pode resetar usuário |
+| `src/pages/auth/VerifyEmail.jsx` | Editar | Adicionar opção de reenvio |
+| `supabase/config.toml` | Editar | Adicionar novas funções |
 
 ---
 
-### FASE 6: CSS Variables Isoladas
+### CONFIGURAÇÕES NECESSÁRIAS
 
-**Adicionar ao `src/index.css` (sem sobrescrever existentes):**
+Antes de implementar, você precisa fornecer:
 
-```css
-/* ========================================
-   🔍 MARKET SURVEILLANCE - Isolated Styles
-   ======================================== */
-
-/* Status Gradients - Surveillance Only */
-:root {
-  --status-healthy-gradient: linear-gradient(
-    135deg, 
-    hsl(165 45% 35% / 0.15) 0%, 
-    hsl(165 45% 25% / 0.25) 100%
-  );
-  --status-artificial-gradient: linear-gradient(
-    135deg, 
-    hsl(45 85% 45% / 0.15) 0%, 
-    hsl(45 85% 35% / 0.25) 100%
-  );
-  --status-manipulated-gradient: linear-gradient(
-    135deg, 
-    hsl(0 75% 45% / 0.15) 0%, 
-    hsl(0 75% 35% / 0.25) 100%
-  );
-}
-
-.dark {
-  --status-healthy-gradient: linear-gradient(
-    135deg, 
-    hsl(165 45% 25% / 0.2) 0%, 
-    hsl(165 45% 15% / 0.35) 100%
-  );
-  --status-artificial-gradient: linear-gradient(
-    135deg, 
-    hsl(45 85% 35% / 0.2) 0%, 
-    hsl(45 85% 25% / 0.35) 100%
-  );
-  --status-manipulated-gradient: linear-gradient(
-    135deg, 
-    hsl(0 75% 35% / 0.2) 0%, 
-    hsl(0 75% 25% / 0.35) 100%
-  );
-}
-
-/* Surveillance-specific animations (CSS-only) */
-.animate-pulse-status {
-  animation: pulse-status 2s ease-in-out infinite;
-}
-
-@keyframes pulse-status {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.05); opacity: 0.8; }
-}
-
-/* Surveillance cards */
-.surveillance-card {
-  @apply rounded-xl border border-border/50 p-4 transition-all duration-300;
-  @apply bg-card/80 backdrop-blur-sm;
-}
-
-.surveillance-status-card {
-  @apply surveillance-card text-center py-8;
-}
-
-.status-icon {
-  @apply text-5xl mb-4 inline-block;
-}
-
-.status-label {
-  @apply text-xl font-bold text-foreground mb-2;
-}
-
-.status-description {
-  @apply text-sm text-foreground-muted;
-}
-```
+1. **RESEND_API_KEY**: Chave da API do Resend
+2. **Domínio verificado**: Ex: `noreply@cryptoanalytics.app`
+3. **SITE_URL**: URL do site em produção
 
 ---
 
-### FASE 7: Página do Dashboard
-
-**Arquivo:** `src/pages/MarketSurveillance.tsx`
-
-```tsx
-const MarketSurveillance: React.FC = () => {
-  return (
-    <MarketSurveillanceProvider>
-      <div className="min-h-screen bg-background p-4">
-        {/* Control Bar */}
-        <MarketControlBar />
-        
-        {/* Cards Grid - Mobile-first */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <MarketStatusCard />
-          <WhatIsHappeningCard />
-          <ImmediateRiskCard />
-          <CorrelationSimpleCard />
-        </div>
-      </div>
-    </MarketSurveillanceProvider>
-  );
-};
-```
-
----
-
-### FASE 8: Testes Smoke
-
-**Arquivo:** `src/tests/surveillance/surveillance.test.ts`
-
-```typescript
-describe('Market Surveillance System', () => {
-  // Teste 1: WebSocket isolado
-  it('should connect to Binance streams independently', async () => {
-    const manager = new BinanceMultiStream();
-    await manager.connect('BTCUSDT');
-    expect(manager.isConnected()).toBe(true);
-    manager.disconnect();
-  });
-  
-  // Teste 2: calculateMarketStatus retorna status correto
-  it('should return HEALTHY for normal metrics', () => {
-    const normalMetrics = getMockNormalMetrics();
-    const status = calculateMarketStatus(normalMetrics);
-    expect(status).toBe('HEALTHY');
-  });
-  
-  it('should return MANIPULATED for suspicious metrics', () => {
-    const suspiciousMetrics = getMockSuspiciousMetrics();
-    const status = calculateMarketStatus(suspiciousMetrics);
-    expect(status).toBe('MANIPULATED');
-  });
-  
-  // Teste 3: Renderização sem quebrar layout
-  it('should render cards without breaking existing layout', () => {
-    render(
-      <MarketSurveillanceProvider>
-        <MarketStatusCard />
-      </MarketSurveillanceProvider>
-    );
-    expect(screen.getByText(/Mercado/)).toBeInTheDocument();
-  });
-  
-  // Teste 4: App existente continua funcionando
-  it('should not affect existing components', () => {
-    render(<PriceChart data={[]} isLoading={false} error={null} />);
-    expect(screen.getByText('Gráfico de Preços')).toBeInTheDocument();
-  });
-});
-```
-
----
-
-### ESTRUTURA FINAL DE ARQUIVOS
+### FLUXO CORRIGIDO
 
 ```text
-src/
-├── contexts/
-│   └── MarketSurveillanceContext.tsx  # Contexto isolado
-├── services/
-│   └── surveillance/
-│       ├── binanceMultiStream.ts      # WebSocket manager
-│       ├── metricsCalculator.ts       # Calculadores
-│       ├── marketStatusEngine.ts      # Engine de status
-│       ├── types.ts                   # Tipos TypeScript
-│       └── index.ts                   # Exports
-├── components/
-│   └── surveillance/
-│       ├── MarketStatusCard.tsx       # Status principal
-│       ├── MarketControlBar.tsx       # Controles
-│       ├── WhatIsHappeningCard.tsx    # Explicações
-│       ├── ImmediateRiskCard.tsx      # Alertas
-│       ├── CorrelationSimpleCard.tsx  # Correlação
-│       └── index.ts                   # Exports
-├── pages/
-│   └── MarketSurveillance.tsx         # Página principal
-└── tests/
-    └── surveillance/
-        └── surveillance.test.ts       # Smoke tests
+REGISTRO (Novo Fluxo)
+┌──────────┐    ┌───────────┐    ┌──────────────┐
+│ Register │───►│ auth-     │───►│ send-        │
+│ (email)  │    │ register  │    │ verification │
+└──────────┘    └───────────┘    │ -email       │
+                                 └──────┬───────┘
+                                        │
+                                        ▼
+                              📧 Email enviado
+                                        │
+                                        ▼
+                              ┌─────────────────┐
+                              │ Usuário clica   │
+                              │ link no email   │
+                              └────────┬────────┘
+                                       │
+                                       ▼
+                              ┌─────────────────┐
+                              │ verify-email    │
+                              │ (marca used_at) │
+                              └────────┬────────┘
+                                       │
+                                       ▼
+                              ┌─────────────────┐
+                              │ create-password │
+                              │ (define senha)  │
+                              └────────┬────────┘
+                                       │
+                                       ▼
+                              Status: PENDING
+                                       │
+                                       ▼
+                              ┌─────────────────┐
+                              │ Admin aprova    │
+                              │ (admin-approve) │
+                              └────────┬────────┘
+                                       │
+                                       ▼
+                              📧 Email: "Você foi aprovado!"
+                                       │
+                                       ▼
+                              ┌─────────────────┐
+                              │ Usuário faz     │
+                              │ LOGIN           │
+                              └─────────────────┘
 ```
 
 ---
 
-### CHECKLIST TÉCNICO
+### SOLUÇÃO IMEDIATA PARA analist.com@outlook.com
 
-| Requisito | Implementação |
-|-----------|---------------|
-| Contexto isolado | `MarketSurveillanceContext` com estado próprio |
-| WebSocket com cleanup | `BinanceMultiStream` com `removeAllListeners()` |
-| Dados validados | Schemas Zod para cada stream |
-| `calculateMarketStatus` puro | Função sem side effects |
-| Memoization | `React.memo` + `useMemo` em todos os cards |
-| Gradientes isolados | Variáveis CSS com prefixo `--status-` |
-| Smoke tests | 4 testes essenciais implementados |
-| Mobile-first | Stack vertical → Grid 2 colunas |
+Enquanto o sistema de email não estiver implementado, podemos:
 
----
+1. Criar função `auth-admin-reset-user` que gera um link temporário
+2. Admin gera o link no painel
+3. Admin envia manualmente o link ao usuário
+4. Usuário acessa link e define senha
+5. Usuário faz login
 
-### NAVEGAÇÃO
-
-Adicionar nova rota ao `nav-items.jsx`:
-```jsx
-{
-  title: "Vigilância de Mercado",
-  to: "/market-surveillance",
-  icon: <ShieldAlertIcon className="h-4 w-4" />,
-  page: <MarketSurveillance />,
-  description: "Detecção de manipulação em tempo real com análise de order book e trades"
-}
-```
+Isso resolve o problema imediato sem depender da configuração do Resend.
 
