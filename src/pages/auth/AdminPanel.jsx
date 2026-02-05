@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { CheckCircle, XCircle, Clock, Shield, Link2, Copy, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Shield, Link2, Copy, Loader2, CheckCheck } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -19,10 +20,12 @@ import {
  * Fluxo: Lista usuários pending → Aprovar/Revogar → Gerar Link de Acesso
  */
 export default function AdminPanel() {
+  const navigate = useNavigate();
   const [pendingUsers, setPendingUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [processingUserId, setProcessingUserId] = useState(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   
   // Estado para modal de link gerado
   const [resetLinkDialog, setResetLinkDialog] = useState({
@@ -33,16 +36,27 @@ export default function AdminPanel() {
   });
 
   useEffect(() => {
+    // Setup listener para manter sessão reativa
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (!session) {
+          navigate('/custom-login');
+        }
+      }
+    );
+
     checkAdminRole();
     fetchPendingUsers();
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const checkAdminRole = async () => {
+  const checkAdminRole = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast.error('Você precisa estar logado');
-        window.location.href = '/custom-login';
+        navigate('/custom-login');
         return;
       }
 
@@ -54,7 +68,7 @@ export default function AdminPanel() {
       if (error || !data?.isAdmin) {
         toast.error('Acesso negado: apenas administradores');
         setIsAdmin(false);
-        window.location.href = '/';
+        navigate('/');
         return;
       }
 
@@ -63,9 +77,9 @@ export default function AdminPanel() {
       console.error('Erro ao verificar role:', error);
       setIsAdmin(false);
       toast.error('Erro ao verificar permissões');
-      window.location.href = '/';
+      navigate('/');
     }
-  };
+  }, [navigate]);
 
   const fetchPendingUsers = async () => {
     setLoading(true);
@@ -167,7 +181,9 @@ export default function AdminPanel() {
   const copyToClipboard = async (text) => {
     try {
       await navigator.clipboard.writeText(text);
+      setLinkCopied(true);
       toast.success('Link copiado! Envie ao usuário via WhatsApp ou email.');
+      setTimeout(() => setLinkCopied(false), 3000);
     } catch (error) {
       // Fallback para browsers antigos
       const textarea = document.createElement('textarea');
@@ -176,7 +192,9 @@ export default function AdminPanel() {
       textarea.select();
       document.execCommand('copy');
       document.body.removeChild(textarea);
+      setLinkCopied(true);
       toast.success('Link copiado!');
+      setTimeout(() => setLinkCopied(false), 3000);
     }
   };
 
@@ -312,18 +330,24 @@ export default function AdminPanel() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Link de acesso:</label>
               <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={resetLinkDialog.url}
-                  readOnly
-                  className="flex-1 px-3 py-2 text-sm rounded-md border bg-muted font-mono break-all"
-                />
+                <div className="flex-1 px-3 py-2 text-sm rounded-md border bg-muted font-mono break-all overflow-x-auto max-h-20 overflow-y-auto">
+                  {resetLinkDialog.url}
+                </div>
                 <Button
                   onClick={() => copyToClipboard(resetLinkDialog.url)}
-                  className="shrink-0"
+                  className={`shrink-0 ${linkCopied ? 'bg-green-600 hover:bg-green-700' : ''}`}
                 >
-                  <Copy className="w-4 h-4 mr-2" />
-                  Copiar
+                  {linkCopied ? (
+                    <>
+                      <CheckCheck className="w-4 h-4 mr-2" />
+                      Copiado!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copiar
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
