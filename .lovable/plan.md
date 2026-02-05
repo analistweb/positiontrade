@@ -1,266 +1,177 @@
 
 
-## Plano: Correção Completa do Sistema de Autenticação
+## Plano: Correção do Sistema de Links de Acesso e Autenticação
 
 ### DIAGNÓSTICO DOS PROBLEMAS
 
-Após análise detalhada do código e banco de dados, identifiquei **4 problemas críticos**:
-
-| Problema | Gravidade | Status Atual |
-|----------|-----------|--------------|
-| Emails nunca são enviados | CRÍTICO | Apenas `console.log()` |
-| Aprovação não notifica usuário | ALTO | Usuário não sabe que foi aprovado |
-| Token expirado não tem renovação | MÉDIO | Token expira em 15 min sem reenvio |
-| Usuário aprovado sem senha | ALTO | Login impossível |
-
----
-
-### SITUAÇÃO DO USUÁRIO `analist.com@outlook.com`
-
 ```text
-Status no Banco de Dados:
-├── user_id: 1d9b1d40-7fd2-464d-a9b2-fb2362db5948
-├── status: active (FOI APROVADO pelo admin)
-├── email_verified_at: NULL (nunca verificou)
-├── token: f36582a5-79d1-4f40-a90c-d100ec0a359f
-├── token_expires: 2026-01-11 20:21:43 (EXPIRADO)
-└── used_at: NULL (nunca usado)
+PROBLEMA 1: Link gera URL incorreta (404)
+├── Causa: Edge Function usa URL hardcoded "compraouvenda.lovable.app"
+├── Impacto: Preview usa URL diferente (id-preview--xxx.lovable.app)
+└── Solução: Detectar ambiente automaticamente via header Origin
 
-Problema: O usuário foi aprovado, mas nunca recebeu email,
-então não pôde verificar email nem criar senha.
+PROBLEMA 2: Autenticação "desaparece"
+├── Causa: AdminPanel faz redirect via window.location.href (perde sessão React)
+├── Impacto: Estado de autenticação não persiste entre navegações
+└── Solução: Usar navigate() do React Router + listener de auth
+
+PROBLEMA 3: Sessão não detectada corretamente
+├── Causa: ProtectedRoute não usa onAuthStateChange
+├── Impacto: Verificação de sessão ocorre apenas 1x no mount
+└── Solução: Adicionar listener reativo para mudanças de auth
 ```
 
 ---
 
-### FASE 1: Configurar Sistema de Envio de Email
+### CORREÇÃO 1: Edge Function com Detecção de Ambiente
 
-**Pré-requisito: RESEND_API_KEY**
-
-O sistema precisa de uma API key do Resend para enviar emails.
-
-**Ação necessária do usuário:**
-1. Criar conta em resend.com
-2. Verificar domínio de email
-3. Gerar API key
-4. Fornecer a key para configuração
-
----
-
-### FASE 2: Criar Edge Function para Envio de Email
-
-**Novo arquivo:** `supabase/functions/send-verification-email/index.ts`
-
-```typescript
-// Funcionalidades:
-// 1. Recebe user_id, email, token, tipo (verification/approval/reset)
-// 2. Usa Resend para enviar email formatado
-// 3. Templates diferentes para cada tipo de email
-// 4. Logs de auditoria
-```
-
-**Tipos de email:**
-- `email_verification`: Link para verificar email
-- `account_approved`: Notificação de aprovação + link para login
-- `password_reset`: Link para redefinir senha
-
----
-
-### FASE 3: Atualizar Edge Function auth-register
-
-**Arquivo:** `supabase/functions/auth-register/index.ts`
+**Arquivo:** `supabase/functions/auth-admin-reset-user/index.ts`
 
 **Alterações:**
-1. Remover `// TODO: Enviar email` (linha 121)
-2. Chamar função de envio de email com token
-3. Gerar URL completa de verificação
+- Receber header `Origin` ou `Referer` da requisição
+- Usar a mesma base URL de onde o admin está acessando
+- Fallback para SITE_URL se não detectar origem
 
 ```typescript
-// NOVO: Enviar email de verificação
-const verificationUrl = `${Deno.env.get('SITE_URL')}/verify-email?token=${verificationToken}`;
+// ANTES (linha 165):
+const siteUrl = Deno.env.get('SITE_URL') || 'https://compraouvenda.lovable.app';
 
-await supabaseAdmin.functions.invoke('send-verification-email', {
-  body: {
-    to: email,
-    type: 'email_verification',
-    data: { verificationUrl, token: verificationToken }
-  }
-});
+// DEPOIS:
+const origin = req.headers.get('Origin') || req.headers.get('Referer');
+const siteUrl = origin 
+  ? new URL(origin).origin 
+  : (Deno.env.get('SITE_URL') || 'https://compraouvenda.lovable.app');
+```
+
+Isso garante que se o admin está no preview, o link gerado será do preview.
+
+---
+
+### CORREÇÃO 2: AdminPanel com Navegação React
+
+**Arquivo:** `src/pages/auth/AdminPanel.jsx`
+
+**Alterações:**
+- Substituir `window.location.href = '/custom-login'` por `navigate('/custom-login')`
+- Adicionar listener `onAuthStateChange` para manter sessão reativa
+- Evitar verificações redundantes de sessão
+
+```typescript
+// ANTES (linha 45):
+window.location.href = '/custom-login';
+
+// DEPOIS:
+import { useNavigate } from 'react-router-dom';
+const navigate = useNavigate();
+navigate('/custom-login');
 ```
 
 ---
 
-### FASE 4: Atualizar Edge Function admin-approve-user
+### CORREÇÃO 3: ProtectedRoute com Listener Reativo
 
-**Arquivo:** `supabase/functions/admin-approve-user/index.ts`
+**Arquivo:** `src/components/common/ProtectedRoute.jsx`
 
 **Alterações:**
-1. Após aprovar, buscar email do usuário
-2. Enviar email de notificação de aprovação
-3. Se usuário não tiver senha, enviar link para criar
+- Adicionar `onAuthStateChange` para reagir a mudanças de autenticação
+- Ordem correta: listener primeiro, depois getSession
+- Evitar race conditions no carregamento
 
 ```typescript
-// NOVO: Notificar usuário sobre aprovação
-const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(user_id);
-
-// Verifica se usuário tem senha
-const needsPassword = !authUser?.user?.confirmed_at;
-
-await supabaseAdmin.functions.invoke('send-verification-email', {
-  body: {
-    to: authUser.user.email,
-    type: 'account_approved',
-    data: { 
-      loginUrl: `${Deno.env.get('SITE_URL')}/custom-login`,
-      needsPassword,
-      passwordResetUrl: needsPassword 
-        ? `${Deno.env.get('SITE_URL')}/create-password?token=${newToken}` 
-        : null
+useEffect(() => {
+  // 1. Setup listener PRIMEIRO
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    async (event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        await checkAccountStatus(session.user.id);
+      } else {
+        setAccountStatus(null);
+      }
+      setLoading(false);
     }
-  }
-});
+  );
+
+  // 2. DEPOIS verifica sessão existente
+  checkAuth();
+
+  return () => subscription.unsubscribe();
+}, []);
 ```
 
 ---
 
-### FASE 5: Criar Função de Reenvio de Token
+### CORREÇÃO 4: Modal de Link com Feedback Visual
 
-**Novo arquivo:** `supabase/functions/auth-resend-token/index.ts`
-
-**Funcionalidades:**
-1. Recebe email do usuário
-2. Verifica se usuário existe e status
-3. Gera novo token de verificação
-4. Invalida tokens anteriores
-5. Envia novo email
-
-Isso resolve o problema de tokens expirados.
-
----
-
-### FASE 6: Atualizar UI para Reenvio de Token
-
-**Arquivo:** `src/pages/auth/VerifyEmail.jsx`
+**Arquivo:** `src/pages/auth/AdminPanel.jsx`
 
 **Alterações:**
-1. Adicionar botão "Reenviar token"
-2. Input de email para reenvio
-3. Cooldown de 60 segundos entre reenvios
+- Mostrar URL completa de forma legível
+- Adicionar validação visual de que o link foi copiado
+- Feedback de sucesso mais claro
 
 ---
 
-### FASE 7: Correção Imediata para o Usuário Atual
+### RESUMO DE ARQUIVOS A MODIFICAR
 
-**Problema específico de `analist.com@outlook.com`:**
-
-O usuário foi aprovado mas nunca completou o fluxo. Para corrigir:
-
-1. **Gerar novo token de verificação** via SQL ou função
-2. **Marcar email como verificado** (já foi aprovado pelo admin)
-3. **Permitir reset de senha** via link direto
-
-**Solução técnica:**
-Criar uma função `auth-admin-reset-user` que permite ao admin:
-- Gerar link de reset de senha
-- Enviar por email ao usuário
-
----
-
-### FASE 8: Adicionar Secret SITE_URL
-
-**Configuração necessária:**
-```
-SITE_URL = "https://compraouvenda.lovable.app"
-```
-
-Esta variável é necessária para gerar URLs corretas nos emails.
-
----
-
-### RESUMO DE ARQUIVOS
-
-| Arquivo | Ação | Descrição |
-|---------|------|-----------|
-| `supabase/functions/send-verification-email/index.ts` | Criar | Função central de envio de emails |
-| `supabase/functions/auth-register/index.ts` | Editar | Integrar envio de email |
-| `supabase/functions/admin-approve-user/index.ts` | Editar | Notificar usuário aprovado |
-| `supabase/functions/auth-resend-token/index.ts` | Criar | Reenvio de tokens expirados |
-| `supabase/functions/auth-admin-reset-user/index.ts` | Criar | Admin pode resetar usuário |
-| `src/pages/auth/VerifyEmail.jsx` | Editar | Adicionar opção de reenvio |
-| `supabase/config.toml` | Editar | Adicionar novas funções |
-
----
-
-### CONFIGURAÇÕES NECESSÁRIAS
-
-Antes de implementar, você precisa fornecer:
-
-1. **RESEND_API_KEY**: Chave da API do Resend
-2. **Domínio verificado**: Ex: `noreply@cryptoanalytics.app`
-3. **SITE_URL**: URL do site em produção
+| Arquivo | Alteração | Descrição |
+|---------|-----------|-----------|
+| `supabase/functions/auth-admin-reset-user/index.ts` | Editar | Detectar ambiente via header Origin |
+| `src/pages/auth/AdminPanel.jsx` | Editar | Usar navigate() + melhorar feedback |
+| `src/components/common/ProtectedRoute.jsx` | Editar | Adicionar listener onAuthStateChange |
+| `src/pages/auth/CustomLogin.jsx` | Editar | Usar navigate() em vez de window.location |
 
 ---
 
 ### FLUXO CORRIGIDO
 
 ```text
-REGISTRO (Novo Fluxo)
-┌──────────┐    ┌───────────┐    ┌──────────────┐
-│ Register │───►│ auth-     │───►│ send-        │
-│ (email)  │    │ register  │    │ verification │
-└──────────┘    └───────────┘    │ -email       │
-                                 └──────┬───────┘
-                                        │
-                                        ▼
-                              📧 Email enviado
-                                        │
-                                        ▼
-                              ┌─────────────────┐
-                              │ Usuário clica   │
-                              │ link no email   │
-                              └────────┬────────┘
-                                       │
-                                       ▼
-                              ┌─────────────────┐
-                              │ verify-email    │
-                              │ (marca used_at) │
-                              └────────┬────────┘
-                                       │
-                                       ▼
-                              ┌─────────────────┐
-                              │ create-password │
-                              │ (define senha)  │
-                              └────────┬────────┘
-                                       │
-                                       ▼
-                              Status: PENDING
-                                       │
-                                       ▼
-                              ┌─────────────────┐
-                              │ Admin aprova    │
-                              │ (admin-approve) │
-                              └────────┬────────┘
-                                       │
-                                       ▼
-                              📧 Email: "Você foi aprovado!"
-                                       │
-                                       ▼
-                              ┌─────────────────┐
-                              │ Usuário faz     │
-                              │ LOGIN           │
-                              └─────────────────┘
+ADMIN GERA LINK (Novo Fluxo)
+┌─────────────────────────────────────────────────────────────────┐
+│  Admin acessa /admin-panel (preview ou publicado)               │
+│                          │                                      │
+│                          ▼                                      │
+│  Clica "Gerar Link" → Edge Function recebe header Origin        │
+│                          │                                      │
+│                          ▼                                      │
+│  Edge Function usa MESMA URL do admin para gerar link:          │
+│  ├── Preview: https://id-preview--xxx.lovable.app/set-password  │
+│  └── Prod: https://compraouvenda.lovable.app/set-password       │
+│                          │                                      │
+│                          ▼                                      │
+│  Admin copia link → Envia ao usuário                            │
+│                          │                                      │
+│                          ▼                                      │
+│  Usuário acessa link → Página SetPassword abre corretamente     │
+│                          │                                      │
+│                          ▼                                      │
+│  Usuário define senha → Login habilitado                        │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### SOLUÇÃO IMEDIATA PARA analist.com@outlook.com
+### TESTES RECOMENDADOS
 
-Enquanto o sistema de email não estiver implementado, podemos:
+Após implementação:
 
-1. Criar função `auth-admin-reset-user` que gera um link temporário
-2. Admin gera o link no painel
-3. Admin envia manualmente o link ao usuário
-4. Usuário acessa link e define senha
-5. Usuário faz login
+1. **Teste de geração de link:**
+   - Acessar admin-panel no preview
+   - Gerar link para usuário
+   - Verificar se URL contém preview (não produção)
 
-Isso resolve o problema imediato sem depender da configuração do Resend.
+2. **Teste de acesso ao link:**
+   - Copiar link gerado
+   - Abrir em nova aba anônima
+   - Verificar se página SetPassword carrega
+
+3. **Teste de definição de senha:**
+   - Preencher formulário de senha
+   - Submeter
+   - Verificar redirecionamento para login
+
+4. **Teste de autenticação persistente:**
+   - Fazer login como admin
+   - Navegar entre páginas
+   - Verificar se sessão permanece ativa
 
