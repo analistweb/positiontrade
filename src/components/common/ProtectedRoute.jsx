@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -19,8 +19,43 @@ export const ProtectedRoute = ({ children }) => {
   const [user, setUser] = useState(null);
   const [accountStatus, setAccountStatus] = useState(null);
 
+  const checkAccountStatus = useCallback(async (userId) => {
+    try {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('status')
+        .eq('user_id', userId)
+        .single();
+
+      setAccountStatus(profile?.status || 'pending');
+    } catch (error) {
+      console.error('Erro ao verificar status da conta:', error);
+      setAccountStatus('pending');
+    }
+  }, []);
+
   useEffect(() => {
+    // 1. Setup listener PRIMEIRO para reagir a mudanças de auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          // Defer Supabase calls para evitar deadlock
+          setTimeout(() => {
+            checkAccountStatus(session.user.id);
+          }, 0);
+        } else {
+          setAccountStatus(null);
+          setLoading(false);
+        }
+      }
+    );
+
+    // 2. DEPOIS verifica sessão existente
     checkAuth();
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const checkAuth = async () => {
@@ -33,15 +68,7 @@ export const ProtectedRoute = ({ children }) => {
       }
 
       setUser(session.user);
-
-      // Verifica status da conta
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('status')
-        .eq('user_id', session.user.id)
-        .single();
-
-      setAccountStatus(profile?.status || 'pending');
+      await checkAccountStatus(session.user.id);
     } catch (error) {
       console.error('Erro ao verificar autenticação:', error);
     } finally {
@@ -51,7 +78,7 @@ export const ProtectedRoute = ({ children }) => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    window.location.href = '/custom-login';
+    // Não precisa redirecionar aqui - o listener vai detectar e o Navigate vai atuar
   };
 
   // Loading

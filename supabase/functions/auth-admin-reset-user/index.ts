@@ -160,9 +160,20 @@ serve(async (req) => {
       console.log('[auth-admin-reset-user] Status updated to active for:', user_id);
     }
 
-    // Gera URL de reset
-    // Usa SITE_URL se disponível, senão tenta inferir do request
-    const siteUrl = Deno.env.get('SITE_URL') || 'https://compraouvenda.lovable.app';
+    // Gera URL de reset - detecta ambiente automaticamente via Origin header
+    const origin = req.headers.get('Origin') || req.headers.get('Referer');
+    let siteUrl: string;
+    
+    if (origin) {
+      try {
+        siteUrl = new URL(origin).origin;
+        console.log('[auth-admin-reset-user] Using origin from request:', siteUrl);
+      } catch {
+        siteUrl = Deno.env.get('SITE_URL') || 'https://compraouvenda.lovable.app';
+      }
+    } else {
+      siteUrl = Deno.env.get('SITE_URL') || 'https://compraouvenda.lovable.app';
+    }
     const resetUrl = `${siteUrl}/set-password?token=${resetToken}`;
 
     // Log de auditoria
