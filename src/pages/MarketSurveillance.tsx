@@ -6,6 +6,7 @@ import {
   WhatIsHappeningCard,
   ImmediateRiskCard,
   CorrelationSimpleCard,
+  LiquidationMapContainer,
 } from '@/components/surveillance';
 
 const MarketSurveillance: React.FC = () => {
@@ -47,6 +48,11 @@ const MarketSurveillance: React.FC = () => {
             <div>
               <CorrelationSimpleCard />
             </div>
+          </div>
+
+          {/* Liquidation Map Section */}
+          <div className="mt-8">
+            <LiquidationMapContainer />
           </div>
 
           {/* Disclaimer */}
