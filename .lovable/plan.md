@@ -1,177 +1,154 @@
 
 
-## Plano: Correção do Sistema de Links de Acesso e Autenticação
+## Diagnóstico: Erro de Login do Usuário `analist.com@outlook.com`
 
-### DIAGNÓSTICO DOS PROBLEMAS
-
-```text
-PROBLEMA 1: Link gera URL incorreta (404)
-├── Causa: Edge Function usa URL hardcoded "compraouvenda.lovable.app"
-├── Impacto: Preview usa URL diferente (id-preview--xxx.lovable.app)
-└── Solução: Detectar ambiente automaticamente via header Origin
-
-PROBLEMA 2: Autenticação "desaparece"
-├── Causa: AdminPanel faz redirect via window.location.href (perde sessão React)
-├── Impacto: Estado de autenticação não persiste entre navegações
-└── Solução: Usar navigate() do React Router + listener de auth
-
-PROBLEMA 3: Sessão não detectada corretamente
-├── Causa: ProtectedRoute não usa onAuthStateChange
-├── Impacto: Verificação de sessão ocorre apenas 1x no mount
-└── Solução: Adicionar listener reativo para mudanças de auth
-```
-
----
-
-### CORREÇÃO 1: Edge Function com Detecção de Ambiente
-
-**Arquivo:** `supabase/functions/auth-admin-reset-user/index.ts`
-
-**Alterações:**
-- Receber header `Origin` ou `Referer` da requisição
-- Usar a mesma base URL de onde o admin está acessando
-- Fallback para SITE_URL se não detectar origem
-
-```typescript
-// ANTES (linha 165):
-const siteUrl = Deno.env.get('SITE_URL') || 'https://compraouvenda.lovable.app';
-
-// DEPOIS:
-const origin = req.headers.get('Origin') || req.headers.get('Referer');
-const siteUrl = origin 
-  ? new URL(origin).origin 
-  : (Deno.env.get('SITE_URL') || 'https://compraouvenda.lovable.app');
-```
-
-Isso garante que se o admin está no preview, o link gerado será do preview.
-
----
-
-### CORREÇÃO 2: AdminPanel com Navegação React
-
-**Arquivo:** `src/pages/auth/AdminPanel.jsx`
-
-**Alterações:**
-- Substituir `window.location.href = '/custom-login'` por `navigate('/custom-login')`
-- Adicionar listener `onAuthStateChange` para manter sessão reativa
-- Evitar verificações redundantes de sessão
-
-```typescript
-// ANTES (linha 45):
-window.location.href = '/custom-login';
-
-// DEPOIS:
-import { useNavigate } from 'react-router-dom';
-const navigate = useNavigate();
-navigate('/custom-login');
-```
-
----
-
-### CORREÇÃO 3: ProtectedRoute com Listener Reativo
-
-**Arquivo:** `src/components/common/ProtectedRoute.jsx`
-
-**Alterações:**
-- Adicionar `onAuthStateChange` para reagir a mudanças de autenticação
-- Ordem correta: listener primeiro, depois getSession
-- Evitar race conditions no carregamento
-
-```typescript
-useEffect(() => {
-  // 1. Setup listener PRIMEIRO
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    async (event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await checkAccountStatus(session.user.id);
-      } else {
-        setAccountStatus(null);
-      }
-      setLoading(false);
-    }
-  );
-
-  // 2. DEPOIS verifica sessão existente
-  checkAuth();
-
-  return () => subscription.unsubscribe();
-}, []);
-```
-
----
-
-### CORREÇÃO 4: Modal de Link com Feedback Visual
-
-**Arquivo:** `src/pages/auth/AdminPanel.jsx`
-
-**Alterações:**
-- Mostrar URL completa de forma legível
-- Adicionar validação visual de que o link foi copiado
-- Feedback de sucesso mais claro
-
----
-
-### RESUMO DE ARQUIVOS A MODIFICAR
-
-| Arquivo | Alteração | Descrição |
-|---------|-----------|-----------|
-| `supabase/functions/auth-admin-reset-user/index.ts` | Editar | Detectar ambiente via header Origin |
-| `src/pages/auth/AdminPanel.jsx` | Editar | Usar navigate() + melhorar feedback |
-| `src/components/common/ProtectedRoute.jsx` | Editar | Adicionar listener onAuthStateChange |
-| `src/pages/auth/CustomLogin.jsx` | Editar | Usar navigate() em vez de window.location |
-
----
-
-### FLUXO CORRIGIDO
+### ANÁLISE TÉCNICA
 
 ```text
-ADMIN GERA LINK (Novo Fluxo)
-┌─────────────────────────────────────────────────────────────────┐
-│  Admin acessa /admin-panel (preview ou publicado)               │
-│                          │                                      │
-│                          ▼                                      │
-│  Clica "Gerar Link" → Edge Function recebe header Origin        │
-│                          │                                      │
-│                          ▼                                      │
-│  Edge Function usa MESMA URL do admin para gerar link:          │
-│  ├── Preview: https://id-preview--xxx.lovable.app/set-password  │
-│  └── Prod: https://compraouvenda.lovable.app/set-password       │
-│                          │                                      │
-│                          ▼                                      │
-│  Admin copia link → Envia ao usuário                            │
-│                          │                                      │
-│                          ▼                                      │
-│  Usuário acessa link → Página SetPassword abre corretamente     │
-│                          │                                      │
-│                          ▼                                      │
-│  Usuário define senha → Login habilitado                        │
-└─────────────────────────────────────────────────────────────────┘
+INVESTIGAÇÃO REALIZADA
+├── Teste direto da Edge Function: FUNCIONA (retorna 401 para senha errada)
+├── Configuração TOML: verify_jwt = false (correto)
+├── Status do usuário no banco:
+│   ├── status: 'active' ✓
+│   ├── email_verified_at: 2026-02-05 ✓
+│   ├── has_password: true ✓
+│   └── roles: NULL ⚠️ (sem role atribuído)
+└── Análise do erro reportado:
+    └── "Edge Function returned a non-2xx status code" + RUNTIME_ERROR
+```
+
+### PROBLEMA IDENTIFICADO: Headers CORS Incompletos
+
+O SDK do Supabase envia automaticamente headers adicionais que não estão sendo permitidos:
+
+```text
+HEADERS ATUAIS (insuficientes):
+'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
+
+HEADERS NECESSÁRIOS:
+'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, 
+  x-supabase-client-platform, x-supabase-client-platform-version, 
+  x-supabase-client-runtime, x-supabase-client-runtime-version'
+```
+
+Quando o browser faz o **preflight request (OPTIONS)** e recebe uma resposta que não permite os headers que o SDK pretende enviar, o browser **bloqueia a requisição principal**.
+
+---
+
+### CORREÇÕES NECESSÁRIAS
+
+#### 1. Atualizar CORS Headers em Todas as Edge Functions
+
+**Arquivos afetados:**
+- `supabase/functions/auth-custom-login/index.ts`
+- `supabase/functions/auth-register/index.ts`
+- `supabase/functions/auth-verify-email/index.ts`
+- `supabase/functions/auth-create-password/index.ts`
+- `supabase/functions/auth-set-password/index.ts`
+- `supabase/functions/auth-create-first-admin/index.ts`
+- `supabase/functions/admin-verify-role/index.ts`
+- `supabase/functions/admin-list-pending-users/index.ts`
+- `supabase/functions/admin-approve-user/index.ts`
+- `supabase/functions/admin-revoke-user/index.ts`
+- `supabase/functions/auth-admin-reset-user/index.ts`
+- `supabase/functions/auth-refresh-token/index.ts`
+- `supabase/functions/auth-logout/index.ts`
+
+**Alteração em cada arquivo:**
+```typescript
+// DE:
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+// PARA:
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+};
+```
+
+#### 2. Atribuir Role ao Usuário (via migration)
+
+O usuário `analist.com@outlook.com` (ID: `131c6b8a-04f1-4483-82b1-3af0bcdee339`) não tem role. Precisa inserir na tabela `user_roles`:
+
+```sql
+INSERT INTO user_roles (user_id, role) 
+VALUES ('131c6b8a-04f1-4483-82b1-3af0bcdee339', 'user')
+ON CONFLICT (user_id, role) DO NOTHING;
 ```
 
 ---
 
-### TESTES RECOMENDADOS
+### FLUXO DE LOGIN CORRIGIDO
 
-Após implementação:
+```text
+ANTES (erro):
+┌──────────────────────────────────────────────────────────────┐
+│  Browser envia OPTIONS preflight                             │
+│                    │                                         │
+│                    ▼                                         │
+│  Edge Function retorna CORS headers incompletos              │
+│                    │                                         │
+│                    ▼                                         │
+│  Browser BLOQUEIA requisição POST (CORS error)               │
+│                    │                                         │
+│                    ▼                                         │
+│  CustomLogin.jsx recebe erro genérico                        │
+│  → "Edge Function returned a non-2xx status code"            │
+└──────────────────────────────────────────────────────────────┘
 
-1. **Teste de geração de link:**
-   - Acessar admin-panel no preview
-   - Gerar link para usuário
-   - Verificar se URL contém preview (não produção)
+DEPOIS (corrigido):
+┌──────────────────────────────────────────────────────────────┐
+│  Browser envia OPTIONS preflight                             │
+│                    │                                         │
+│                    ▼                                         │
+│  Edge Function retorna CORS headers COMPLETOS                │
+│                    │                                         │
+│                    ▼                                         │
+│  Browser PERMITE requisição POST                             │
+│                    │                                         │
+│                    ▼                                         │
+│  Edge Function valida credenciais                            │
+│                    │                                         │
+│                    ▼                                         │
+│  Login bem-sucedido → sessão estabelecida                    │
+└──────────────────────────────────────────────────────────────┘
+```
 
-2. **Teste de acesso ao link:**
-   - Copiar link gerado
-   - Abrir em nova aba anônima
-   - Verificar se página SetPassword carrega
+---
 
-3. **Teste de definição de senha:**
-   - Preencher formulário de senha
-   - Submeter
-   - Verificar redirecionamento para login
+### RESUMO DE ALTERAÇÕES
 
-4. **Teste de autenticação persistente:**
-   - Fazer login como admin
-   - Navegar entre páginas
-   - Verificar se sessão permanece ativa
+| Arquivo | Tipo | Alteração |
+|---------|------|-----------|
+| `auth-custom-login/index.ts` | Edge Function | Atualizar corsHeaders |
+| `auth-register/index.ts` | Edge Function | Atualizar corsHeaders |
+| `auth-verify-email/index.ts` | Edge Function | Atualizar corsHeaders |
+| `auth-create-password/index.ts` | Edge Function | Atualizar corsHeaders |
+| `auth-set-password/index.ts` | Edge Function | Atualizar corsHeaders |
+| `auth-create-first-admin/index.ts` | Edge Function | Atualizar corsHeaders |
+| `admin-verify-role/index.ts` | Edge Function | Atualizar corsHeaders |
+| `admin-list-pending-users/index.ts` | Edge Function | Atualizar corsHeaders |
+| `admin-approve-user/index.ts` | Edge Function | Atualizar corsHeaders |
+| `admin-revoke-user/index.ts` | Edge Function | Atualizar corsHeaders |
+| `auth-admin-reset-user/index.ts` | Edge Function | Atualizar corsHeaders |
+| `auth-refresh-token/index.ts` | Edge Function | Atualizar corsHeaders |
+| `auth-logout/index.ts` | Edge Function | Atualizar corsHeaders |
+| Banco de dados | Migration | Atribuir role 'user' ao usuário |
+
+---
+
+### TESTE APÓS IMPLEMENTAÇÃO
+
+1. **Teste de login:**
+   - Acessar `/custom-login`
+   - Inserir email: `analist.com@outlook.com`
+   - Inserir senha definida anteriormente
+   - Verificar login bem-sucedido
+
+2. **Verificar console do browser:**
+   - Não deve haver erros de CORS
+   - Requisição POST deve retornar 200
 
