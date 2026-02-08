@@ -94,8 +94,24 @@ serve(async (req) => {
       );
     }
 
-    // Normalizar ticker
-    const normalizedTicker = ticker.toUpperCase().trim();
+    // Normalizar ticker - converter BBAS3-SA para BBAS3.SA automaticamente
+    let normalizedTicker = ticker.toUpperCase().trim();
+    
+    // Corrigir formato de ações brasileiras (hífen para ponto)
+    // BBAS3-SA → BBAS3.SA, PETR4-SA → PETR4.SA
+    if (normalizedTicker.endsWith('-SA')) {
+      normalizedTicker = normalizedTicker.replace(/-SA$/, '.SA');
+      console.log(`[Ticker Fix] Converted to ${normalizedTicker}`);
+    }
+    
+    // Se for apenas o código sem sufixo (BBAS3, PETR4), tentar adicionar .SA
+    // para ações brasileiras conhecidas
+    const brazilianStockPattern = /^[A-Z]{4}[0-9]{1,2}$/;
+    if (brazilianStockPattern.test(normalizedTicker)) {
+      normalizedTicker = `${normalizedTicker}.SA`;
+      console.log(`[Ticker Fix] Added .SA suffix: ${normalizedTicker}`);
+    }
+    
     const cacheKey = `${normalizedTicker}_${range}_${interval}`;
 
     // Verificar cache
