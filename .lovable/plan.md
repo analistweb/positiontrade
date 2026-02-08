@@ -1,154 +1,210 @@
 
 
-## Diagnóstico: Erro de Login do Usuário `analist.com@outlook.com`
+## Reformulação da Página `/analise-posicao` — Estilo Google-Like
 
-### ANÁLISE TÉCNICA
+### Visão Geral
 
-```text
-INVESTIGAÇÃO REALIZADA
-├── Teste direto da Edge Function: FUNCIONA (retorna 401 para senha errada)
-├── Configuração TOML: verify_jwt = false (correto)
-├── Status do usuário no banco:
-│   ├── status: 'active' ✓
-│   ├── email_verified_at: 2026-02-05 ✓
-│   ├── has_password: true ✓
-│   └── roles: NULL ⚠️ (sem role atribuído)
-└── Análise do erro reportado:
-    └── "Edge Function returned a non-2xx status code" + RUNTIME_ERROR
-```
-
-### PROBLEMA IDENTIFICADO: Headers CORS Incompletos
-
-O SDK do Supabase envia automaticamente headers adicionais que não estão sendo permitidos:
-
-```text
-HEADERS ATUAIS (insuficientes):
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
-
-HEADERS NECESSÁRIOS:
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, 
-  x-supabase-client-platform, x-supabase-client-platform-version, 
-  x-supabase-client-runtime, x-supabase-client-runtime-version'
-```
-
-Quando o browser faz o **preflight request (OPTIONS)** e recebe uma resposta que não permite os headers que o SDK pretende enviar, o browser **bloqueia a requisição principal**.
+Transformar a página de análise de posição em uma interface minimalista e profissional inspirada no Google Search, com uma barra de pesquisa central como elemento principal e indicadores de status dos mercados globais.
 
 ---
 
-### CORREÇÕES NECESSÁRIAS
+### Arquitetura Visual
 
-#### 1. Atualizar CORS Headers em Todas as Edge Functions
+```text
+LAYOUT INICIAL (sem resultados):
+┌──────────────────────────────────────────────────────────────────┐
+│  [Header/Navbar existente]                                       │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│                                                                  │
+│               ┌───────────────────────────┐                      │
+│               │  ● EUR  ● USA  ● ASIA     │  ← Status mercados   │
+│               └───────────────────────────┘                      │
+│                                                                  │
+│                   POSITION TRADE                                 │
+│                   Analyzer                                       │
+│                                                                  │
+│        ┌─────────────────────────────────────────────┐          │
+│        │  🔍 Digite um ticker...                      │          │
+│        └─────────────────────────────────────────────┘          │
+│                                                                  │
+│            PETR4.SA   VALE3.SA   AAPL   BTC-USD                 │
+│                       (badges populares)                         │
+│                                                                  │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
 
-**Arquivos afetados:**
-- `supabase/functions/auth-custom-login/index.ts`
-- `supabase/functions/auth-register/index.ts`
-- `supabase/functions/auth-verify-email/index.ts`
-- `supabase/functions/auth-create-password/index.ts`
-- `supabase/functions/auth-set-password/index.ts`
-- `supabase/functions/auth-create-first-admin/index.ts`
-- `supabase/functions/admin-verify-role/index.ts`
-- `supabase/functions/admin-list-pending-users/index.ts`
-- `supabase/functions/admin-approve-user/index.ts`
-- `supabase/functions/admin-revoke-user/index.ts`
-- `supabase/functions/auth-admin-reset-user/index.ts`
-- `supabase/functions/auth-refresh-token/index.ts`
-- `supabase/functions/auth-logout/index.ts`
+LAYOUT COM RESULTADOS:
+┌──────────────────────────────────────────────────────────────────┐
+│  [Header/Navbar existente]                                       │
+├──────────────────────────────────────────────────────────────────┤
+│        ┌─────────────────────────────────────────────┐          │
+│        │  🔍 PETR4.SA                                │ Analisar │
+│        └─────────────────────────────────────────────┘          │
+│        ● EUR ● USA ● ASIA                                        │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────────┐  ┌─────────────────────┐               │
+│  │   TrendCard         │  │   IndicatorsCard    │               │
+│  └─────────────────────┘  └─────────────────────┘               │
+│                                                                  │
+│  ┌────────────────────────────────────────────────┐             │
+│  │              PositionChart                      │             │
+│  └────────────────────────────────────────────────┘             │
+│                                                                  │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐                 │
+│  │ LevelsTable│  │ RiskScore  │  │ EntryPoints│                 │
+│  └────────────┘  └────────────┘  └────────────┘                 │
+│                                                                  │
+│  ┌────────────────────────────────────────────────┐             │
+│  │         ExecutiveSummary                        │             │
+│  └────────────────────────────────────────────────┘             │
+└──────────────────────────────────────────────────────────────────┘
+```
 
-**Alteração em cada arquivo:**
+---
+
+### Componentes a Criar
+
+#### 1. MarketStatusWidget (novo componente)
+Indicadores de status dos mercados globais baseados no horário de Brasília.
+
+```text
+LÓGICA DE HORÁRIOS (Brasília):
+├── Europeu: 04h-08h → Verde se dentro, Cinza fora
+├── Americano: 10h-17h → Verde se dentro, Cinza fora
+└── Asiático: 21h-00h → Verde se dentro, Cinza fora
+
+VISUAL:
+┌───────────────────────────────────┐
+│  ● EUR    ● USA    ● ASIA        │
+│  Aberto   Fechado  Fechado       │
+└───────────────────────────────────┘
+```
+
+#### 2. GoogleStyleSearchBar (novo componente interno)
+Barra de pesquisa centralizada estilo Google.
+
+**Especificações:**
+- Largura máxima: `max-w-2xl` (672px)
+- Borda arredondada: `rounded-full`
+- Ícone de busca interno à esquerda
+- Sombra sutil: `shadow-sm` → `hover:shadow-lg`
+- Transição suave: `transition-shadow duration-200`
+- Altura: `h-14` para toque confortável
+- Botão de submit integrado (modo com resultados) ou oculto (modo inicial)
+
+---
+
+### Alterações no Arquivo Principal
+
+**Arquivo:** `src/pages/AnalisePosicao.tsx`
+
+#### Mudanças estruturais:
+
+1. **Estado bifurcado:**
+   - `hasResults = false`: Layout centralizado vertical (Google homepage)
+   - `hasResults = true`: Layout com barra fixa no topo + resultados
+
+2. **Container principal:**
+   ```tsx
+   // Sem resultados
+   <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)]">
+   
+   // Com resultados
+   <div className="container mx-auto px-4 py-6 max-w-7xl">
+   ```
+
+3. **Preservação total da lógica de backend:**
+   - Hook `usePositionAnalysis` mantido intacto
+   - Props `onSearch`, `isLoading`, `currentTicker` preservadas
+   - Todos os componentes de resultado (TrendCard, etc.) sem alterações
+
+---
+
+### Detalhes Técnicos
+
+#### MarketStatusWidget — Lógica de Horário
+
 ```typescript
-// DE:
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-// PARA:
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+function getMarketStatus() {
+  const now = new Date();
+  // Brasília = UTC-3
+  const brasiliaOffset = -3 * 60;
+  const localOffset = now.getTimezoneOffset();
+  const brasiliaTime = new Date(now.getTime() + (localOffset + brasiliaOffset) * 60000);
+  const hour = brasiliaTime.getHours();
+  
+  return {
+    european: hour >= 4 && hour < 8,   // 04h-08h
+    american: hour >= 10 && hour < 17, // 10h-17h
+    asian: hour >= 21 || hour < 0,     // 21h-00h (atravessa meia-noite)
+  };
+}
 ```
 
-#### 2. Atribuir Role ao Usuário (via migration)
+#### Estilização da SearchBar
 
-O usuário `analist.com@outlook.com` (ID: `131c6b8a-04f1-4483-82b1-3af0bcdee339`) não tem role. Precisa inserir na tabela `user_roles`:
-
-```sql
-INSERT INTO user_roles (user_id, role) 
-VALUES ('131c6b8a-04f1-4483-82b1-3af0bcdee339', 'user')
-ON CONFLICT (user_id, role) DO NOTHING;
-```
-
----
-
-### FLUXO DE LOGIN CORRIGIDO
-
-```text
-ANTES (erro):
-┌──────────────────────────────────────────────────────────────┐
-│  Browser envia OPTIONS preflight                             │
-│                    │                                         │
-│                    ▼                                         │
-│  Edge Function retorna CORS headers incompletos              │
-│                    │                                         │
-│                    ▼                                         │
-│  Browser BLOQUEIA requisição POST (CORS error)               │
-│                    │                                         │
-│                    ▼                                         │
-│  CustomLogin.jsx recebe erro genérico                        │
-│  → "Edge Function returned a non-2xx status code"            │
-└──────────────────────────────────────────────────────────────┘
-
-DEPOIS (corrigido):
-┌──────────────────────────────────────────────────────────────┐
-│  Browser envia OPTIONS preflight                             │
-│                    │                                         │
-│                    ▼                                         │
-│  Edge Function retorna CORS headers COMPLETOS                │
-│                    │                                         │
-│                    ▼                                         │
-│  Browser PERMITE requisição POST                             │
-│                    │                                         │
-│                    ▼                                         │
-│  Edge Function valida credenciais                            │
-│                    │                                         │
-│                    ▼                                         │
-│  Login bem-sucedido → sessão estabelecida                    │
-└──────────────────────────────────────────────────────────────┘
+```tsx
+<div className="relative w-full max-w-2xl">
+  <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+  <input
+    type="text"
+    placeholder="Digite um ticker (ex: PETR4.SA, AAPL, BTC-USD)"
+    className="w-full h-14 pl-14 pr-6 rounded-full border border-border/50 
+               bg-background shadow-sm hover:shadow-lg focus:shadow-lg 
+               focus:outline-none focus:ring-2 focus:ring-primary/20
+               transition-shadow duration-200 text-lg"
+  />
+</div>
 ```
 
 ---
 
-### RESUMO DE ALTERAÇÕES
+### Responsividade
 
-| Arquivo | Tipo | Alteração |
-|---------|------|-----------|
-| `auth-custom-login/index.ts` | Edge Function | Atualizar corsHeaders |
-| `auth-register/index.ts` | Edge Function | Atualizar corsHeaders |
-| `auth-verify-email/index.ts` | Edge Function | Atualizar corsHeaders |
-| `auth-create-password/index.ts` | Edge Function | Atualizar corsHeaders |
-| `auth-set-password/index.ts` | Edge Function | Atualizar corsHeaders |
-| `auth-create-first-admin/index.ts` | Edge Function | Atualizar corsHeaders |
-| `admin-verify-role/index.ts` | Edge Function | Atualizar corsHeaders |
-| `admin-list-pending-users/index.ts` | Edge Function | Atualizar corsHeaders |
-| `admin-approve-user/index.ts` | Edge Function | Atualizar corsHeaders |
-| `admin-revoke-user/index.ts` | Edge Function | Atualizar corsHeaders |
-| `auth-admin-reset-user/index.ts` | Edge Function | Atualizar corsHeaders |
-| `auth-refresh-token/index.ts` | Edge Function | Atualizar corsHeaders |
-| `auth-logout/index.ts` | Edge Function | Atualizar corsHeaders |
-| Banco de dados | Migration | Atribuir role 'user' ao usuário |
+| Breakpoint | Comportamento |
+|------------|---------------|
+| Mobile (<640px) | SearchBar `max-w-full px-4`, badges empilham |
+| Tablet (640-1024px) | SearchBar `max-w-xl`, grid 2 colunas |
+| Desktop (>1024px) | SearchBar `max-w-2xl`, grid 3 colunas |
 
 ---
 
-### TESTE APÓS IMPLEMENTAÇÃO
+### Arquivos a Modificar
 
-1. **Teste de login:**
-   - Acessar `/custom-login`
-   - Inserir email: `analist.com@outlook.com`
-   - Inserir senha definida anteriormente
-   - Verificar login bem-sucedido
+| Arquivo | Ação |
+|---------|------|
+| `src/pages/AnalisePosicao.tsx` | Reformular layout completo |
+| `src/components/position/AssetSearchInput.tsx` | Adaptar para estilo Google |
+| `src/components/position/index.ts` | Exportar novo componente |
 
-2. **Verificar console do browser:**
-   - Não deve haver erros de CORS
-   - Requisição POST deve retornar 200
+---
+
+### Preservação de Funcionalidade
+
+A seguinte lógica será mantida **intacta**:
+
+- `usePositionAnalysis` hook (fetch, analyze, ticker, data, error)
+- Props interface de `AssetSearchInput`
+- Todos os componentes de resultado (TrendCard, IndicatorsCard, etc.)
+- Animações com framer-motion
+- Tratamento de estados (loading, error, empty)
+
+---
+
+### Resultado Visual Esperado
+
+**Estado inicial (sem pesquisa):**
+- Tela limpa e focada
+- Widget de mercados discreto no topo
+- Logo/título centralizado
+- Barra de pesquisa proeminente
+- Badges de tickers populares abaixo
+
+**Estado com resultados:**
+- Barra de pesquisa move para o topo
+- Widget de mercados ao lado da barra
+- Resultados fluem abaixo no grid existente
+- Transição suave entre estados
 
