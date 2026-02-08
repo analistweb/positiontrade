@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Search, Loader2 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface AssetSearchInputProps {
   onSearch: (ticker: string) => void;
   isLoading?: boolean;
   currentTicker?: string;
+  variant?: 'centered' | 'compact';
 }
 
 const POPULAR_TICKERS = [
@@ -19,13 +19,18 @@ const POPULAR_TICKERS = [
   { ticker: 'NVDA', label: 'Nvidia' },
 ];
 
-export function AssetSearchInput({ onSearch, isLoading, currentTicker }: AssetSearchInputProps) {
+export function AssetSearchInput({ 
+  onSearch, 
+  isLoading, 
+  currentTicker,
+  variant = 'centered' 
+}: AssetSearchInputProps) {
   const [inputValue, setInputValue] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim()) {
-      onSearch(inputValue.trim());
+      onSearch(inputValue.trim().toUpperCase());
     }
   };
 
@@ -34,50 +39,70 @@ export function AssetSearchInput({ onSearch, isLoading, currentTicker }: AssetSe
     onSearch(ticker);
   };
 
+  const isCentered = variant === 'centered';
+
   return (
-    <div className="space-y-4">
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+    <div className={cn('w-full', isCentered ? 'max-w-2xl mx-auto' : 'max-w-xl')}>
+      <form onSubmit={handleSubmit} className="relative">
+        <div className={cn(
+          'relative flex items-center transition-shadow duration-200',
+          isCentered 
+            ? 'rounded-full border border-border/50 bg-background shadow-sm hover:shadow-lg focus-within:shadow-lg focus-within:ring-2 focus-within:ring-primary/20'
+            : 'rounded-full border border-border/50 bg-background/80 shadow-sm hover:shadow-md'
+        )}>
+          <Search className={cn(
+            'absolute text-muted-foreground pointer-events-none',
+            isCentered ? 'left-5 h-5 w-5' : 'left-4 h-4 w-4'
+          )} />
+          <input
             type="text"
-            placeholder="Digite o ticker (ex: PETR4.SA, AAPL, BTC-USD)"
+            placeholder="Digite um ticker (ex: PETR4.SA, AAPL, BTC-USD)"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            className="pl-10 h-12 text-lg bg-background/50 border-border/50 focus:border-primary"
             disabled={isLoading}
+            className={cn(
+              'w-full bg-transparent border-none outline-none placeholder:text-muted-foreground/60',
+              isCentered 
+                ? 'h-14 pl-14 pr-4 text-lg' 
+                : 'h-12 pl-11 pr-4 text-base'
+            )}
           />
-        </div>
-        <Button 
-          type="submit" 
-          size="lg"
-          disabled={isLoading || !inputValue.trim()}
-          className="px-8"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Analisando
-            </>
-          ) : (
-            'Analisar'
+          {(inputValue.trim() || isLoading) && (
+            <button
+              type="submit"
+              disabled={isLoading || !inputValue.trim()}
+              className={cn(
+                'absolute right-2 px-4 py-2 rounded-full font-medium transition-colors',
+                'bg-primary text-primary-foreground hover:bg-primary/90',
+                'disabled:opacity-50 disabled:cursor-not-allowed',
+                isCentered ? 'text-sm' : 'text-xs'
+              )}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                'Analisar'
+              )}
+            </button>
           )}
-        </Button>
+        </div>
       </form>
 
-      <div className="flex flex-wrap gap-2">
-        <span className="text-sm text-muted-foreground self-center">Populares:</span>
-        {POPULAR_TICKERS.map((item) => (
-          <Badge
-            key={item.ticker}
-            variant={currentTicker === item.ticker ? 'default' : 'outline'}
-            className="cursor-pointer hover:bg-primary/20 transition-colors"
-            onClick={() => handleQuickSelect(item.ticker)}
-          >
-            {item.ticker}
-          </Badge>
-        ))}
-      </div>
+      {isCentered && (
+        <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
+          <span className="text-sm text-muted-foreground">Populares:</span>
+          {POPULAR_TICKERS.map((item) => (
+            <Badge
+              key={item.ticker}
+              variant={currentTicker === item.ticker ? 'default' : 'outline'}
+              className="cursor-pointer hover:bg-primary/10 transition-colors text-sm px-3 py-1"
+              onClick={() => handleQuickSelect(item.ticker)}
+            >
+              {item.ticker}
+            </Badge>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

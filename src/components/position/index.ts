@@ -1,4 +1,5 @@
 export { AssetSearchInput } from './AssetSearchInput';
+export { MarketStatusWidget } from './MarketStatusWidget';
 export { TrendCard } from './TrendCard';
 export { IndicatorsCard } from './IndicatorsCard';
 export { LevelsTable } from './LevelsTable';
