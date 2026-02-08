@@ -22,12 +22,8 @@ async function fetchAssetData(
   range: string,
   interval: string
 ): Promise<AssetData> {
-  // Use supabase.functions.invoke corretamente com query params
+  // supabase.functions.invoke usa POST por padrão
   const { data, error } = await supabase.functions.invoke('fetch-asset-data', {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
     body: { ticker, range, interval },
   });
 
