@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 // Cache simples em memória (5 minutos)
@@ -59,14 +59,33 @@ interface AssetData {
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const url = new URL(req.url);
-    const ticker = url.searchParams.get('ticker');
-    const range = url.searchParams.get('range') || '1y'; // 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max
-    const interval = url.searchParams.get('interval') || '1d'; // 1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo
+    let ticker: string | null = null;
+    let range = '1y';
+    let interval = '1d';
+
+    // Suportar tanto GET com query params quanto POST com body
+    if (req.method === 'GET') {
+      const url = new URL(req.url);
+      ticker = url.searchParams.get('ticker');
+      range = url.searchParams.get('range') || '1y';
+      interval = url.searchParams.get('interval') || '1d';
+    } else if (req.method === 'POST') {
+      try {
+        const body = await req.json();
+        ticker = body.ticker || null;
+        range = body.range || '1y';
+        interval = body.interval || '1d';
+      } catch {
+        // Se não conseguir parsear o body, continua com valores padrão
+        console.log('Could not parse body, checking query params');
+        const url = new URL(req.url);
+        ticker = url.searchParams.get('ticker');
+      }
+    }
 
     if (!ticker) {
       return new Response(

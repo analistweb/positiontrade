@@ -22,31 +22,24 @@ async function fetchAssetData(
   range: string,
   interval: string
 ): Promise<AssetData> {
+  // Use supabase.functions.invoke corretamente com query params
   const { data, error } = await supabase.functions.invoke('fetch-asset-data', {
-    body: null,
+    method: 'GET',
     headers: {
       'Content-Type': 'application/json',
     },
+    body: { ticker, range, interval },
   });
 
-  // Use query params via URL
-  const response = await fetch(
-    `https://gunkkcdtsibxhspkjweu.supabase.co/functions/v1/fetch-asset-data?ticker=${encodeURIComponent(ticker)}&range=${range}&interval=${interval}`,
-    {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`,
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1bmtrY2R0c2lieGhzcGtqd2V1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2MzczNjYsImV4cCI6MjA3OTIxMzM2Nn0.RH2aHJWwPF9a6mxSMl5j3q-VOha2KMp5_Ceg-i53B0c',
-      },
-    }
-  );
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Erro ao buscar dados: ${response.statusText}`);
+  if (error) {
+    throw new Error(error.message || 'Erro ao buscar dados do ativo');
   }
 
-  return response.json();
+  if (!data) {
+    throw new Error('Nenhum dado retornado');
+  }
+
+  return data as AssetData;
 }
 
 export function usePositionAnalysis(

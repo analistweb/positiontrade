@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Target, AlertCircle, TrendingUp } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -16,7 +17,16 @@ import {
 } from '@/components/position';
 
 export default function AnalisePosicao() {
+  const [searchParams] = useSearchParams();
   const { data, isLoading, error, analyze, ticker } = usePositionAnalysis();
+  
+  // Auto-analyze se vier ticker via URL
+  useEffect(() => {
+    const tickerParam = searchParams.get('ticker');
+    if (tickerParam && tickerParam !== ticker) {
+      analyze(tickerParam);
+    }
+  }, [searchParams, analyze, ticker]);
   
   const hasResults = !!data || isLoading || !!error;
 
