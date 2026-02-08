@@ -25,20 +25,49 @@ export default function CustomLogin() {
     setError('');
 
     try {
-      // Primeiro, chama Edge Function para validar status da conta
+      // Chama Edge Function para validar status da conta e autenticar
       const { data: validationData, error: validationError } = await supabase.functions.invoke('auth-custom-login', {
         body: { email, password }
       });
 
-      if (validationError) throw validationError;
+      // Tratar erros da Edge Function
+      if (validationError) {
+        console.error('Edge Function error:', validationError);
+        // Se for erro de rede ou conexão
+        if (validationError.message?.includes('Failed to send') || validationError.message?.includes('non-2xx')) {
+          setError('Erro de conexão. Tente novamente.');
+          toast.error('Erro de conexão');
+          return;
+        }
+        throw validationError;
+      }
 
-      if (validationData.error) {
+      // Se a resposta contiver erro
+      if (validationData?.error) {
         setError(validationData.error);
         toast.error(validationData.error);
         return;
       }
 
-      // Se validação passou, estabelece sessão com Supabase
+      // Se não tiver dados de usuário, usar signInWithPassword diretamente
+      if (!validationData?.user) {
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (authError) {
+          setError('Credenciais inválidas');
+          toast.error('Credenciais inválidas');
+          return;
+        }
+        
+        toast.success('Login realizado com sucesso!');
+        navigate('/');
+        return;
+      }
+
+      // Se validação passou, estabelece sessão com Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password
