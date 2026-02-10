@@ -201,7 +201,7 @@ const SinaisTrade = () => {
               <CardHeader className="pb-3 border-b border-border/50 bg-gradient-to-r from-primary/5 to-transparent">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Activity className="w-4 h-4 text-primary" />
-                  ​As análises compartilhadas refletem apenas a minha visão pessoal do mercado e não constituem recomendação de compra ou venda de ativos financeiros. Investimentos envolvem risco e cada operador é responsável por suas próprias decisões.  
+                           ​As análises compartilhadas não constituem recomendação de compra ou venda de ativos financeiros. Investimentos envolvem risco e cada operador é responsável por suas próprias decisões.                                   
                   <Badge className="version-badge version-badge-active ml-2">
                     v{STRATEGY_CONFIG.version}
                   </Badge>
