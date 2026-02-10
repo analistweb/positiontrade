@@ -3,21 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { 
-  ArrowUpCircle, 
-  ArrowDownCircle, 
-  Clock, 
-  Target, 
-  Shield, 
-  TrendingUp,
-  TrendingDown,
-  Activity,
-  X
-} from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, Clock, Target, Shield, TrendingUp, TrendingDown, Activity, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTradingStrategy } from '@/hooks/useTradingStrategy';
-
-const CryptoSignalCard = ({ symbol, onSignal }) => {
+const CryptoSignalCard = ({
+  symbol,
+  onSignal
+}) => {
   const {
     marketData,
     isLoading,
@@ -44,85 +36,71 @@ const CryptoSignalCard = ({ symbol, onSignal }) => {
       }
     }
   }, [lastSignal?.signalId, onSignal]);
-
   if (isLoading) {
-    return (
-      <Card className="animate-pulse">
+    return <Card className="animate-pulse">
         <CardHeader className="pb-2">
           <div className="h-6 bg-muted rounded w-24" />
         </CardHeader>
         <CardContent>
           <div className="h-12 bg-muted rounded" />
         </CardContent>
-      </Card>
-    );
+      </Card>;
   }
-
   if (error) {
-    return (
-      <Card className="border-danger/50">
+    return <Card className="border-danger/50">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
-            <span style={{ color: pairConfig.color }}>{pairConfig.icon}</span>
+            <span style={{
+            color: pairConfig.color
+          }}>{pairConfig.icon}</span>
             {pairConfig.shortName}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-xs text-danger">Erro ao carregar dados</p>
         </CardContent>
-      </Card>
-    );
+      </Card>;
   }
-
   const getStatusColor = () => {
     if (signalStatus === 'buy') return 'border-buy/50 bg-buy/5';
     if (signalStatus === 'sell') return 'border-sell/50 bg-sell/5';
     return 'border-border';
   };
-
   const getStatusBadge = () => {
     if (signalStatus === 'buy') {
-      return (
-        <Badge className="bg-buy text-buy-foreground animate-pulse">
+      return <Badge className="bg-buy text-buy-foreground animate-pulse">
           <ArrowUpCircle className="w-3 h-3 mr-1" />
-          COMPRA
-        </Badge>
-      );
+          ​Região de interesse
+        </Badge>;
     }
     if (signalStatus === 'sell') {
-      return (
-        <Badge className="bg-sell text-sell-foreground animate-pulse">
+      return <Badge className="bg-sell text-sell-foreground animate-pulse">
           <ArrowDownCircle className="w-3 h-3 mr-1" />
           VENDA
-        </Badge>
-      );
+        </Badge>;
     }
-    return (
-      <Badge variant="outline" className="text-muted-foreground">
+    return <Badge variant="outline" className="text-muted-foreground">
         <Clock className="w-3 h-3 mr-1" />
         Aguardando
-      </Badge>
-    );
+      </Badge>;
   };
-
-  const priceChange = marketData && marketData.length >= 2 
-    ? ((marketData[marketData.length - 1].close - marketData[0].close) / marketData[0].close * 100).toFixed(2)
-    : 0;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
+  const priceChange = marketData && marketData.length >= 2 ? ((marketData[marketData.length - 1].close - marketData[0].close) / marketData[0].close * 100).toFixed(2) : 0;
+  return <motion.div initial={{
+    opacity: 0,
+    y: 20
+  }} animate={{
+    opacity: 1,
+    y: 0
+  }} transition={{
+    duration: 0.3
+  }}>
       <Card className={`transition-all duration-300 ${getStatusColor()}`}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <span 
-                className="text-xl font-bold" 
-                style={{ color: pairConfig.color }}
-              >
+              <span className="text-xl font-bold" style={{
+              color: pairConfig.color
+            }}>
                 {pairConfig.icon}
               </span>
               <span>{pairConfig.shortName}</span>
@@ -137,7 +115,9 @@ const CryptoSignalCard = ({ symbol, onSignal }) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-2xl font-bold">
-                ${currentPrice.toLocaleString('en-US', { minimumFractionDigits: pairConfig.decimals })}
+                ${currentPrice.toLocaleString('en-US', {
+                minimumFractionDigits: pairConfig.decimals
+              })}
               </p>
               <p className={`text-xs flex items-center gap-1 ${parseFloat(priceChange) >= 0 ? 'text-buy' : 'text-sell'}`}>
                 {parseFloat(priceChange) >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
@@ -146,8 +126,7 @@ const CryptoSignalCard = ({ symbol, onSignal }) => {
             </div>
             
             {/* Força do Sinal */}
-            {conditionsStatus?.marketStrength && (
-              <TooltipProvider>
+            {conditionsStatus?.marketStrength && <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger>
                     <div className="text-center">
@@ -161,29 +140,26 @@ const CryptoSignalCard = ({ symbol, onSignal }) => {
                     <p>Força do mercado (mínimo: 70)</p>
                   </TooltipContent>
                 </Tooltip>
-              </TooltipProvider>
-            )}
+              </TooltipProvider>}
           </div>
 
           {/* Operação Ativa */}
           <AnimatePresence>
-            {activeOperation && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="p-3 rounded-lg bg-elevated border border-border"
-              >
+            {activeOperation && <motion.div initial={{
+            opacity: 0,
+            height: 0
+          }} animate={{
+            opacity: 1,
+            height: 'auto'
+          }} exit={{
+            opacity: 0,
+            height: 0
+          }} className="p-3 rounded-lg bg-elevated border border-border">
                 <div className="flex items-center justify-between mb-2">
                   <Badge variant={activeOperation.type === 'COMPRA' ? 'default' : 'destructive'}>
                     {activeOperation.type} ATIVA
                   </Badge>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    onClick={cancelOperation}
-                    className="h-6 px-2"
-                  >
+                  <Button size="sm" variant="ghost" onClick={cancelOperation} className="h-6 px-2">
                     <X className="w-3 h-3" />
                   </Button>
                 </div>
@@ -211,25 +187,20 @@ const CryptoSignalCard = ({ symbol, onSignal }) => {
                 <div className="mt-2">
                   <div className="relative h-2 bg-muted rounded-full overflow-hidden">
                     {(() => {
-                      const entry = activeOperation.entryPrice;
-                      const tp = activeOperation.takeProfit;
-                      const sl = activeOperation.stopLoss;
-                      const current = currentPrice;
-                      
-                      const range = Math.abs(tp - sl);
-                      const progress = activeOperation.type === 'COMPRA'
-                        ? ((current - sl) / range) * 100
-                        : ((sl - current) / range) * 100;
-                      
-                      return (
-                        <motion.div
-                          className={`absolute h-full ${progress > 50 ? 'bg-buy' : 'bg-sell'}`}
-                          initial={{ width: 0 }}
-                          animate={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-                          transition={{ duration: 0.3 }}
-                        />
-                      );
-                    })()}
+                  const entry = activeOperation.entryPrice;
+                  const tp = activeOperation.takeProfit;
+                  const sl = activeOperation.stopLoss;
+                  const current = currentPrice;
+                  const range = Math.abs(tp - sl);
+                  const progress = activeOperation.type === 'COMPRA' ? (current - sl) / range * 100 : (sl - current) / range * 100;
+                  return <motion.div className={`absolute h-full ${progress > 50 ? 'bg-buy' : 'bg-sell'}`} initial={{
+                    width: 0
+                  }} animate={{
+                    width: `${Math.min(100, Math.max(0, progress))}%`
+                  }} transition={{
+                    duration: 0.3
+                  }} />;
+                })()}
                   </div>
                   <div className="flex justify-between text-xs mt-1">
                     <span className="text-sell">SL</span>
@@ -237,13 +208,11 @@ const CryptoSignalCard = ({ symbol, onSignal }) => {
                     <span className="text-buy">TP</span>
                   </div>
                 </div>
-              </motion.div>
-            )}
+              </motion.div>}
           </AnimatePresence>
 
           {/* Indicadores Rápidos */}
-          {conditionsStatus && !activeOperation && (
-            <div className="grid grid-cols-4 gap-1 text-xs">
+          {conditionsStatus && !activeOperation && <div className="grid grid-cols-4 gap-1 text-xs">
               <div className={`p-1 rounded text-center ${conditionsStatus.dmi.adx > 25 ? 'bg-buy/10 text-buy' : 'bg-muted text-muted-foreground'}`}>
                 ADX: {conditionsStatus.dmi.adx?.toFixed(0)}
               </div>
@@ -256,12 +225,9 @@ const CryptoSignalCard = ({ symbol, onSignal }) => {
               <div className={`p-1 rounded text-center ${conditionsStatus.filters.volume ? 'bg-buy/10 text-buy' : 'bg-muted text-muted-foreground'}`}>
                 Vol: {conditionsStatus.filters.volume ? '✓' : '✗'}
               </div>
-            </div>
-          )}
+            </div>}
         </CardContent>
       </Card>
-    </motion.div>
-  );
+    </motion.div>;
 };
-
 export default CryptoSignalCard;

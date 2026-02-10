@@ -6,47 +6,24 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Radio, 
-  Activity, 
-  Bell, 
-  Volume2, 
-  VolumeX,
-  ArrowUpCircle,
-  ArrowDownCircle,
-  Clock,
-  Target,
-  Shield,
-  TrendingUp,
-  Settings2,
-  Zap,
-  BarChart3,
-  Layers,
-  CheckCircle2,
-  XCircle,
-  GitBranch
-} from 'lucide-react';
+import { Radio, Activity, Bell, Volume2, VolumeX, ArrowUpCircle, ArrowDownCircle, Clock, Target, Shield, TrendingUp, Settings2, Zap, BarChart3, Layers, CheckCircle2, XCircle, GitBranch } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import CryptoSignalCard from '@/components/trading/CryptoSignalCard';
 import ConnectionStatus from '@/components/strategy/ConnectionStatus';
 import { SUPPORTED_PAIRS } from '@/services/tradingService';
 import { defaultStrategyConfig as STRATEGY_CONFIG, getAllVersions, ACTIVE_VERSION } from '@/config/strategyConfig';
-
 const SinaisTrade = () => {
   const [selectedPairs, setSelectedPairs] = useState(['BTCUSDT', 'ETHUSDT']);
   const [allSignals, setAllSignals] = useState([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [activeTab, setActiveTab] = useState('signals');
-  
   const audioRef = useRef({
     buy: typeof Audio !== 'undefined' ? new Audio('/sounds/buy.mp3') : null,
     sell: typeof Audio !== 'undefined' ? new Audio('/sounds/sell.mp3') : null
   });
-
-  const handleNewSignal = (signal) => {
+  const handleNewSignal = signal => {
     setAllSignals(prev => [signal, ...prev].slice(0, 100));
-    
     if (soundEnabled) {
       try {
         const soundType = signal.type === 'COMPRA' ? 'buy' : 'sell';
@@ -55,16 +32,11 @@ const SinaisTrade = () => {
         console.log('Audio não suportado');
       }
     }
-    
-    toast[signal.type === 'COMPRA' ? 'success' : 'error'](
-      `${signal.symbol}: Sinal de ${signal.type}!`,
-      {
-        description: `Entrada: $${signal.entryPrice.toFixed(2)} | TP: $${signal.takeProfit.toFixed(2)} | SL: $${signal.stopLoss.toFixed(2)}`
-      }
-    );
+    toast[signal.type === 'COMPRA' ? 'success' : 'error'](`${signal.symbol}: Sinal de ${signal.type}!`, {
+      description: `Entrada: $${signal.entryPrice.toFixed(2)} | TP: $${signal.takeProfit.toFixed(2)} | SL: $${signal.stopLoss.toFixed(2)}`
+    });
   };
-
-  const togglePair = (symbol) => {
+  const togglePair = symbol => {
     setSelectedPairs(prev => {
       if (prev.includes(symbol)) {
         if (prev.length === 1) return prev;
@@ -73,14 +45,11 @@ const SinaisTrade = () => {
       return [...prev, symbol];
     });
   };
-
   const availablePairs = Object.keys(SUPPORTED_PAIRS);
   const versions = getAllVersions();
   const buySignals = allSignals.filter(s => s.type === 'COMPRA');
   const sellSignals = allSignals.filter(s => s.type === 'VENDA');
-
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       {/* Hero Header */}
       <div className="strategy-hero border-b border-border/50">
         <div className="strategy-hero-glow" />
@@ -89,11 +58,12 @@ const SinaisTrade = () => {
             {/* Left Section */}
             <div className="space-y-4">
               <div className="flex items-center gap-4">
-                <motion.div 
-                  className="relative"
-                  animate={{ scale: [1, 1.05, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
+                <motion.div className="relative" animate={{
+                scale: [1, 1.05, 1]
+              }} transition={{
+                duration: 2,
+                repeat: Infinity
+              }}>
                   <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary-muted flex items-center justify-center">
                     <Radio className="w-7 h-7 text-primary-foreground" />
                   </div>
@@ -101,9 +71,9 @@ const SinaisTrade = () => {
                 </motion.div>
                 
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Sinais de Trade</h1>
+                  <h1 className="text-2xl md:text-3xl font-bold tracking-tight">  ​Radar de Oportunidades   </h1>
                   <p className="text-sm text-muted-foreground">
-                    Estratégia Multi-Ativos em Tempo Real
+                     Setup Educacional  Multi-Ativos em Tempo Real
                   </p>
                 </div>
               </div>
@@ -142,25 +112,13 @@ const SinaisTrade = () => {
                 </div>
               </div>
 
-              <ConnectionStatus 
-                wsConnected={true}
-                apiStatus="ok"
-                lastUpdate={new Date()}
-              />
+              <ConnectionStatus wsConnected={true} apiStatus="ok" lastUpdate={new Date()} />
               
               {/* Sound Toggle */}
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
-                <Switch 
-                  id="sound" 
-                  checked={soundEnabled} 
-                  onCheckedChange={setSoundEnabled}
-                />
+                <Switch id="sound" checked={soundEnabled} onCheckedChange={setSoundEnabled} />
                 <Label htmlFor="sound" className="cursor-pointer">
-                  {soundEnabled ? (
-                    <Volume2 className="w-4 h-4 text-success" />
-                  ) : (
-                    <VolumeX className="w-4 h-4 text-muted-foreground" />
-                  )}
+                  {soundEnabled ? <Volume2 className="w-4 h-4 text-success" /> : <VolumeX className="w-4 h-4 text-muted-foreground" />}
                 </Label>
               </div>
             </div>
@@ -188,35 +146,23 @@ const SinaisTrade = () => {
               <CardContent className="p-4">
                 <div className="flex flex-wrap gap-2">
                   {availablePairs.map(symbol => {
-                    const pair = SUPPORTED_PAIRS[symbol];
-                    const isSelected = selectedPairs.includes(symbol);
-                    return (
-                      <motion.div
-                        key={symbol}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <Button
-                          variant={isSelected ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => togglePair(symbol)}
-                          className={`gap-2 transition-all duration-200 ${
-                            isSelected 
-                              ? 'shadow-md' 
-                              : 'hover:border-primary/50'
-                          }`}
-                          style={isSelected ? { 
-                            backgroundColor: pair.color,
-                            boxShadow: `0 4px 14px ${pair.color}40`
-                          } : {}}
-                        >
+                  const pair = SUPPORTED_PAIRS[symbol];
+                  const isSelected = selectedPairs.includes(symbol);
+                  return <motion.div key={symbol} whileHover={{
+                    scale: 1.02
+                  }} whileTap={{
+                    scale: 0.98
+                  }}>
+                        <Button variant={isSelected ? 'default' : 'outline'} size="sm" onClick={() => togglePair(symbol)} className={`gap-2 transition-all duration-200 ${isSelected ? 'shadow-md' : 'hover:border-primary/50'}`} style={isSelected ? {
+                      backgroundColor: pair.color,
+                      boxShadow: `0 4px 14px ${pair.color}40`
+                    } : {}}>
                           <span className="text-base">{pair.icon}</span>
                           <span className="font-semibold">{pair.shortName}</span>
                           {isSelected && <CheckCircle2 className="w-3 h-3" />}
                         </Button>
-                      </motion.div>
-                    );
-                  })}
+                      </motion.div>;
+                })}
                 </div>
               </CardContent>
             </Card>
@@ -224,27 +170,29 @@ const SinaisTrade = () => {
             {/* Signal Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <AnimatePresence mode="popLayout">
-                {selectedPairs.map((symbol, index) => (
-                  <motion.div
-                    key={symbol}
-                    layout
-                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                    transition={{ 
-                      duration: 0.3, 
-                      delay: index * 0.05,
-                      type: "spring",
-                      stiffness: 300,
-                      damping: 25
-                    }}
-                  >
-                    <CryptoSignalCard 
-                      symbol={symbol} 
-                      onSignal={handleNewSignal}
-                    />
-                  </motion.div>
-                ))}
+                {selectedPairs.map((symbol, index) => <motion.div key={symbol} layout initial={{
+                opacity: 0,
+                y: 20,
+                scale: 0.95
+              }} animate={{
+                opacity: 1,
+                y: 0,
+                scale: 1
+              }} exit={{
+                opacity: 0,
+                scale: 0.9,
+                transition: {
+                  duration: 0.2
+                }
+              }} transition={{
+                duration: 0.3,
+                delay: index * 0.05,
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}>
+                    <CryptoSignalCard symbol={symbol} onSignal={handleNewSignal} />
+                  </motion.div>)}
               </AnimatePresence>
             </div>
 
@@ -344,11 +292,9 @@ const SinaisTrade = () => {
                     <Bell className="w-4 h-4 text-primary" />
                     Histórico
                   </CardTitle>
-                  {allSignals.length > 0 && (
-                    <Badge variant="secondary" className="text-xs">
+                  {allSignals.length > 0 && <Badge variant="secondary" className="text-xs">
                       {allSignals.length}
-                    </Badge>
-                  )}
+                    </Badge>}
                 </div>
               </CardHeader>
               <CardContent className="p-0">
@@ -374,61 +320,48 @@ const SinaisTrade = () => {
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
 
 // Signal List Component
-const SignalList = ({ signals }) => {
+const SignalList = ({
+  signals
+}) => {
   if (signals.length === 0) {
-    return (
-      <div className="p-8 text-center">
+    return <div className="p-8 text-center">
         <Clock className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
         <p className="text-sm text-muted-foreground">Aguardando sinais...</p>
         <p className="text-xs text-muted-foreground/60 mt-1">
           Os sinais aparecerão aqui quando detectados
         </p>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <ScrollArea className="h-[500px]">
+  return <ScrollArea className="h-[500px]">
       <div className="divide-y divide-border/50">
         {signals.map((signal, idx) => {
-          const pair = SUPPORTED_PAIRS[signal.symbol];
-          const isBuy = signal.type === 'COMPRA';
-          
-          return (
-            <motion.div
-              key={`${signal.symbol}-${signal.timestamp}-${idx}`}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.02 }}
-              className={`p-3 transition-colors hover:bg-muted/50 ${
-                isBuy ? 'border-l-2 border-l-success' : 'border-l-2 border-l-danger'
-              }`}
-            >
+        const pair = SUPPORTED_PAIRS[signal.symbol];
+        const isBuy = signal.type === 'COMPRA';
+        return <motion.div key={`${signal.symbol}-${signal.timestamp}-${idx}`} initial={{
+          opacity: 0,
+          x: -20
+        }} animate={{
+          opacity: 1,
+          x: 0
+        }} transition={{
+          delay: idx * 0.02
+        }} className={`p-3 transition-colors hover:bg-muted/50 ${isBuy ? 'border-l-2 border-l-success' : 'border-l-2 border-l-danger'}`}>
               {/* Header */}
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span 
-                    className="text-lg"
-                    style={{ filter: `drop-shadow(0 0 4px ${pair?.color}80)` }}
-                  >
+                  <span className="text-lg" style={{
+                filter: `drop-shadow(0 0 4px ${pair?.color}80)`
+              }}>
                     {pair?.icon}
                   </span>
                   <span className="font-semibold text-sm">{pair?.shortName || signal.symbol}</span>
                 </div>
-                <Badge 
-                  variant={isBuy ? 'default' : 'destructive'}
-                  className="text-xs gap-1"
-                >
-                  {isBuy ? (
-                    <ArrowUpCircle className="w-3 h-3" />
-                  ) : (
-                    <ArrowDownCircle className="w-3 h-3" />
-                  )}
+                <Badge variant={isBuy ? 'default' : 'destructive'} className="text-xs gap-1">
+                  {isBuy ? <ArrowUpCircle className="w-3 h-3" /> : <ArrowDownCircle className="w-3 h-3" />}
                   {signal.type}
                 </Badge>
               </div>
@@ -457,12 +390,7 @@ const SignalList = ({ signals }) => {
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/30">
                 <span className="text-xs text-muted-foreground">{signal.timestamp}</span>
                 <div className="flex items-center gap-1.5">
-                  <div 
-                    className={`w-2 h-2 rounded-full ${
-                      signal.strength >= 70 ? 'bg-success' : 
-                      signal.strength >= 50 ? 'bg-warning' : 'bg-danger'
-                    }`} 
-                  />
+                  <div className={`w-2 h-2 rounded-full ${signal.strength >= 70 ? 'bg-success' : signal.strength >= 50 ? 'bg-warning' : 'bg-danger'}`} />
                   <span className="text-xs font-semibold text-primary">
                     {signal.strength}%
                   </span>
@@ -470,25 +398,13 @@ const SignalList = ({ signals }) => {
               </div>
               
               {/* Status Badge */}
-              {signal.status && (
-                <Badge 
-                  variant={signal.status === 'SUCESSO' ? 'default' : 'destructive'}
-                  className="mt-2 w-full justify-center text-xs"
-                >
-                  {signal.status === 'SUCESSO' ? (
-                    <CheckCircle2 className="w-3 h-3 mr-1" />
-                  ) : (
-                    <XCircle className="w-3 h-3 mr-1" />
-                  )}
+              {signal.status && <Badge variant={signal.status === 'SUCESSO' ? 'default' : 'destructive'} className="mt-2 w-full justify-center text-xs">
+                  {signal.status === 'SUCESSO' ? <CheckCircle2 className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
                   {signal.status} {signal.profit && `(${signal.profit}%)`}
-                </Badge>
-              )}
-            </motion.div>
-          );
-        })}
+                </Badge>}
+            </motion.div>;
+      })}
       </div>
-    </ScrollArea>
-  );
+    </ScrollArea>;
 };
-
 export default SinaisTrade;
