@@ -211,7 +211,7 @@ const SinaisTrade = () => {
                   <div className="space-y-3">
                     <h4 className="font-semibold text-sm flex items-center gap-2">
                       <Zap className="w-4 h-4 text-primary" />
-                      Núcleo da Estratégia
+                      Setup Educacional Núcleo da Estratégia
                     </h4>
                     <ul className="space-y-2 text-sm text-muted-foreground">
                       <li className="flex items-start gap-2">
