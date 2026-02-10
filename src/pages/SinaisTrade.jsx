@@ -199,7 +199,7 @@ const SinaisTrade = () => {
             {/* Strategy Info Card */}
             <Card className="overflow-hidden">
               <CardHeader className="pb-3 border-b border-border/50 bg-gradient-to-r from-primary/5 to-transparent">
-                <CardTitle className="text-base flex items-center gap-2 text-right">
+                <CardTitle className="text-base flex items-center gap-2 text-center">
                   <Activity className="w-4 h-4 text-primary" />
                            ​As análises compartilhadas não constituem recomendação de compra ou venda de ativos financeiros. Investimentos envolvem risco e cada operador é responsável por suas próprias decisões.                                   
                   
