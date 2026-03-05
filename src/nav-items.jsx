@@ -5,7 +5,7 @@ import AnalisesCompraVenda from "./pages/AnalisesCompraVenda.jsx";
 import PosicaoCarteira from "./pages/PosicaoCarteira.jsx";
 import FormacaoTopo from "./pages/FormacaoTopo.jsx";
 import AnaliseTecnica from "./pages/AnaliseTecnica.jsx";
-import SinaisTrade from "./pages/SinaisTrade.jsx";
+import Mercado ao Vivo from "./pages/SinaisTrade.jsx";
 import AnalisePosicao from "./pages/AnalisePosicao.tsx";
 import MarketSurveillance from "./pages/MarketSurveillance.tsx";
 
