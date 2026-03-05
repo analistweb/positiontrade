@@ -18,7 +18,7 @@ export const navItems = [
     description: "Visão geral do mercado com principais indicadores, tendências e notícias em tempo real"
   },
   {
-    title: "Sinais de Trade",
+    title: "Mercado ao Vivo",
     to: "/sinais-trade",
     icon: <Radio className="h-4 w-4" />,
     page: <SinaisTrade />,
