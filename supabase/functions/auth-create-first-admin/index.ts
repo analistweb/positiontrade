@@ -132,21 +132,26 @@ Deno.serve(async (req) => {
       console.log('User created successfully');
     }
 
-    // Update user profile to active
+    // Garante que existe linha em user_profiles (insert ou update)
+    const now = new Date().toISOString();
     const { error: profileError } = await supabaseAdmin
       .from('user_profiles')
-      .update({
-        status: 'active',
-        email_verified_at: new Date().toISOString()
-      })
-      .eq('user_id', userId);
+      .upsert(
+        {
+          user_id: userId,
+          status: 'active',
+          email_verified_at: now,
+          updated_at: now
+        },
+        { onConflict: 'user_id' }
+      );
 
     if (profileError) {
-      console.error('Error updating profile');
+      console.error('Error upserting profile', profileError);
       throw new Error('Erro ao atualizar perfil');
     }
 
-    console.log('Profile updated to active');
+    console.log('Profile upserted to active');
 
     // Add admin role
     const { error: roleError } = await supabaseAdmin

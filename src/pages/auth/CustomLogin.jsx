@@ -30,16 +30,24 @@ export default function CustomLogin() {
         body: { email, password }
       });
 
-      // Tratar erros da Edge Function
+      // Tratar erros da Edge Function (4xx/5xx ainda podem trazer mensagem no body)
       if (validationError) {
         console.error('Edge Function error:', validationError);
-        // Se for erro de rede ou conexão
-        if (validationError.message?.includes('Failed to send') || validationError.message?.includes('non-2xx')) {
+        const bodyMessage = validationData?.error;
+        const isNetworkError =
+          validationError.message?.includes('Failed to send') ||
+          validationError.message?.includes('non-2xx');
+        if (bodyMessage) {
+          setError(bodyMessage);
+          toast.error(bodyMessage);
+        } else if (isNetworkError) {
           setError('Erro de conexão. Tente novamente.');
           toast.error('Erro de conexão');
-          return;
+        } else {
+          setError(validationError.message || 'Erro ao fazer login');
+          toast.error(validationError.message || 'Erro ao fazer login');
         }
-        throw validationError;
+        return;
       }
 
       // Se a resposta contiver erro
@@ -154,6 +162,12 @@ export default function CustomLogin() {
                 Administrador?{' '}
                 <a href="/admin-panel" className="text-primary hover:underline">
                   Painel Admin
+                </a>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Primeira vez?{' '}
+                <a href="/create-first-admin" className="text-primary hover:underline">
+                  Criar primeiro administrador
                 </a>
               </p>
             </div>

@@ -36,8 +36,17 @@ export default function CreateFirstAdmin() {
       }
     } catch (err) {
       console.error('Erro ao criar admin:', err);
-      setError(err.message || 'Erro ao criar administrador');
+      const msg = err?.message || 'Erro ao criar administrador';
+      setError(msg);
       toast.error('Erro ao criar administrador');
+      // Ajuda quando a Edge Function não responde (404 = não publicada no projeto)
+      if (msg.includes('Failed to send') || err?.name === 'FunctionsFetchError') {
+        setError(
+          'Não foi possível contactar a Edge Function. ' +
+          'Confirme que você fez o deploy no projeto Supabase do seu .env: ' +
+          'no terminal execute "supabase link --project-ref SEU_PROJECT_REF" e depois "supabase functions deploy".'
+        );
+      }
     } finally {
       setLoading(false);
     }
