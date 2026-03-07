@@ -20,6 +20,9 @@ dist-ssr
 # Supabase CLI (cache/local após link)
 supabase/.temp/
 
+# Removido: pasta de terceiros
+.lovable
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

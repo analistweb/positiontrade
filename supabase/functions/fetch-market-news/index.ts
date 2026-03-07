@@ -21,22 +21,23 @@ interface TranslationResult {
   translations: string[];
 }
 
-// Translate texts using Lovable AI
+// Tradução via API compatível com OpenAI (ex.: OpenAI, Groq ou self-hosted)
 async function translateWithAI(texts: string[]): Promise<string[]> {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  
-  if (!LOVABLE_API_KEY || texts.length === 0) {
-    console.log("[fetch-market-news] No API key or empty texts, skipping AI translation");
+  const apiKey = Deno.env.get('AI_TRANSLATION_API_KEY');
+  const apiUrl = Deno.env.get('AI_TRANSLATION_API_URL');
+
+  if (!apiKey || !apiUrl || texts.length === 0) {
+    console.log("[fetch-market-news] No API key/URL or empty texts, skipping AI translation");
     return texts;
   }
 
   try {
     console.log(`[fetch-market-news] Translating ${texts.length} texts with AI...`);
-    
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

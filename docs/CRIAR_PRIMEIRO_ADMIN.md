@@ -2,12 +2,12 @@
 
 Este guia explica como criar o primeiro usuário administrador do sistema.
 
-## Método: Via Lovable Cloud Backend
+## Método: Via painel Supabase
 
 ### Passo 1: Criar Usuário no Auth
 
-1. Acesse o backend do Lovable Cloud
-2. Vá em **Users & Authentication** → **Users**
+1. Acesse o [Dashboard do Supabase](https://supabase.com/dashboard) e abra seu projeto
+2. Vá em **Authentication** → **Users**
 3. Clique em **Add User**
 4. Preencha:
    - **Email**: admin@seudominio.com (use um email real que você controla)
@@ -18,7 +18,7 @@ Este guia explica como criar o primeiro usuário administrador do sistema.
 
 ### Passo 2: Executar SQL para Promover a Admin
 
-1. No Lovable Cloud Backend, vá em **Database** → **SQL Editor**
+1. No painel do Supabase, vá em **SQL Editor**
 2. Cole o script abaixo, **substituindo** `SEU_USER_ID_AQUI` pelo UUID que você copiou:
 
 ```sql

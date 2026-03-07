@@ -244,8 +244,8 @@ SET status = 'active'
 WHERE user_id = 'uuid-do-primeiro-admin';
 ```
 
-Alternativamente, use o painel do Lovable Cloud:
-1. Vá para **Backend** → **Database** → **Tables**
+Alternativamente, use o painel do Supabase:
+1. Vá para **Table Editor** (ou **Database** → **Tables**)
 2. Crie um usuário em `auth.users` (ou use o existente)
 3. Insira uma linha em `user_roles` com `role = 'admin'`
 4. Atualize `user_profiles` para `status = 'active'`

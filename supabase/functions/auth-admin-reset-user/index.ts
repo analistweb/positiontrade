@@ -169,10 +169,10 @@ serve(async (req) => {
         siteUrl = new URL(origin).origin;
         console.log('[auth-admin-reset-user] Using origin from request:', siteUrl);
       } catch {
-        siteUrl = Deno.env.get('SITE_URL') || 'https://compraouvenda.lovable.app';
+        siteUrl = Deno.env.get('SITE_URL') || 'http://localhost:8080';
       }
     } else {
-      siteUrl = Deno.env.get('SITE_URL') || 'https://compraouvenda.lovable.app';
+      siteUrl = Deno.env.get('SITE_URL') || 'http://localhost:8080';
     }
     const resetUrl = `${siteUrl}/set-password?token=${resetToken}`;
 

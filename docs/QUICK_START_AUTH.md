@@ -6,7 +6,7 @@
 
 **Opção A: Via SQL (recomendado)**
 
-Execute no SQL Editor do Lovable Cloud:
+Execute no SQL Editor do Supabase (Dashboard do projeto):
 
 ```sql
 -- Substitua 'admin@example.com' pelo email desejado
@@ -63,9 +63,9 @@ BEGIN
 END $$;
 ```
 
-**Opção B: Via Interface do Lovable Cloud**
+**Opção B: Via interface do Supabase**
 
-1. Abra **Backend** → **Database** → **auth.users**
+1. Abra o projeto no Dashboard → **Authentication** → **Users** (e/ou **Table Editor** → **auth.users**)
 2. Crie um usuário manualmente
 3. Copie o `id` do usuário
 4. Em **user_profiles**: Atualize `status = 'active'`
@@ -138,7 +138,7 @@ END $$;
 
 ### Listar Functions Deployadas
 
-Vá para **Backend** → **Edge Functions** e veja:
+No Dashboard do Supabase, vá em **Edge Functions** e veja:
 
 - ✅ auth-register
 - ✅ auth-verify-email
