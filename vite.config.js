@@ -5,18 +5,20 @@ import { resolve } from "path";
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({ mode }) => ({
+  base: "/positiontrade/", // 👈 ADICIONE ESTA LINHA
+
   server: {
     host: "::",
     port: "8080",
   },
+
   plugins: [
     react(),
-    // PWA desativado no build por padrão (workbox/terser causa "Unexpected early exit"). Para ativar: VITE_ENABLE_PWA=true npm run build
     process.env.VITE_ENABLE_PWA === 'true' && VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024 // 5 MB
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024
       },
       devOptions: { enabled: false },
       manifest: {
